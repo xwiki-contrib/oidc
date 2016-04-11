@@ -1,2 +1,2 @@
-# identity-provider
-Make XWiki an identity provider that can be reused by any application
+# oidc
+Various tools to manupulate OpenId Connect protocol in XWiki
