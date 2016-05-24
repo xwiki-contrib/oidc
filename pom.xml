@@ -26,15 +26,26 @@
   <modelVersion>4.0.0</modelVersion>
   <parent>
     <groupId>org.xwiki.contrib</groupId>
-    <artifactId>parent</artifactId>
-    <version>7.4</version>
+    <artifactId>parent-platform</artifactId>
+    <version>7.4-1</version>
   </parent>
 
+  <groupId>org.xwiki.contrib.oidc</groupId>
   <artifactId>oidc</artifactId>
   <name>OpenId Connect tools</name>
   <version>1.0-SNAPSHOT</version>
   <packaging>pom</packaging>
-  <description>Various tools to manupulate OpenId Connect protocol in XWiki</description>
+  <description>Various tools to manipulate OpenId Connect protocol in XWiki</description>
+
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>com.nimbusds</groupId>
+        <artifactId>oauth2-oidc-sdk</artifactId>
+        <version>5.8.1</version>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
 
   <modules>
     <module>oidc-provider</module>
@@ -51,9 +62,9 @@
   </developers>
 
   <scm>
-    <connection>scm:git:git://github.com/xwiki-contrib/identity-provider.git</connection>
-    <developerConnection>scm:git:git@github.com:xwiki-contrib/identity-provider.git</developerConnection>
-    <url>https://github.com/xwiki-contrib/identity-provider</url>
+    <connection>scm:git:git://github.com/xwiki-contrib/oidc.git</connection>
+    <developerConnection>scm:git:git@github.com:xwiki-contrib/oidc.git</developerConnection>
+    <url>https://github.com/xwiki-contrib/oidc</url>
     <tag>HEAD</tag>
   </scm>
 </project>
