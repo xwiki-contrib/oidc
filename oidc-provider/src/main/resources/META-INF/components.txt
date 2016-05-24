@@ -1,0 +1,11 @@
+org.xwiki.contrib.oidc.provider.internal.OIDCManager
+org.xwiki.contrib.oidc.provider.internal.OIDCResourceReferenceHandler
+org.xwiki.contrib.oidc.provider.internal.OIDCResourceReferenceResolver
+org.xwiki.contrib.oidc.provider.internal.endpoint.AuthorizationOIDCEndpoint
+org.xwiki.contrib.oidc.provider.internal.endpoint.JWKOIDCEndpoint
+org.xwiki.contrib.oidc.provider.internal.endpoint.ConfigurationOIDCEnpoint
+org.xwiki.contrib.oidc.provider.internal.endpoint.TokenOIDCEndpoint
+org.xwiki.contrib.oidc.provider.internal.endpoint.UnknownOIDCEndpoint
+org.xwiki.contrib.oidc.provider.internal.endpoint.UserInfoOIDCEndpoint
+org.xwiki.contrib.oidc.provider.internal.store.OIDCStore
+org.xwiki.contrib.oidc.provider.internal.store.OIDCConsentClassDocumentInitializer
