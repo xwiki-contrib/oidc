@@ -28,8 +28,6 @@
         ## Make sure the answer actually come from the form
         <input type="hidden" name="form_token" value="$!{services.csrf.getToken()}" />
 
-$oidc $services
-
         ## Repeat input parameters
         #foreach ($entry in $oidc.httprequest.queryParameters.entrySet())
           #if ($entry.key != 'consent_accept' || $entry.key != 'consent_refuse' || $entry.key != 'form_token')
@@ -38,9 +36,13 @@ $oidc $services
         #end
 
         ## Ask the consent
-        <label>$services.localization.render('oidc.template.consent.question', [$oidc.request.redirectionURI()])
-          <input type="submit" name="consent_accept" value="$services.localization.render('oidc.template.consent.answer.accept')"/>
-          <input type="submit" name="consent_refuse" value="$services.localization.render('oidc.template.consent.answer.refuse')"/>
+        <label>
+          $escapeTool.html($services.localization.render('oidc.template.consent.question', [$oidc.request.redirectionURI()]))
+
+          <br/><br/>
+
+          <input type="submit" name="consent_accept" value="$escapeTool.xml($services.localization.render('oidc.template.consent.answer.accept'))"/>
+          <input type="submit" name="consent_refuse" value="$escapeTool.xml($services.localization.render('oidc.template.consent.answer.refuse'))"/>
         </label>
       </form>
     </div>

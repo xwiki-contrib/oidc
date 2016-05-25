@@ -96,14 +96,23 @@ public class AuthorizationOIDCEndpoint implements OIDCEndpoint
         // Authentication
         ///////////////////////////////////////////////////////
 
-        // TODO: deal with Prompt.Type.NONE (interactive auth forbidden)
-        // TODO: deal with Prompt.Type.LOGIN (automatic auth forbidden)
-
         // Authenticate
         XWikiUser user = xcontext.getWiki().checkAuth(xcontext);
         if (user == null) {
-            return new AuthenticationErrorResponse(request.getRedirectionURI(), OAuth2Error.ACCESS_DENIED,
-                request.getState(), null);
+            if (prompt(request, Prompt.Type.NONE)) {
+                // Interactive login is disabled but the user was not automatically authenticated
+                return new AuthenticationErrorResponse(request.getRedirectionURI(), OIDCError.INTERACTION_REQUIRED,
+                    request.getState(), null);
+            }
+
+            xcontext.getWiki().getAuthService().showLogin(xcontext);
+
+            return null;
+        } else if (prompt(request, Prompt.Type.LOGIN)) {
+            // Login is forced by the client
+            xcontext.getWiki().getAuthService().showLogin(xcontext);
+
+            return null;
         }
 
         // Set context user

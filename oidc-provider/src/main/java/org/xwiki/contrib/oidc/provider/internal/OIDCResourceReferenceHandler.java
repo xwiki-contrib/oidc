@@ -36,7 +36,6 @@ import org.xwiki.container.servlet.ServletRequest;
 import org.xwiki.container.servlet.ServletResponse;
 import org.xwiki.context.Execution;
 import org.xwiki.contrib.oidc.provider.internal.endpoint.OIDCEndpoint;
-import org.xwiki.contrib.oidc.provider.internal.util.OIDCServletUtils;
 import org.xwiki.resource.AbstractResourceReferenceHandler;
 import org.xwiki.resource.ResourceReference;
 import org.xwiki.resource.ResourceReferenceHandlerChain;
@@ -116,7 +115,7 @@ public class OIDCResourceReferenceHandler extends AbstractResourceReferenceHandl
         HttpServletResponse servletResponse) throws Exception
     {
         // Convert from Servlet http request to generic http request
-        HTTPRequest httpRequest = OIDCServletUtils.createHTTPRequest(httpServletRequest);
+        HTTPRequest httpRequest = ServletUtils.createHTTPRequest(httpServletRequest);
 
         Response response;
         if (this.componentManager.hasComponent(OIDCEndpoint.class, reference.getEndpoint())) {
@@ -131,11 +130,15 @@ public class OIDCResourceReferenceHandler extends AbstractResourceReferenceHandl
             response = this.unknown.handle(httpRequest, reference);
         }
 
-        // Create http response
-        HTTPResponse httpResponse = response.toHTTPResponse();
+        // response might be null if the handled already answered the client (for example a redirect to the login
+        // screen)
+        if (response != null) {
+            // Create http response
+            HTTPResponse httpResponse = response.toHTTPResponse();
 
-        // Apply generic http response to Sevlet http response
-        ServletUtils.applyHTTPResponse(httpResponse, servletResponse);
+            // Apply generic http response to Sevlet http response
+            ServletUtils.applyHTTPResponse(httpResponse, servletResponse);
+        }
     }
 
     protected void initializeXWikiContext(HttpServletRequest request, HttpServletResponse response)

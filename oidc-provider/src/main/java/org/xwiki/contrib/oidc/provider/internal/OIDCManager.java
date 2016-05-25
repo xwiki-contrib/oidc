@@ -30,6 +30,7 @@ import java.util.concurrent.Callable;
 import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
+import javax.servlet.http.HttpServletResponse;
 
 import org.apache.commons.io.IOUtils;
 import org.joda.time.LocalDateTime;
@@ -42,15 +43,14 @@ import org.xwiki.template.TemplateManager;
 
 import com.nimbusds.jwt.JWT;
 import com.nimbusds.jwt.PlainJWT;
-import com.nimbusds.oauth2.sdk.OAuth2Error;
 import com.nimbusds.oauth2.sdk.ParseException;
 import com.nimbusds.oauth2.sdk.Response;
 import com.nimbusds.oauth2.sdk.http.HTTPResponse;
+import com.nimbusds.oauth2.sdk.http.ServletUtils;
 import com.nimbusds.oauth2.sdk.id.Audience;
 import com.nimbusds.oauth2.sdk.id.ClientID;
 import com.nimbusds.oauth2.sdk.id.Issuer;
 import com.nimbusds.oauth2.sdk.id.Subject;
-import com.nimbusds.openid.connect.sdk.AuthenticationErrorResponse;
 import com.nimbusds.openid.connect.sdk.AuthenticationRequest;
 import com.nimbusds.openid.connect.sdk.Nonce;
 import com.nimbusds.openid.connect.sdk.claims.IDTokenClaimsSet;
@@ -188,11 +188,10 @@ public class OIDCManager
      * Run a template and generate a HTML content response.
      * 
      * @param templateName the name of the template
-     * @param request the input request
      * @return the HTML content response
      * @throws Exception when failing to execute the template
      */
-    public Response executeTemplate(String templateName, AuthenticationRequest request) throws Exception
+    public Response executeTemplate(String templateName) throws Exception
     {
         // Search overwritten template
         Template template = this.templates.getTemplate(templateName);
@@ -204,12 +203,31 @@ public class OIDCManager
         // Search default template
         try (InputStream stream = getClass().getResourceAsStream('/' + templateName)) {
             if (stream == null) {
-                return new AuthenticationErrorResponse(request.getRedirectionURI(), OAuth2Error.UNAUTHORIZED_CLIENT,
-                    request.getState(), null);
+                throw new OIDCException("Failed to find template [" + templateName + "]");
             }
 
             return evaluateContent(IOUtils.toString(stream));
         }
+    }
+
+    /**
+     * Run a template and generate a HTML content response.
+     * 
+     * @param templateName the name of the template
+     * @param request the input request
+     * @return the HTML content response
+     * @throws Exception when failing to execute the template
+     */
+    public Response executeTemplate(String templateName, AuthenticationRequest request) throws Exception
+    {
+        return executeTemplate(templateName);
+    }
+
+    public void executeTemplate(String templateName, HttpServletResponse servletResponse) throws Exception
+    {
+        Response response = executeTemplate(templateName);
+
+        ServletUtils.applyHTTPResponse(response.toHTTPResponse(), servletResponse);
     }
 
     private Response executeTemplate(Template template) throws Exception
