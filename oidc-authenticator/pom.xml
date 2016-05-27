@@ -25,17 +25,39 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
   <modelVersion>4.0.0</modelVersion>
   <parent>
-    <groupId>org.xwiki.contrib</groupId>
+    <groupId>org.xwiki.contrib.oidc</groupId>
     <artifactId>oidc</artifactId>
     <version>1.0-SNAPSHOT</version>
   </parent>
 
   <artifactId>oidc-authenticator</artifactId>
   <name>OpenId Connect</name>
-  <packaging>xar</packaging>
+  <packaging>jar</packaging>
   <description>Allow an XWiki instance to authenticate on an OpenId Connect provider</description>
 
   <dependencies>
-
+    <dependency>
+      <groupId>org.xwiki.platform</groupId>
+      <artifactId>xwiki-platform-oldcore</artifactId>
+      <version>${platform.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.xwiki.platform</groupId>
+      <artifactId>xwiki-platform-instance</artifactId>
+      <version>${platform.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>javax.servlet</groupId>
+      <artifactId>javax.servlet-api</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.nimbusds</groupId>
+      <artifactId>oauth2-oidc-sdk</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.xwiki.contrib.oidc</groupId>
+      <artifactId>oidc-provider</artifactId>
+      <version>${project.version}</version>
+    </dependency>
   </dependencies>
 </project>
