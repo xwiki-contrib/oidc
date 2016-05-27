@@ -128,8 +128,8 @@ public class AuthorizationOIDCEndpoint implements OIDCEndpoint
 
         // Get current consent for provided client id
         OIDCConsent consent = this.store.getConsent(clientID, request.getRedirectionURI(), null);
-
-        // Check if consent is already granted
+        
+        // TODO: Check if claims are the same
         if (consent == null || prompt(request, Prompt.Type.CONSENT)) {
             // Impossible to validate consent without user interaction
             if (prompt(request, Prompt.Type.NONE)) {
@@ -154,29 +154,28 @@ public class AuthorizationOIDCEndpoint implements OIDCEndpoint
 
             consent.setClientID(clientID);
             consent.setRedirectURI(request.getRedirectionURI());
-
-            // Generate authorization code or tokens depending on the response type
-            if (request.getResponseType().impliesCodeFlow()) {
-                consent.setAuthorizationCode(new AuthorizationCode());
-                consent.setAccessToken(null);
-            } else if (request.getResponseType().impliesImplicitFlow()) {
-                consent.setAuthorizationCode(null);
-                consent.setAccessToken(new BearerAccessToken());
-                idToken = this.manager.createdIdToken(clientID, consent.getUserReference(), request.getNonce());
-            }
-
-            // Save consent
-            this.store.saveConsent(consent, "Add new OIDC consent");
-        } else {
-            // Generate id token in case of implicit flow
-            if (request.getResponseType().impliesImplicitFlow()) {
-                idToken = this.manager.createdIdToken(clientID, consent.getUserReference(), request.getNonce());
-            }
         }
 
+        // Generate authorization code or tokens depending on the response type
+        if (request.getResponseType().impliesCodeFlow()) {
+            consent.setAuthorizationCode(new AuthorizationCode());
+        } else if (request.getResponseType().impliesImplicitFlow()) {
+            consent.setAccessToken(new BearerAccessToken());
+            idToken = this.manager.createdIdToken(clientID, consent.getUserReference(), request.getNonce());
+        }
+
+        // Save consent
+        // TODO: do we really have to generate a new code each time this end point is called ?
+        this.store.saveConsent(consent, "Add new OIDC consent");
+
         // Create response
-        return new AuthenticationSuccessResponse(request.getRedirectionURI(), consent.getAuthorizationCode(), idToken,
-            consent.getAccessToken(), request.getState(), null, null);
+        if (request.getResponseType().impliesCodeFlow()) {
+            return new AuthenticationSuccessResponse(request.getRedirectionURI(), consent.getAuthorizationCode(), null,
+                null, request.getState(), null, null);
+        } else {
+            return new AuthenticationSuccessResponse(request.getRedirectionURI(), null, idToken,
+                consent.getAccessToken(), request.getState(), null, null);
+        }
     }
 
     private boolean prompt(AuthenticationRequest request, Prompt.Type type)
