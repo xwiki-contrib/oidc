@@ -120,7 +120,7 @@ public class OIDCManager
             base.append(webAppPath);
         }
 
-        base.append("oicd/");
+        base.append("oidc/");
 
         return createEndPointURI(base.toString(), endpoint);
     }

@@ -24,7 +24,7 @@
   </head>
   <body>
     <div id="content">
-      <form >
+      <form class="xform">
         ## Make sure the answer actually come from the form
         <input type="hidden" name="form_token" value="$!{services.csrf.getToken()}" />
 
@@ -37,12 +37,12 @@
 
         ## Ask the consent
         <label>
-          $escapeTool.html($services.localization.render('oidc.template.consent.question', [$oidc.request.redirectionURI()]))
+          $escapetool.xml($services.localization.render('oidc.template.consent.question', [$oidc.request.redirectionURI]))
 
           <br/><br/>
 
-          <input type="submit" name="consent_accept" value="$escapeTool.xml($services.localization.render('oidc.template.consent.answer.accept'))"/>
-          <input type="submit" name="consent_refuse" value="$escapeTool.xml($services.localization.render('oidc.template.consent.answer.refuse'))"/>
+          <input type="submit" name="consent_accept" value="$escapetool.xml($services.localization.render('oidc.template.consent.answer.accept'))"/>
+          <input type="submit" name="consent_refuse" value="$escapetool.xml($services.localization.render('oidc.template.consent.answer.refuse'))"/>
         </label>
       </form>
     </div>

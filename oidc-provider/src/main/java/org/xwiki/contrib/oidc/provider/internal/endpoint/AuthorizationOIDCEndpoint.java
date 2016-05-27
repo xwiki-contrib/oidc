@@ -34,6 +34,7 @@ import org.xwiki.contrib.oidc.provider.internal.OIDCResourceReference;
 import org.xwiki.contrib.oidc.provider.internal.store.OIDCConsent;
 import org.xwiki.contrib.oidc.provider.internal.store.OIDCConsentClassDocumentInitializer;
 import org.xwiki.contrib.oidc.provider.internal.store.OIDCStore;
+import org.xwiki.contrib.oidc.provider.internal.util.StoreUtils;
 import org.xwiki.csrf.CSRFToken;
 import org.xwiki.script.ScriptContextManager;
 
@@ -146,8 +147,8 @@ public class AuthorizationOIDCEndpoint implements OIDCEndpoint
             }
 
             // Create new consent
-            consent = (OIDCConsent) this.store.getUserDocument()
-                .newXObject(OIDCConsentClassDocumentInitializer.REFERENCE, xcontext);
+            consent = StoreUtils.newCustomObject(this.store.getUserDocument(),
+                OIDCConsentClassDocumentInitializer.REFERENCE, xcontext, OIDCConsent.class);
 
             // TODO: store the claims in the consent
 

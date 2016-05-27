@@ -70,6 +70,8 @@
               org/xwiki/contrib/oidc/provider/internal/OIDCManager.java,
               org/xwiki/contrib/oidc/provider/internal/OIDCResourceReferenceHandler.java,
               org/xwiki/contrib/oidc/provider/internal/util/OIDCServletUtils.java,
+              org/xwiki/contrib/oidc/provider/internal/endpoint/AuthorizationOIDCEndpoint.java,
+              org/xwiki/contrib/oidc/provider/internal/util/StoreUtils.java
           </excludes>
         </configuration>
       </plugin>

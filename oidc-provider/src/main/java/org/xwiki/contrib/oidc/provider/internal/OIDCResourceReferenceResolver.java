@@ -58,6 +58,9 @@ public class OIDCResourceReferenceResolver extends AbstractResourceReferenceReso
             StringBuilder pathBuilder = new StringBuilder();
             try {
                 for (String pathSegment : extendedURL.getSegments()) {
+                    if (pathBuilder.length() > 0) {
+                        pathBuilder.append('/');
+                    }
                     pathBuilder.append(URLEncoder.encode(pathSegment, "UTF8"));
                 }
             } catch (UnsupportedEncodingException e) {

@@ -32,6 +32,7 @@ import javax.inject.Singleton;
 
 import org.apache.commons.lang3.StringUtils;
 import org.xwiki.component.annotation.Component;
+import org.xwiki.contrib.oidc.provider.internal.util.StoreUtils;
 import org.xwiki.model.reference.DocumentReference;
 import org.xwiki.model.reference.DocumentReferenceResolver;
 import org.xwiki.query.Query;
@@ -66,10 +67,9 @@ public class OIDCStore
         XWikiContext xcontext = this.xcontextProvider.get();
 
         XWikiDocument userDocument = xcontext.getWiki().getDocument(userReference, xcontext);
-        for (BaseObject xobject : userDocument.getXObjects(OIDCConsentClassDocumentInitializer.REFERENCE)) {
-            if (xobject != null) {
-                OIDCConsent consent = (OIDCConsent) xobject;
-
+        for (OIDCConsent consent : StoreUtils.getCustomObjects(userDocument,
+            OIDCConsentClassDocumentInitializer.REFERENCE, OIDCConsent.class)) {
+            if (consent != null) {
                 if (clientID.equals(consent.getClientID())
                     && (redirectURI == null || redirectURI.equals(consent.getRedirectURI()))) {
                     return consent;
@@ -116,8 +116,7 @@ public class OIDCStore
         DocumentReference userReference = this.resolver.resolve((String) user[0]);
         XWikiDocument userDocument = xcontext.getWiki().getDocument(userReference, xcontext);
 
-        return (OIDCConsent) userDocument.getXObject(OIDCConsentClassDocumentInitializer.REFERENCE,
-            ((Number) user[1]).intValue());
+        return StoreUtils.getCustomObject(userDocument, ((Number) user[1]).intValue(), OIDCConsent.class);
     }
 
     public OIDCConsent getConsent(AccessToken accessToken) throws QueryException, XWikiException
