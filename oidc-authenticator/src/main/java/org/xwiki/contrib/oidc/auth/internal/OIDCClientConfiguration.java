@@ -17,7 +17,7 @@
  * Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
  */
-package com.xwiki.oidc.auth.internal;
+package org.xwiki.contrib.oidc.auth.internal;
 
 import java.net.MalformedURLException;
 import java.net.URI;

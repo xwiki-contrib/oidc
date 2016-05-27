@@ -1,4 +1,4 @@
-com.xwiki.oidc.auth.internal.OIDCClientConfiguration
-com.xwiki.oidc.auth.internal.endpoint.CallbackOIDCEndpoint
-com.xwiki.oidc.auth.internal.store.OIDCUserClassDocumentInitializer
-com.xwiki.oidc.auth.internal.store.OIDCUserStore
+org.xwiki.contrib.oidc.auth.internal.OIDCClientConfiguration
+org.xwiki.contrib.oidc.auth.internal.endpoint.CallbackOIDCEndpoint
+org.xwiki.contrib.oidc.auth.internal.store.OIDCUserClassDocumentInitializer
+org.xwiki.contrib.oidc.auth.internal.store.OIDCUserStore

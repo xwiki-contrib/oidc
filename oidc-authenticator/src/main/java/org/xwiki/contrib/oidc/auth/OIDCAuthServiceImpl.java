@@ -17,7 +17,7 @@
  * Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
  */
-package com.xwiki.oidc.auth;
+package org.xwiki.contrib.oidc.auth;
 
 import java.io.IOException;
 import java.lang.reflect.Type;
@@ -28,6 +28,8 @@ import java.net.URL;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.xwiki.contrib.oidc.auth.internal.OIDCClientConfiguration;
+import org.xwiki.contrib.oidc.auth.internal.endpoint.CallbackOIDCEndpoint;
 import org.xwiki.contrib.oidc.provider.internal.OIDCManager;
 import org.xwiki.model.reference.DocumentReferenceResolver;
 import org.xwiki.model.reference.EntityReferenceSerializer;
@@ -46,8 +48,6 @@ import com.xpn.xwiki.user.api.XWikiUser;
 import com.xpn.xwiki.user.impl.xwiki.XWikiAuthServiceImpl;
 import com.xpn.xwiki.web.Utils;
 import com.xpn.xwiki.web.XWikiRequest;
-import com.xwiki.oidc.auth.internal.OIDCClientConfiguration;
-import com.xwiki.oidc.auth.internal.endpoint.CallbackOIDCEndpoint;
 
 /**
  * Authenticate user trough an OpenId Connect provider.
