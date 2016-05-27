@@ -128,7 +128,10 @@ public class CallbackOIDCEndpoint implements OIDCEndpoint
         // TODO: setup some client authentication, secret, all that
         TokenRequest tokeRequest = new TokenRequest(this.configuration.getTokenOIDCEndpoint(),
             new ClientID(this.configuration.getClientID()), authorizationGrant);
-        HTTPResponse httpResponse = tokeRequest.toHTTPRequest().send();
+        HTTPRequest tokenHTTP = tokeRequest.toHTTPRequest();
+        tokenHTTP.setHeader("User-Agent", this.getClass().getPackage().getImplementationTitle() + '/'
+            + this.getClass().getPackage().getImplementationVersion());
+        HTTPResponse httpResponse = tokenHTTP.send();
         TokenResponse tokenResponse = TokenResponse.parse(httpResponse);
 
         if (!tokenResponse.indicatesSuccess()) {
@@ -142,7 +145,10 @@ public class CallbackOIDCEndpoint implements OIDCEndpoint
         // Get OIDC user info
         UserInfoRequest userinfoRequest =
             new UserInfoRequest(this.configuration.getUserInfoOIDCEndpoint(), accessToken);
-        httpResponse = userinfoRequest.toHTTPRequest().send();
+        HTTPRequest userinfoHTTP = userinfoRequest.toHTTPRequest();
+        userinfoHTTP.setHeader("User-Agent", this.getClass().getPackage().getImplementationTitle() + '/'
+            + this.getClass().getPackage().getImplementationVersion());
+        httpResponse = userinfoHTTP.send();
         UserInfoResponse userinfoResponse = UserInfoResponse.parse(httpResponse);
 
         if (!userinfoResponse.indicatesSuccess()) {
