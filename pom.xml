@@ -42,7 +42,7 @@
       <dependency>
         <groupId>com.nimbusds</groupId>
         <artifactId>oauth2-oidc-sdk</artifactId>
-        <version>5.9.1-xwiki</version>
+        <version>5.10-xwiki</version>
       </dependency>
     </dependencies>
   </dependencyManagement>
