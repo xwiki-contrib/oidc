@@ -35,6 +35,14 @@
   <packaging>jar</packaging>
   <description>Allow XWiki to act as an OpenId Connect provider</description>
 
+  <properties>
+    <!-- This extension needs to be installed at the farm level (ie in the root namespace) to work fine.
+         This is because is contributes a new URL Resource Handler and those need to be installed in the
+         root Component Manager (since they're executed before the wiki is extracted from the URL during
+         the URL parsing process). -->
+    <xwiki.extension.namespaces>{root}</xwiki.extension.namespaces>
+  </properties>
+
   <dependencies>
     <dependency>
       <groupId>org.xwiki.platform</groupId>
