@@ -19,18 +19,17 @@
  */
 package org.xwiki.contrib.oidc.provider.internal.store;
 
-import java.util.Arrays;
-
 import javax.inject.Named;
 import javax.inject.Singleton;
 
 import org.xwiki.component.annotation.Component;
-import org.xwiki.model.reference.LocalDocumentReference;
 
-import com.xpn.xwiki.XWiki;
 import com.xpn.xwiki.doc.XWikiDocument;
 import com.xpn.xwiki.internal.mandatory.AbstractMandatoryDocumentInitializer;
+import com.xpn.xwiki.objects.PropertyInterface;
 import com.xpn.xwiki.objects.classes.BaseClass;
+import com.xpn.xwiki.objects.classes.PasswordClass;
+import com.xpn.xwiki.objects.meta.PasswordMetaClass;
 
 /**
  * Initialize OIDC class.
@@ -38,27 +37,16 @@ import com.xpn.xwiki.objects.classes.BaseClass;
  * @version $Id: 9fbf4b627cd3716e8cd506e00b9c663f388a98f0 $
  */
 @Component
-@Named(OIDCConsentClassDocumentInitializer.REFERENCE_STRING)
+@Named(OIDCConsent.REFERENCE_STRING)
 @Singleton
 public class OIDCConsentClassDocumentInitializer extends AbstractMandatoryDocumentInitializer
 {
-    /**
-     * The reference of the class as String.
-     */
-    public static final String REFERENCE_STRING = "XWiki.OIDC.ConsentClass";
-
-    /**
-     * The reference of the class.
-     */
-    public static final LocalDocumentReference REFERENCE =
-        new LocalDocumentReference(Arrays.asList(XWiki.SYSTEM_SPACE, "OIDC"), "ConsentClass");
-
     /**
      * Default constructor.
      */
     public OIDCConsentClassDocumentInitializer()
     {
-        super(REFERENCE);
+        super(OIDCConsent.REFERENCE);
     }
 
     @Override
@@ -77,12 +65,23 @@ public class OIDCConsentClassDocumentInitializer extends AbstractMandatoryDocume
 
         needsUpdate |= bclass.addTextField(OIDCConsent.FIELD_CLIENTID, "Client ID", 30);
         needsUpdate |= bclass.addTextField(OIDCConsent.FIELD_REDIRECTURI, "Redirect URI", 30);
-        needsUpdate |= bclass.addTextField(OIDCConsent.FIELD_AUTHORIZATIONCODE, "Authorization Code", 30);
-        needsUpdate |= bclass.addTextField(OIDCConsent.FIELD_ACCESSTOKEN, "Access Token", 30);
         needsUpdate |= bclass.addBooleanField(OIDCConsent.FIELD_ALLOW, "Allow/Deny", "allow");
         needsUpdate |= bclass.addTextAreaField(OIDCConsent.FIELD_CLAIMS, "Claims", 60, 10);
 
-        needsUpdate = setClassDocumentFields(document, "XWiki OIDC Consent Class");
+        // Access token
+        PasswordClass accessToken = new PasswordClass();
+        accessToken.setName(OIDCConsent.FIELD_ACCESSTOKEN);
+        accessToken.setPrettyName(OIDCConsent.FIELD_ACCESSTOKEN);
+        accessToken.setSize(30);
+        accessToken.setObject(bclass);
+        accessToken.setStringValue(PasswordMetaClass.STORAGE_TYPE, PasswordMetaClass.CLEAR);
+        PropertyInterface property = bclass.getField(OIDCConsent.FIELD_ACCESSTOKEN);
+        if (property == null || !(property instanceof PasswordClass)) {
+            bclass.put(OIDCConsent.FIELD_ACCESSTOKEN, accessToken);
+            needsUpdate = true;
+        }
+
+        needsUpdate |= setClassDocumentFields(document, "XWiki OIDC Consent Class");
 
         return needsUpdate;
     }

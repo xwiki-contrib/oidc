@@ -55,7 +55,7 @@ public class OIDCException extends Exception
      */
     public OIDCException(String message, ErrorObject error)
     {
-        super(message);
+        super(message + ':' + error.toString());
 
         this.error = error;
     }

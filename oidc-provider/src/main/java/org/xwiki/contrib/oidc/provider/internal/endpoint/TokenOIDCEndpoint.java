@@ -89,15 +89,17 @@ public class TokenOIDCEndpoint implements OIDCEndpoint
                 return new TokenErrorResponse(OAuth2Error.INVALID_GRANT);
             }
 
-            // Generate new access token
-            // TODO: set a configurable lifespan ?
-            consent.setAccessToken(new BearerAccessToken());
+            // Generate new access token if none exist
+            if (consent.getAccessToken() == null) {
+                // TODO: set a configurable lifespan ?
+                consent.setAccessToken(new BearerAccessToken());
 
-            // Reset authorization code
-            consent.setAuthorizationCode(null);
+                // Store new access token
+                this.store.saveConsent(consent, "Store new OIDC access token");
+            }
 
-            // Store new access token
-            this.store.saveConsent(consent, "Store new OIDC access token");
+            // Get rid of the temporary authorization code
+            this.store.removeAuthorizationCode(grant.getAuthorizationCode());
 
             ClaimsRequest claims = consent.getClaims();
             JWT idToken = this.manager.createdIdToken(request.getClientID(), consent.getUserReference(), null,

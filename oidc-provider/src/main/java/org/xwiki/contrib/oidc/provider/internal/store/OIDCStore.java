@@ -24,6 +24,7 @@ import java.net.URISyntaxException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import javax.inject.Inject;
 import javax.inject.Named;
@@ -61,14 +62,16 @@ public class OIDCStore
     @Named("current")
     private DocumentReferenceResolver<String> resolver;
 
+    private Map<AuthorizationCode, DocumentReference> authorizationMap = new ConcurrentHashMap<>();
+
     public OIDCConsent getConsent(DocumentReference userReference, ClientID clientID, URI redirectURI)
         throws XWikiException
     {
         XWikiContext xcontext = this.xcontextProvider.get();
 
         XWikiDocument userDocument = xcontext.getWiki().getDocument(userReference, xcontext);
-        for (OIDCConsent consent : StoreUtils.getCustomObjects(userDocument,
-            OIDCConsentClassDocumentInitializer.REFERENCE, OIDCConsent.class)) {
+        for (OIDCConsent consent : StoreUtils.getCustomObjects(userDocument, OIDCConsent.REFERENCE,
+            OIDCConsent.class)) {
             if (consent != null) {
                 if (clientID.equals(consent.getClientID())
                     && (redirectURI == null || redirectURI.equals(consent.getRedirectURI()))) {
@@ -87,7 +90,7 @@ public class OIDCStore
         for (String key : entries.keySet()) {
             if (builder.length() == 0) {
                 builder.append("select doc.fullName, consent.number from Document doc, doc.object("
-                    + OIDCConsentClassDocumentInitializer.REFERENCE_STRING + ") as consent where ");
+                    + OIDCConsent.REFERENCE_STRING + ") as consent where ");
             } else {
                 builder.append(" AND ");
             }
@@ -116,7 +119,8 @@ public class OIDCStore
         DocumentReference userReference = this.resolver.resolve((String) user[0]);
         XWikiDocument userDocument = xcontext.getWiki().getDocument(userReference, xcontext);
 
-        return StoreUtils.getCustomObject(userDocument, ((Number) user[1]).intValue(), OIDCConsent.class);
+        return StoreUtils.getCustomObject(userDocument, OIDCConsent.REFERENCE, ((Number) user[1]).intValue(),
+            OIDCConsent.class);
     }
 
     public OIDCConsent getConsent(AccessToken accessToken) throws QueryException, XWikiException
@@ -128,18 +132,44 @@ public class OIDCStore
         return getConsent(entries);
     }
 
-    public OIDCConsent getConsent(ClientID clientID, URI redirectURI, AuthorizationCode code)
-        throws QueryException, XWikiException
+    public OIDCConsent getConsent(ClientID clientID, URI redirectURI) throws QueryException, XWikiException
     {
         Map<String, String> entries = new HashMap<>();
 
         entries.put(OIDCConsent.FIELD_CLIENTID, clientID.getValue());
         entries.put(OIDCConsent.FIELD_REDIRECTURI, redirectURI.toString());
-        if (code != null) {
-            entries.put(OIDCConsent.FIELD_AUTHORIZATIONCODE, code.getValue());
-        }
 
         return getConsent(entries);
+    }
+
+    public OIDCConsent getConsent(ClientID clientID, URI redirectURI, AuthorizationCode code)
+        throws QueryException, XWikiException
+    {
+        DocumentReference userReference = getUserReference(code);
+
+        if (userReference == null) {
+            return null;
+        }
+
+        XWikiContext xcontext = this.xcontextProvider.get();
+
+        XWikiDocument userDocument = xcontext.getWiki().getDocument(userReference, xcontext);
+
+        if (userDocument.isNew()) {
+            return null;
+        }
+
+        String clientIDString = clientID.getValue();
+        String redirectURIString = redirectURI.toString();
+
+        for (BaseObject consent : userDocument.getXObjects(OIDCConsent.REFERENCE)) {
+            if (consent != null && clientIDString.equals(consent.getStringValue(OIDCConsent.FIELD_CLIENTID))
+                && redirectURIString.equals(consent.getStringValue(OIDCConsent.FIELD_REDIRECTURI))) {
+                return StoreUtils.convertObject(userDocument, consent, OIDCConsent.class);
+            }
+        }
+
+        return null;
     }
 
     public XWikiDocument getUserDocument() throws XWikiException
@@ -180,5 +210,20 @@ public class OIDCStore
     public URI getUserProfileURI(XWikiDocument userDocument) throws URISyntaxException
     {
         return new URI(userDocument.getExternalURL("view", this.xcontextProvider.get()));
+    }
+
+    public DocumentReference getUserReference(AuthorizationCode code)
+    {
+        return this.authorizationMap.get(code);
+    }
+
+    public void setAuthorizationCode(AuthorizationCode code, DocumentReference userReference)
+    {
+        this.authorizationMap.put(code, userReference);
+    }
+
+    public void removeAuthorizationCode(AuthorizationCode code)
+    {
+        this.authorizationMap.remove(code);
     }
 }

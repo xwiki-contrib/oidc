@@ -21,25 +21,36 @@ package org.xwiki.contrib.oidc.provider.internal.store;
 
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.Arrays;
 
 import org.apache.commons.lang3.StringUtils;
 import org.xwiki.model.reference.DocumentReference;
+import org.xwiki.model.reference.LocalDocumentReference;
 
-import com.nimbusds.oauth2.sdk.AuthorizationCode;
 import com.nimbusds.oauth2.sdk.ParseException;
 import com.nimbusds.oauth2.sdk.id.ClientID;
 import com.nimbusds.oauth2.sdk.token.AccessToken;
 import com.nimbusds.oauth2.sdk.token.BearerAccessToken;
 import com.nimbusds.openid.connect.sdk.ClaimsRequest;
+import com.xpn.xwiki.XWiki;
 import com.xpn.xwiki.objects.BaseObject;
 
 public class OIDCConsent extends BaseObject
 {
+    /**
+     * The reference of the class as String.
+     */
+    public static final String REFERENCE_STRING = "XWiki.OIDC.ConsentClass";
+
+    /**
+     * The reference of the class.
+     */
+    public static final LocalDocumentReference REFERENCE =
+        new LocalDocumentReference(Arrays.asList(XWiki.SYSTEM_SPACE, "OIDC"), "ConsentClass");
+
     public static final String FIELD_CLIENTID = "clientId";
 
     public static final String FIELD_REDIRECTURI = "redirectURI";
-
-    public static final String FIELD_AUTHORIZATIONCODE = "authorizationCode";
 
     public static final String FIELD_ACCESSTOKEN = "accessToken";
 
@@ -81,22 +92,6 @@ public class OIDCConsent extends BaseObject
     public void setRedirectURI(URI uri)
     {
         setStringValue(FIELD_REDIRECTURI, uri.toString());
-    }
-
-    public AuthorizationCode getAuthorizationCode()
-    {
-        String str = getStringValue(FIELD_AUTHORIZATIONCODE);
-
-        return StringUtils.isNotEmpty(str) ? new AuthorizationCode(str) : null;
-    }
-
-    public void setAuthorizationCode(AuthorizationCode code)
-    {
-        if (code == null) {
-            removeField(FIELD_AUTHORIZATIONCODE);
-        } else {
-            setStringValue(FIELD_AUTHORIZATIONCODE, code.getValue());
-        }
     }
 
     public AccessToken getAccessToken()

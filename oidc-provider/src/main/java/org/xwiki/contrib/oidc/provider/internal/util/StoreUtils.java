@@ -22,7 +22,6 @@ package org.xwiki.contrib.oidc.provider.internal.util;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.xwiki.contrib.oidc.provider.internal.store.OIDCConsentClassDocumentInitializer;
 import org.xwiki.model.reference.EntityReference;
 import org.xwiki.model.reference.LocalDocumentReference;
 
@@ -34,9 +33,10 @@ import com.xpn.xwiki.objects.BaseObject;
 public class StoreUtils
 {
     // TODO: remove this workaround when http://jira.xwiki.org/browse/XWIKI-13456 is fixed
-    public static <T extends BaseObject> T getCustomObject(XWikiDocument document, Integer number, Class<T> customClass)
+    public static <T extends BaseObject> T getCustomObject(XWikiDocument document, EntityReference reference,
+        Integer number, Class<T> customClass)
     {
-        BaseObject obj = document.getXObject(OIDCConsentClassDocumentInitializer.REFERENCE, number);
+        BaseObject obj = document.getXObject(reference, number);
 
         return convertObject(document, obj, customClass);
     }

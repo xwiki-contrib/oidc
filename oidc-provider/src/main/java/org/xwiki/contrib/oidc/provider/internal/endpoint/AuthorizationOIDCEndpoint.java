@@ -32,7 +32,6 @@ import org.xwiki.component.annotation.Component;
 import org.xwiki.contrib.oidc.provider.internal.OIDCManager;
 import org.xwiki.contrib.oidc.provider.internal.OIDCResourceReference;
 import org.xwiki.contrib.oidc.provider.internal.store.OIDCConsent;
-import org.xwiki.contrib.oidc.provider.internal.store.OIDCConsentClassDocumentInitializer;
 import org.xwiki.contrib.oidc.provider.internal.store.OIDCStore;
 import org.xwiki.contrib.oidc.provider.internal.util.StoreUtils;
 import org.xwiki.csrf.CSRFToken;
@@ -92,6 +91,7 @@ public class AuthorizationOIDCEndpoint implements OIDCEndpoint
         XWikiContext xcontext = this.xcontextProvider.get();
 
         JWT idToken = null;
+        AuthorizationCode authorizationCode = null;
 
         ///////////////////////////////////////////////////////
         // Authentication
@@ -127,7 +127,7 @@ public class AuthorizationOIDCEndpoint implements OIDCEndpoint
         ClientID clientID = request.getClientID();
 
         // Get current consent for provided client id
-        OIDCConsent consent = this.store.getConsent(clientID, request.getRedirectionURI(), null);
+        OIDCConsent consent = this.store.getConsent(clientID, request.getRedirectionURI());
 
         // TODO: Check if claims are the same
         if (consent == null || prompt(request, Prompt.Type.CONSENT)) {
@@ -147,31 +147,36 @@ public class AuthorizationOIDCEndpoint implements OIDCEndpoint
             }
 
             // Create new consent
-            consent = StoreUtils.newCustomObject(this.store.getUserDocument(),
-                OIDCConsentClassDocumentInitializer.REFERENCE, xcontext, OIDCConsent.class);
+            consent = StoreUtils.newCustomObject(this.store.getUserDocument(), OIDCConsent.REFERENCE, xcontext,
+                OIDCConsent.class);
 
             consent.setClientID(clientID);
             consent.setRedirectURI(request.getRedirectionURI());
             consent.setClaims(request.getClaims());
+
+            // Save consent
+            this.store.saveConsent(consent, "Add new OIDC consent");
         }
 
         // Generate authorization code or tokens depending on the response type
         if (request.getResponseType().impliesCodeFlow()) {
-            consent.setAuthorizationCode(new AuthorizationCode());
+            authorizationCode = new AuthorizationCode();
         } else if (request.getResponseType().impliesImplicitFlow()) {
-            consent.setAccessToken(new BearerAccessToken());
+            if (consent.getAccessToken() == null) {
+                consent.setAccessToken(new BearerAccessToken());
+                this.store.saveConsent(consent, "Store new OIDC access token");
+            }
             idToken = this.manager.createdIdToken(clientID, consent.getUserReference(), request.getNonce(),
                 request.getClaims() != null ? request.getClaims().getIDTokenClaims() : null);
         }
 
-        // Save consent
-        // TODO: do we really have to generate a new code each time this end point is called ?
-        this.store.saveConsent(consent, "Add new OIDC consent");
+        // Remember authorization code
+        this.store.setAuthorizationCode(authorizationCode, consent.getDocumentReference());
 
         // Create response
         if (request.getResponseType().impliesCodeFlow()) {
-            return new AuthenticationSuccessResponse(request.getRedirectionURI(), consent.getAuthorizationCode(), null,
-                null, request.getState(), null, null);
+            return new AuthenticationSuccessResponse(request.getRedirectionURI(), authorizationCode, null, null,
+                request.getState(), null, null);
         } else {
             return new AuthenticationSuccessResponse(request.getRedirectionURI(), null, idToken,
                 consent.getAccessToken(), request.getState(), null, null);
