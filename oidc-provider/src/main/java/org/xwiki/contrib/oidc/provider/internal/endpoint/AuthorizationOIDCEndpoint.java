@@ -128,7 +128,7 @@ public class AuthorizationOIDCEndpoint implements OIDCEndpoint
 
         // Get current consent for provided client id
         OIDCConsent consent = this.store.getConsent(clientID, request.getRedirectionURI(), null);
-        
+
         // TODO: Check if claims are the same
         if (consent == null || prompt(request, Prompt.Type.CONSENT)) {
             // Impossible to validate consent without user interaction
@@ -150,10 +150,9 @@ public class AuthorizationOIDCEndpoint implements OIDCEndpoint
             consent = StoreUtils.newCustomObject(this.store.getUserDocument(),
                 OIDCConsentClassDocumentInitializer.REFERENCE, xcontext, OIDCConsent.class);
 
-            // TODO: store the claims in the consent
-
             consent.setClientID(clientID);
             consent.setRedirectURI(request.getRedirectionURI());
+            consent.setClaims(request.getClaims());
         }
 
         // Generate authorization code or tokens depending on the response type
@@ -161,7 +160,8 @@ public class AuthorizationOIDCEndpoint implements OIDCEndpoint
             consent.setAuthorizationCode(new AuthorizationCode());
         } else if (request.getResponseType().impliesImplicitFlow()) {
             consent.setAccessToken(new BearerAccessToken());
-            idToken = this.manager.createdIdToken(clientID, consent.getUserReference(), request.getNonce());
+            idToken = this.manager.createdIdToken(clientID, consent.getUserReference(), request.getNonce(),
+                request.getClaims() != null ? request.getClaims().getIDTokenClaims() : null);
         }
 
         // Save consent

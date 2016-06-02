@@ -58,7 +58,7 @@ public class OIDCUserStore
     @Named("current")
     private DocumentReferenceResolver<String> resolver;
 
-    public boolean updateOIDCUser(XWikiDocument userDocument, String provider, String subject)
+    public boolean updateOIDCUser(XWikiDocument userDocument, String issuer, String subject)
     {
         XWikiContext xcontext = this.xcontextProvider.get();
 
@@ -67,8 +67,8 @@ public class OIDCUserStore
 
         boolean needUpdate = false;
 
-        if (!StringUtils.equals(user.getProvider(), provider)) {
-            user.setProvider(provider);
+        if (!StringUtils.equals(user.getIssuer(), issuer)) {
+            user.setIssuer(issuer);
             needUpdate = true;
         }
 
@@ -80,12 +80,12 @@ public class OIDCUserStore
         return needUpdate;
     }
 
-    public XWikiDocument searchDocument(String provider, String subject) throws XWikiException, QueryException
+    public XWikiDocument searchDocument(String issuer, String subject) throws XWikiException, QueryException
     {
         Query query = this.queries.createQuery("from doc.object(" + OIDCUser.CLASS_FULLNAME
-            + ") as oidc where oidc.provider = :provider and oidc.subject = :subject", Query.XWQL);
+            + ") as oidc where oidc.issuer = :issuer and oidc.subject = :subject", Query.XWQL);
 
-        query.bindValue("provider", provider);
+        query.bindValue("issuer", issuer);
         query.bindValue("subject", subject);
 
         List<String> documents = query.execute();

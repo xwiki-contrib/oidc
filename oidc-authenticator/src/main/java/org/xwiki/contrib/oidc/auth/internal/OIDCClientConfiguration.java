@@ -23,12 +23,14 @@ import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.util.Date;
+import java.util.List;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import javax.servlet.http.HttpSession;
 
-import org.slf4j.Logger;
+import org.joda.time.LocalDateTime;
 import org.xwiki.component.annotation.Component;
 import org.xwiki.configuration.ConfigurationSource;
 import org.xwiki.container.Container;
@@ -42,7 +44,13 @@ import org.xwiki.contrib.oidc.provider.internal.endpoint.UserInfoOIDCEndpoint;
 import org.xwiki.instance.InstanceIdManager;
 import org.xwiki.properties.ConverterManager;
 
+import com.nimbusds.oauth2.sdk.Scope;
+import com.nimbusds.oauth2.sdk.id.ClientID;
 import com.nimbusds.oauth2.sdk.id.State;
+import com.nimbusds.oauth2.sdk.token.BearerAccessToken;
+import com.nimbusds.openid.connect.sdk.ClaimsRequest;
+import com.nimbusds.openid.connect.sdk.OIDCScopeValue;
+import com.nimbusds.openid.connect.sdk.claims.IDTokenClaimsSet;
 
 /**
  * Various OpenId Connect authenticator configurations.
@@ -53,11 +61,11 @@ import com.nimbusds.oauth2.sdk.id.State;
 @Singleton
 public class OIDCClientConfiguration
 {
-    public static final String PROP_PROVIDER = "oidc.provider";
+    public static final String PROP_XWIKIPROVIDER = "oidc.xwikiprovider";
 
     public static final String PROP_USER_NAMEFORMATER = "oidc.user.nameFormater";
 
-    public static final String DEFAULT_USER_NAMEFORMATER = "${oidc.provider.host.clean}-${oidc.subject.clean}";
+    public static final String DEFAULT_USER_NAMEFORMATER = "${oidc.issuer.host.clean}-${oidc.user.subject.clean}";
 
     public static final String PROPPREFIX_ENDPOINT = "oidc.endpoint.";
 
@@ -71,12 +79,21 @@ public class OIDCClientConfiguration
 
     public static final String PROP_SKIPPED = "oidc.skipped";
 
+    public static final String PROP_USERINFOCLAIMS = "oidc.userinfoclaims";
+
+    public static final String PROP_IDTOKENCLAIMS = "oidc.idtokenclaims";
+
     public static final String PROP_INITIAL_REQUEST = "xwiki.initialRequest";
 
     public static final String PROP_STATE = "oidc.state";
 
-    @Inject
-    private Logger logger;
+    public static final String PROP_SESSION_ACCESSTOKEN = "oidc.accesstoken";
+
+    public static final String PROP_SESSION_IDTOKEN = "oidc.idtoken";
+
+    public static final String PROP_SESSION_USERINFO = "oidc.userinfo";
+
+    public static final String PROP_SESSION_USERINFO_EXPORATIONDATE = "oidc.session.userinfoexpirationdate";
 
     @Inject
     private InstanceIdManager instance;
@@ -104,14 +121,36 @@ public class OIDCClientConfiguration
         return null;
     }
 
-    private <T> T getSessionAttribute(String key)
+    private <T> T getSessionAttribute(String name)
     {
         HttpSession session = getHttpSession();
         if (session != null) {
-            return (T) session.getAttribute(key);
+            return (T) session.getAttribute(name);
         }
 
         return null;
+    }
+
+    private <T> T removeSessionAttribute(String name)
+    {
+        HttpSession session = getHttpSession();
+        if (session != null) {
+            try {
+                return (T) session.getAttribute(name);
+            } finally {
+                session.removeAttribute(name);
+            }
+        }
+
+        return null;
+    }
+
+    private void setSessionAttribute(String name, Object value)
+    {
+        HttpSession session = getHttpSession();
+        if (session != null) {
+            session.setAttribute(name, value);
+        }
     }
 
     private String getRequestParameter(String key)
@@ -170,19 +209,20 @@ public class OIDCClientConfiguration
         return userFormatter;
     }
 
-    public URL getProvider()
+    public URL getXWikiProvider()
     {
-        return getProperty(PROP_PROVIDER, URL.class);
+        return getProperty(PROP_XWIKIPROVIDER, URL.class);
     }
 
     private URI getEndPoint(String hint) throws URISyntaxException, MalformedURLException
     {
         URL endpoint = getProperty(PROPPREFIX_ENDPOINT + hint, URL.class);
 
+        // If no direct endpoint is provider assume it's a XWiki OIDC provider and generate the endpoint from the hint
         if (endpoint == null) {
-            URL provider = getProvider();
+            URL provider = getXWikiProvider();
             if (provider != null) {
-                endpoint = this.manager.createEndPointURI(getProvider().toURI().toString(), hint).toURL();
+                endpoint = this.manager.createEndPointURI(getXWikiProvider().toURI().toString(), hint).toURL();
             }
         }
 
@@ -204,12 +244,12 @@ public class OIDCClientConfiguration
         return getEndPoint(UserInfoOIDCEndpoint.HINT);
     }
 
-    public String getClientID()
+    public ClientID getClientID()
     {
         String clientId = getProperty(PROP_CLIENTID, String.class);
 
         // Fallback on instance id
-        return clientId != null ? clientId : this.instance.getInstanceId().getInstanceId();
+        return new ClientID(clientId != null ? clientId : this.instance.getInstanceId().getInstanceId());
     }
 
     public State getSessionState()
@@ -220,5 +260,146 @@ public class OIDCClientConfiguration
     public boolean isSkipped()
     {
         return getProperty(PROP_SKIPPED, false);
+    }
+
+    /**
+     * @since 1.2
+     */
+    public ClaimsRequest getClaimsRequest()
+    {
+        // TODO: allow passing the complete JSON as configuration
+        ClaimsRequest claimsRequest = new ClaimsRequest();
+
+        // ID Token claims
+        List<String> idtokenclaims = getIDTokenClaims();
+        if (idtokenclaims != null && !idtokenclaims.isEmpty()) {
+            // ID Token claims
+            for (String claim : idtokenclaims) {
+                claimsRequest.addUserInfoClaim(claim);
+            }
+        }
+        // UserInfo claims
+        List<String> userinfoclaims = getUserInfoClaims();
+        if (idtokenclaims != null && !userinfoclaims.isEmpty()) {
+            for (String claim : userinfoclaims) {
+                claimsRequest.addUserInfoClaim(claim);
+            }
+        }
+
+        return claimsRequest;
+    }
+
+    /**
+     * @since 1.2
+     */
+    public List<String> getIDTokenClaims()
+    {
+        return getProperty(PROP_USERINFOCLAIMS, List.class);
+    }
+
+    /**
+     * @since 1.2
+     */
+    public List<String> getUserInfoClaims()
+    {
+        return getProperty(PROP_IDTOKENCLAIMS, List.class);
+    }
+
+    /**
+     * @since 1.2
+     */
+    public int getUserInfoRefreshRate()
+    {
+        return getProperty(PROP_IDTOKENCLAIMS, 600000);
+    }
+
+    /**
+     * @since 1.2
+     */
+    public Scope getScope()
+    {
+        return new Scope(OIDCScopeValue.OPENID, OIDCScopeValue.PROFILE, OIDCScopeValue.EMAIL, OIDCScopeValue.ADDRESS,
+            OIDCScopeValue.PHONE);
+    }
+
+    // Session only
+
+    /**
+     * @since 1.2
+     */
+    public Date removeUserInfoExpirationDate()
+    {
+        return removeSessionAttribute(PROP_SESSION_USERINFO_EXPORATIONDATE);
+    }
+
+    /**
+     * @since 1.2
+     */
+    public void setUserInfoExpirationDate(Date date)
+    {
+        setSessionAttribute(PROP_SESSION_USERINFO_EXPORATIONDATE, date);
+    }
+
+    /**
+     * @since 1.2
+     */
+    public void resetUserInfoExpirationDate()
+    {
+        LocalDateTime expiration = LocalDateTime.now().plusMillis(getUserInfoRefreshRate());
+
+        setUserInfoExpirationDate(expiration.toDate());
+    }
+
+    /**
+     * @since 1.2
+     */
+    public BearerAccessToken getAccessToken()
+    {
+        return getSessionAttribute(PROP_SESSION_ACCESSTOKEN);
+    }
+
+    /**
+     * @since 1.2
+     */
+    public void setAccessToken(BearerAccessToken accessToken)
+    {
+        setSessionAttribute(PROP_SESSION_ACCESSTOKEN, accessToken);
+    }
+
+    /**
+     * @since 1.2
+     */
+    public IDTokenClaimsSet getIdToken()
+    {
+        return getSessionAttribute(PROP_SESSION_IDTOKEN);
+    }
+
+    /**
+     * @since 1.2
+     */
+    public void setIdToken(IDTokenClaimsSet idToken)
+    {
+        setSessionAttribute(PROP_SESSION_IDTOKEN, idToken);
+    }
+
+    /**
+     * @since 1.2
+     */
+    public URI getSuccessRedirectURI()
+    {
+        URI uri = getSessionAttribute(PROP_INITIAL_REQUEST);
+        if (uri == null) {
+            // TODO: return wiki hope page
+        }
+
+        return uri;
+    }
+
+    /**
+     * @since 1.2
+     */
+    public void setSuccessRedirectURI(URI uri)
+    {
+        setSessionAttribute(PROP_INITIAL_REQUEST, uri);
     }
 }

@@ -28,7 +28,7 @@
         <dl>
           ## Ask the provider
           <dt>$escapetool.xml($services.localization.render('oidc.template.provider.provider'))</dt>
-          <dd><input type="text" name="oidc.provider"/></dd>
+          <dd><input type="text" name="oidc.xwikiprovider"/></dd>
         </dl>
 
         ## Repeat input parameters

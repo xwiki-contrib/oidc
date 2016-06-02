@@ -36,14 +36,42 @@
         #end
 
         ## Ask the consent
-        <label>
-          $escapetool.xml($services.localization.render('oidc.template.consent.question', [$oidc.request.redirectionURI]))
+        $escapetool.xml($services.localization.render('oidc.template.consent.question', [$oidc.request.redirectionURI]))
 
-          <br/><br/>
+        $escapetool.xml($services.localization.render('oidc.template.consent.clais.scope'))
+        #set($scope = $oidc.request.scope)
+        #if (!$scope.isEmpty())
+          <ul>
+            #foreach($scopeValue in $scope)
+              <li>$scopeValue</li>
+            #end
+          </ul>
+        #end
 
-          <input type="submit" name="consent_accept" value="$escapetool.xml($services.localization.render('oidc.template.consent.answer.accept'))"/>
-          <input type="submit" name="consent_refuse" value="$escapetool.xml($services.localization.render('oidc.template.consent.answer.refuse'))"/>
-        </label>
+        $escapetool.xml($services.localization.render('oidc.template.consent.clais.idtoken'))
+        #set($idTokenClaims = $oidc.request.getIDTokenClaims())
+        #if (!$idTokenClaims.isEmpty())
+          <ul>
+            #foreach($claim in $idTokenClaims)
+              <li>$claim</li>
+            #end
+          </ul>
+        #end
+
+        $escapetool.xml($services.localization.render('oidc.template.consent.clais.userinfo'))
+        #set($userInfoClaims = $oidc.request.getUserInfoClaims())
+        #if (!$userInfoClaims.isEmpty())
+          <ul>
+            #foreach($claim in $userInfoClaims)
+              <li>$claim</li>
+            #end
+          </ul>
+        #end
+
+        <br/><br/>
+
+        <input type="submit" name="consent_accept" value="$escapetool.xml($services.localization.render('oidc.template.consent.answer.accept'))"/>
+        <input type="submit" name="consent_refuse" value="$escapetool.xml($services.localization.render('oidc.template.consent.answer.refuse'))"/>
       </form>
     </div>
   </body>

@@ -24,6 +24,7 @@ import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.Callable;
 
@@ -52,6 +53,7 @@ import com.nimbusds.oauth2.sdk.id.ClientID;
 import com.nimbusds.oauth2.sdk.id.Issuer;
 import com.nimbusds.oauth2.sdk.id.Subject;
 import com.nimbusds.openid.connect.sdk.AuthenticationRequest;
+import com.nimbusds.openid.connect.sdk.ClaimsRequest.Entry;
 import com.nimbusds.openid.connect.sdk.Nonce;
 import com.nimbusds.openid.connect.sdk.claims.IDTokenClaimsSet;
 import com.xpn.xwiki.XWiki;
@@ -152,11 +154,12 @@ public class OIDCManager
      * @param clientID the client id
      * @param userReference the reference of the user
      * @param nonce the nonce
+     * @param claims the custom fields to return
      * @return the id token
      * @throws ParseException when failing to create the id token
      * @throws MalformedURLException when failing to get issuer
      */
-    public JWT createdIdToken(ClientID clientID, DocumentReference userReference, Nonce nonce)
+    public JWT createdIdToken(ClientID clientID, DocumentReference userReference, Nonce nonce, Collection<Entry> claims)
         throws ParseException, MalformedURLException
     {
         Issuer issuer = getIssuer();
@@ -170,6 +173,11 @@ public class OIDCManager
             new IDTokenClaimsSet(issuer, subject, audiences, now1year.toDate(), now.toDate());
 
         idTokenClaimSet.setNonce(nonce);
+
+        // TODO: Add claims
+        if (claims != null) {
+            
+        }
 
         // Convert to JWT
         return new PlainJWT(idTokenClaimSet.toJWTClaimsSet());

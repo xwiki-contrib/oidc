@@ -30,21 +30,21 @@ public class OIDCUser extends BaseObject
 {
     public static final String CLASS_FULLNAME = "XWiki.OIDC.UserClass";
 
-    public static final String FIELD_PROVIDER = "provider";
+    public static final String FIELD_ISSUER = "issuer";
 
     public static final String FIELD_SUBJECT = "subject";
 
     public static final LocalDocumentReference CLASS_REFERENCE =
         new LocalDocumentReference(Arrays.asList(XWiki.SYSTEM_SPACE, "OIDC"), "UserClass");
 
-    public String getProvider()
+    public String getIssuer()
     {
-        return getStringValue(FIELD_PROVIDER);
+        return getStringValue(FIELD_ISSUER);
     }
 
-    public void setProvider(String provider)
+    public void setIssuer(String issuer)
     {
-        setStringValue(FIELD_PROVIDER, provider);
+        setStringValue(FIELD_ISSUER, issuer);
     }
 
     public String getSubject()

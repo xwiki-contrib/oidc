@@ -77,11 +77,12 @@
         <artifactId>maven-checkstyle-plugin</artifactId>
         <configuration>
           <excludes>
-              org/xwiki/contrib/oidc/auth/internal/endpoint/CallbackOIDCEndpoint.java,
               org/xwiki/contrib/oidc/auth/internal/OIDCClientConfiguration.java,
+              org/xwiki/contrib/oidc/auth/internal/OIDCUserManager.java,
+              org/xwiki/contrib/oidc/auth/internal/endpoint/CallbackOIDCEndpoint.java,
               org/xwiki/contrib/oidc/auth/internal/store/OIDCUserClassDocumentInitializer.java,
               org/xwiki/contrib/oidc/auth/internal/store/OIDCUser.java,
-              org/xwiki/contrib/oidc/auth/internal/store/OIDCUserStore.java
+              org/xwiki/contrib/oidc/auth/internal/store/OIDCUserStore.java,
           </excludes>
         </configuration>
       </plugin>

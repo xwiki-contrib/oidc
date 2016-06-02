@@ -40,6 +40,7 @@ import com.nimbusds.oauth2.sdk.TokenRequest;
 import com.nimbusds.oauth2.sdk.auth.ClientAuthentication;
 import com.nimbusds.oauth2.sdk.http.HTTPRequest;
 import com.nimbusds.oauth2.sdk.token.BearerAccessToken;
+import com.nimbusds.openid.connect.sdk.ClaimsRequest;
 import com.nimbusds.openid.connect.sdk.OIDCTokenResponse;
 import com.nimbusds.openid.connect.sdk.token.OIDCTokens;
 
@@ -98,7 +99,9 @@ public class TokenOIDCEndpoint implements OIDCEndpoint
             // Store new access token
             this.store.saveConsent(consent, "Store new OIDC access token");
 
-            JWT idToken = this.manager.createdIdToken(request.getClientID(), consent.getUserReference(), null);
+            ClaimsRequest claims = consent.getClaims();
+            JWT idToken = this.manager.createdIdToken(request.getClientID(), consent.getUserReference(), null,
+                claims != null ? claims.getIDTokenClaims() : null);
             OIDCTokens tokens = new OIDCTokens(idToken, consent.getAccessToken(), null);
 
             return new OIDCTokenResponse(tokens);

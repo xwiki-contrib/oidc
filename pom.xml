@@ -48,6 +48,7 @@
   </dependencyManagement>
 
   <modules>
+    <module>oidc-api</module>
     <module>oidc-provider</module>
     <module>oidc-authenticator</module>
   </modules>

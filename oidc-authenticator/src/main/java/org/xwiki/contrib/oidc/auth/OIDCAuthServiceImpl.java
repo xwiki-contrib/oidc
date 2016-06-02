@@ -29,6 +29,7 @@ import java.net.URL;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xwiki.contrib.oidc.auth.internal.OIDCClientConfiguration;
+import org.xwiki.contrib.oidc.auth.internal.OIDCUserManager;
 import org.xwiki.contrib.oidc.auth.internal.endpoint.CallbackOIDCEndpoint;
 import org.xwiki.contrib.oidc.provider.internal.OIDCManager;
 import org.xwiki.model.reference.DocumentReferenceResolver;
@@ -36,11 +37,8 @@ import org.xwiki.model.reference.EntityReferenceSerializer;
 import org.xwiki.properties.ConverterManager;
 
 import com.nimbusds.oauth2.sdk.ResponseType;
-import com.nimbusds.oauth2.sdk.Scope;
-import com.nimbusds.oauth2.sdk.id.ClientID;
 import com.nimbusds.oauth2.sdk.id.State;
 import com.nimbusds.openid.connect.sdk.AuthenticationRequest;
-import com.nimbusds.openid.connect.sdk.OIDCScopeValue;
 import com.xpn.xwiki.XWiki;
 import com.xpn.xwiki.XWikiContext;
 import com.xpn.xwiki.XWikiException;
@@ -82,19 +80,24 @@ public class OIDCAuthServiceImpl extends XWikiAuthServiceImpl
 
     private ConverterManager converter = Utils.getComponent(ConverterManager.class);
 
+    private OIDCUserManager users = Utils.getComponent(OIDCUserManager.class);
+
     @Override
     public XWikiUser checkAuth(XWikiContext context) throws XWikiException
     {
         // Check if there is already a user in the session, take care of logout, etc.
         XWikiUser user = super.checkAuth(context);
 
-        // Try OIDC if there is not already authenticated user
         if (user == null) {
+            // Try OIDC if there is no already authenticated user
             try {
                 checkAuthOIDC(context);
             } catch (Exception e) {
                 throw new XWikiException("Failed OIDC authentication", e);
             }
+        } else {
+            // See if we need to refresh the user information
+            this.users.checkUpdateUserInfo();
         }
 
         return user;
@@ -113,8 +116,14 @@ public class OIDCAuthServiceImpl extends XWikiAuthServiceImpl
                 Boolean.class);
         }
 
+        // Make sure the session is free from anything related to a previously authenticated user (i.e. in case we are
+        // just after a logout)
+        // FIXME: probably cleaner provide a custom com.xpn.xwiki.user.impl.xwiki.XWikiAuthenticator extending
+        // MyFormAuthenticator
+        this.users.logout();
+
         // If the URL contain a OIDC provider, assume it was asked to the user
-        String provider = context.getRequest().getParameter(OIDCClientConfiguration.PROP_PROVIDER);
+        String provider = context.getRequest().getParameter(OIDCClientConfiguration.PROP_XWIKIPROVIDER);
         if (provider != null) {
             authenticate(context);
 
@@ -125,6 +134,9 @@ public class OIDCAuthServiceImpl extends XWikiAuthServiceImpl
         if (context.getAction().equals("login")) {
             showLoginOIDC(context);
         }
+
+        // TODO: non interactive authentication if we have enough information for it but remember in the session that it
+        // failed to not try again
     }
 
     private void showLoginOIDC(XWikiContext context) throws Exception
@@ -147,29 +159,33 @@ public class OIDCAuthServiceImpl extends XWikiAuthServiceImpl
         // Generate callback URL
         URI callback = this.oidc.createEndPointURI(CallbackOIDCEndpoint.HINT);
 
-        // Remember the current URL
-        URL requestURL = XWiki.getRequestURL(context.getRequest());
-        // TODO: add also the session id to make it a bit more unique
-        State state = new State(requestURL.toString());
-
         // Remember various stuff in the session so that callback can access it
         XWikiRequest request = context.getRequest();
+
+        // Generate unique state
+        State state = new State();
         request.getSession().setAttribute(OIDCClientConfiguration.PROP_STATE, state);
-        request.getSession().setAttribute(OIDCClientConfiguration.PROP_INITIAL_REQUEST, requestURL);
-        maybeStoreRequestParameterURLInSession(request, OIDCClientConfiguration.PROP_PROVIDER);
+
+        // Remember the current URL
+        request.getSession().setAttribute(OIDCClientConfiguration.PROP_INITIAL_REQUEST,
+            XWiki.getRequestURL(context.getRequest()).toURI());
+
+        maybeStoreRequestParameterURLInSession(request, OIDCClientConfiguration.PROP_XWIKIPROVIDER);
         maybeStoreRequestParameterInSession(request, OIDCClientConfiguration.PROP_USER_NAMEFORMATER);
         maybeStoreRequestParameterURLInSession(request, OIDCClientConfiguration.PROP_ENDPOINT_AUTHORIZATION);
         maybeStoreRequestParameterURLInSession(request, OIDCClientConfiguration.PROP_ENDPOINT_TOKEN);
         maybeStoreRequestParameterURLInSession(request, OIDCClientConfiguration.PROP_ENDPOINT_USERINFO);
 
         // Create the request URL
-        Scope scope = new Scope(OIDCScopeValue.OPENID, OIDCScopeValue.PROFILE, OIDCScopeValue.EMAIL,
-            OIDCScopeValue.ADDRESS, OIDCScopeValue.PHONE);
-        ClientID clientID = new ClientID(this.configuration.getClientID());
-        ResponseType responseType = new ResponseType(ResponseType.Value.CODE);
-        AuthenticationRequest.Builder requestBuilder =
-            new AuthenticationRequest.Builder(responseType, scope, clientID, callback);
+        ResponseType responseType = ResponseType.getDefault();
+        AuthenticationRequest.Builder requestBuilder = new AuthenticationRequest.Builder(responseType,
+            this.configuration.getScope(), this.configuration.getClientID(), callback);
         requestBuilder.endpointURI(this.configuration.getAuthorizationOIDCEndpoint());
+
+        // Claims
+        requestBuilder.claims(this.configuration.getClaimsRequest());
+
+        // State
         requestBuilder.state(state);
 
         // Redirect the user to the provider

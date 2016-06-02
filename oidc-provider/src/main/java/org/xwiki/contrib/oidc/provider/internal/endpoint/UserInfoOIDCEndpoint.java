@@ -122,6 +122,8 @@ public class UserInfoOIDCEndpoint implements OIDCEndpoint
             userInfo.setPicture(avatarURI);
         }
 
+        // TODO: Time zone
+
         // Profile external URL
         userInfo.setProfile(this.store.getUserProfileURI(userDocument));
 

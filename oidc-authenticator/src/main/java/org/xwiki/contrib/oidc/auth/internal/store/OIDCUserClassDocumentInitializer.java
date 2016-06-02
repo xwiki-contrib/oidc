@@ -55,7 +55,7 @@ public class OIDCUserClassDocumentInitializer extends AbstractMandatoryDocumentI
             needsUpdate = true;
         }*/
 
-        needsUpdate |= bclass.addTextField(OIDCUser.FIELD_PROVIDER, "Provider", 30);
+        needsUpdate |= bclass.addTextField(OIDCUser.FIELD_ISSUER, "Issuer", 30);
         needsUpdate |= bclass.addTextField(OIDCUser.FIELD_SUBJECT, "Subject", 30);
 
         needsUpdate |= setClassDocumentFields(document, "OpenId Connect User Class");

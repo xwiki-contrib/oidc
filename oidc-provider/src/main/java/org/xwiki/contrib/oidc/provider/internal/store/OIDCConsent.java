@@ -26,9 +26,11 @@ import org.apache.commons.lang3.StringUtils;
 import org.xwiki.model.reference.DocumentReference;
 
 import com.nimbusds.oauth2.sdk.AuthorizationCode;
+import com.nimbusds.oauth2.sdk.ParseException;
 import com.nimbusds.oauth2.sdk.id.ClientID;
 import com.nimbusds.oauth2.sdk.token.AccessToken;
 import com.nimbusds.oauth2.sdk.token.BearerAccessToken;
+import com.nimbusds.openid.connect.sdk.ClaimsRequest;
 import com.xpn.xwiki.objects.BaseObject;
 
 public class OIDCConsent extends BaseObject
@@ -41,6 +43,11 @@ public class OIDCConsent extends BaseObject
 
     public static final String FIELD_ACCESSTOKEN = "accessToken";
 
+    /**
+     * @since 1.2
+     */
+    public static final String FIELD_CLAIMS = "claims";
+
     public static final String FIELD_ALLOW = "allow";
 
     public ClientID getClientID()
@@ -52,7 +59,7 @@ public class OIDCConsent extends BaseObject
 
     public void setClientID(ClientID clientID)
     {
-        setStringValue(OIDCConsent.FIELD_CLIENTID, clientID.getValue());
+        setStringValue(FIELD_CLIENTID, clientID.getValue());
     }
 
     public URI getRedirectURI()
@@ -73,7 +80,7 @@ public class OIDCConsent extends BaseObject
 
     public void setRedirectURI(URI uri)
     {
-        setStringValue(OIDCConsent.FIELD_REDIRECTURI, uri.toString());
+        setStringValue(FIELD_REDIRECTURI, uri.toString());
     }
 
     public AuthorizationCode getAuthorizationCode()
@@ -86,9 +93,9 @@ public class OIDCConsent extends BaseObject
     public void setAuthorizationCode(AuthorizationCode code)
     {
         if (code == null) {
-            removeField(OIDCConsent.FIELD_AUTHORIZATIONCODE);
+            removeField(FIELD_AUTHORIZATIONCODE);
         } else {
-            setStringValue(OIDCConsent.FIELD_AUTHORIZATIONCODE, code.getValue());
+            setStringValue(FIELD_AUTHORIZATIONCODE, code.getValue());
         }
     }
 
@@ -102,9 +109,9 @@ public class OIDCConsent extends BaseObject
     public void setAccessToken(AccessToken accessToken)
     {
         if (accessToken == null) {
-            removeField(OIDCConsent.FIELD_ACCESSTOKEN);
+            removeField(FIELD_ACCESSTOKEN);
         } else {
-            setStringValue(OIDCConsent.FIELD_ACCESSTOKEN, accessToken.getValue());
+            setStringValue(FIELD_ACCESSTOKEN, accessToken.getValue());
         }
     }
 
@@ -117,11 +124,37 @@ public class OIDCConsent extends BaseObject
 
     public void setAllowed(boolean allowed)
     {
-        setIntValue(OIDCConsent.FIELD_ALLOW, allowed ? 1 : 0);
+        setIntValue(FIELD_ALLOW, allowed ? 1 : 0);
     }
 
     public DocumentReference getUserReference()
     {
         return getDocumentReference();
+    }
+
+    /**
+     * @since 1.2
+     */
+    public ClaimsRequest getClaims() throws ParseException
+    {
+        String claims = getLargeStringValue(FIELD_CLAIMS);
+
+        if (StringUtils.isNotEmpty(claims)) {
+            return ClaimsRequest.parse(claims);
+        }
+
+        return null;
+    }
+
+    /**
+     * @since 1.2
+     */
+    public void setClaims(ClaimsRequest claims)
+    {
+        if (claims != null) {
+            setLargeStringValue(FIELD_CLAIMS, claims.toString());
+        } else {
+            removeField(FIELD_CLAIMS);
+        }
     }
 }
