@@ -48,7 +48,7 @@ import com.xpn.xwiki.web.Utils;
 import com.xpn.xwiki.web.XWikiRequest;
 
 /**
- * Authenticate user trough an OpenId Connect provider.
+ * Authenticate user trough an OpenID Connect provider.
  * 
  * @version $Id$
  */
@@ -227,7 +227,7 @@ public class OIDCAuthServiceImpl extends XWikiAuthServiceImpl
             try {
                 showLoginOIDC(context);
             } catch (Exception e) {
-                LOGGER.error("Failed to show OpenId Connect login", e);
+                LOGGER.error("Failed to show OpenID Connect login", e);
 
                 // Fallback on standard auth
                 super.showLogin(context);

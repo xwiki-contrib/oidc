@@ -62,7 +62,7 @@ import com.xpn.xwiki.objects.BaseProperty;
 import com.xpn.xwiki.objects.PropertyInterface;
 
 /**
- * UserInfo endpoint for OpenId Connect.
+ * UserInfo endpoint for OpenID Connect.
  * 
  * @version $Id$
  */

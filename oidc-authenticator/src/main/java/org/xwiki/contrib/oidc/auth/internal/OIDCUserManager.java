@@ -251,9 +251,9 @@ public class OIDCUserManager
         if (newUser || document.apply(modifiableDocument)) {
             String comment;
             if (newUser) {
-                comment = "Create user from OpenId Connect";
+                comment = "Create user from OpenID Connect";
             } else {
-                comment = "Update user from OpenId Connect";
+                comment = "Update user from OpenID Connect";
             }
 
             xcontext.getWiki().saveDocument(document, comment, xcontext);

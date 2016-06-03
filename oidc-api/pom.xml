@@ -31,9 +31,9 @@
   </parent>
 
   <artifactId>oidc-api</artifactId>
-  <name>OpenId Connect API</name>
+  <name>OpenID Connect API</name>
   <packaging>jar</packaging>
-  <description>Various public OpenId Connect generic APIs</description>
+  <description>Various public OpenID Connect generic APIs</description>
 
   <dependencies>
     <dependency>

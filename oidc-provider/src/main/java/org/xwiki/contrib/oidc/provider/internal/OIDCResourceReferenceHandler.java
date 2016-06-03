@@ -55,7 +55,7 @@ import com.xpn.xwiki.web.XWikiServletRequest;
 import com.xpn.xwiki.web.XWikiServletResponse;
 
 /**
- * OpenId Connect entry point.
+ * OpenID Connect entry point.
  *
  * @version $Id: 2e98f0b413b4ae324afc083bad5ff79cc810d83e $
  */

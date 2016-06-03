@@ -1,2 +1,2 @@
 # oidc
-Various tools to manupulate OpenId Connect protocol in XWiki
+Various tools to manupulate OpenID Connect protocol in XWiki

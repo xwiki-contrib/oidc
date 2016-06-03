@@ -31,7 +31,7 @@ import com.nimbusds.oauth2.sdk.token.AccessToken;
 import com.nimbusds.openid.connect.sdk.UserInfoRequest;
 
 /**
- * Provider JWK set endpoint for OpenId Connect.
+ * Provider JWK set endpoint for OpenID Connect.
  * 
  * @version $Id$
  */

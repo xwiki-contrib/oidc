@@ -56,7 +56,7 @@ import com.nimbusds.openid.connect.sdk.OIDCScopeValue;
 import com.nimbusds.openid.connect.sdk.claims.IDTokenClaimsSet;
 
 /**
- * Various OpenId Connect authenticator configurations.
+ * Various OpenID Connect authenticator configurations.
  * 
  * @version $Id$
  */

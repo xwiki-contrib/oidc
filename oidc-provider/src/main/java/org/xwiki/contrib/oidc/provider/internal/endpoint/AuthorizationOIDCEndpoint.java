@@ -54,7 +54,7 @@ import com.xpn.xwiki.XWikiContext;
 import com.xpn.xwiki.user.api.XWikiUser;
 
 /**
- * Authorization endpoint for OpenId Connect.
+ * Authorization endpoint for OpenID Connect.
  * 
  * @version $Id$
  */

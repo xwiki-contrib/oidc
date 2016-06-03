@@ -31,9 +31,9 @@
   </parent>
 
   <artifactId>oidc-provider</artifactId>
-  <name>OpenId Connect Provider</name>
+  <name>OpenID Connect Provider</name>
   <packaging>jar</packaging>
-  <description>Allow XWiki to act as an OpenId Connect provider</description>
+  <description>Allow XWiki to act as an OpenID Connect provider</description>
 
   <properties>
     <!-- This extension needs to be installed at the farm level (ie in the root namespace) to work fine.

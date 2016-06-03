@@ -57,7 +57,7 @@ import com.nimbusds.openid.connect.sdk.OIDCTokenResponse;
 import com.nimbusds.openid.connect.sdk.claims.IDTokenClaimsSet;
 
 /**
- * Token endpoint for OpenId Connect.
+ * Token endpoint for OpenID Connect.
  * 
  * @version $Id$
  */

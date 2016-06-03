@@ -23,7 +23,7 @@ import java.util.Date;
 import java.util.List;
 
 /**
- * The OpenId Connect ID token.
+ * The OpenID Connect ID token.
  * <p>
  * Related specifications:
  * <ul>

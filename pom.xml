@@ -32,10 +32,10 @@
 
   <groupId>org.xwiki.contrib.oidc</groupId>
   <artifactId>oidc</artifactId>
-  <name>OpenId Connect</name>
+  <name>OpenID Connect</name>
   <version>1.4-SNAPSHOT</version>
   <packaging>pom</packaging>
-  <description>Various tools to manipulate OpenId Connect protocol in XWiki</description>
+  <description>Various tools to manipulate OpenID Connect protocol in XWiki</description>
 
   <dependencyManagement>
     <dependencies>

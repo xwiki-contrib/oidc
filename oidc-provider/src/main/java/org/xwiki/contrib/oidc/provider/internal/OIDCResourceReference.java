@@ -27,7 +27,7 @@ import org.xwiki.resource.entity.EntityResourceAction;
 import org.xwiki.resource.entity.EntityResourceReference;
 
 /**
- * Dummy type for OpenId Connect entry point.
+ * Dummy type for OpenID Connect entry point.
  *
  * @version $Id: 97638fe25bc709cd9296ea452b5d13077aab014b $
  */

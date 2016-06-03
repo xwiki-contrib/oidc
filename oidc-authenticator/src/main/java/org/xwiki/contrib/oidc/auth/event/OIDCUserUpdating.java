@@ -22,7 +22,7 @@ package org.xwiki.contrib.oidc.auth.event;
 import org.xwiki.model.reference.DocumentReference;
 
 /**
- * Event sent when a user document update from OpenId Connect UserInfo is about to be applied.
+ * Event sent when a user document update from OpenID Connect UserInfo is about to be applied.
  * <p>
  * The event also send the following parameters:
  * </p>

@@ -20,7 +20,7 @@
 package org.xwiki.contrib.oidc;
 
 /**
- * The OpenId Connection address.
+ * The OpenID Connection address.
  * <p>
  * Related specifications:
  * <ul>

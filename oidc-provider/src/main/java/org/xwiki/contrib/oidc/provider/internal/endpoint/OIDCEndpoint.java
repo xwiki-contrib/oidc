@@ -26,7 +26,7 @@ import com.nimbusds.oauth2.sdk.Response;
 import com.nimbusds.oauth2.sdk.http.HTTPRequest;
 
 /**
- * OpenId Connect endpoint.
+ * OpenID Connect endpoint.
  * 
  * @version $Id$
  */

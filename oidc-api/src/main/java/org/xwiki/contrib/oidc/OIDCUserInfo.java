@@ -24,7 +24,7 @@ import java.net.URI;
 import javax.mail.internet.InternetAddress;
 
 /**
- * The OpenId Connection user info.
+ * The OpenID Connection user info.
  * <p>
  * Related specifications:
  * <ul>
