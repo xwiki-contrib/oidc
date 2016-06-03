@@ -41,6 +41,7 @@ import org.xwiki.contrib.oidc.provider.internal.store.OIDCConsent;
 import org.xwiki.contrib.oidc.provider.internal.store.OIDCStore;
 import org.xwiki.model.reference.DocumentReference;
 import org.xwiki.model.reference.EntityReferenceSerializer;
+import org.xwiki.model.reference.WikiReference;
 
 import com.nimbusds.oauth2.sdk.Response;
 import com.nimbusds.oauth2.sdk.http.HTTPRequest;
@@ -199,12 +200,26 @@ public class UserInfoOIDCEndpoint implements OIDCEndpoint
 
     private Collection<String> getUserGroups(XWikiDocument userDocument, XWikiContext xcontext) throws XWikiException
     {
-        Collection<DocumentReference> references = xcontext.getWiki().getGroupService(xcontext)
-            .getAllGroupsReferencesForMember(userDocument.getDocumentReference(), -1, 0, xcontext);
+        List<String> names;
 
-        List<String> names = new ArrayList<>(references.size());
-        for (DocumentReference reference : references) {
-            names.add(this.serializer.serialize(reference));
+        WikiReference currentWikiReference = xcontext.getWikiReference();
+
+        try {
+            // Switch to user wiki
+            xcontext.setWikiReference(userDocument.getDocumentReference().getWikiReference());
+
+            // Get groups in user wiki
+            Collection<DocumentReference> references = xcontext.getWiki().getGroupService(xcontext)
+                .getAllGroupsReferencesForMember(userDocument.getDocumentReference(), -1, 0, xcontext);
+
+            // Convert reference into Strings
+            names = new ArrayList<>(references.size());
+            for (DocumentReference reference : references) {
+                // TODO: also search groups of group
+                names.add(this.serializer.serialize(reference));
+            }
+        } finally {
+            xcontext.setWikiReference(currentWikiReference);
         }
 
         return names;
