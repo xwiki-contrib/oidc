@@ -40,7 +40,7 @@ public interface OIDCIdToken extends OIDCClaimsSet
      * 
      * @since 1.3
      */
-    String CLAIM_XWIKI_INSTANCE_ID = "xwiki.instance.id";
+    String CLAIM_XWIKI_INSTANCE_ID = "xwiki_instance_id";
 
     /**
      * Gets the ID token issuer. Corresponds to the {@code iss} claim.

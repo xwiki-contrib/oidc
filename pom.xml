@@ -65,7 +65,12 @@
   <scm>
     <connection>scm:git:git://github.com/xwiki-contrib/oidc.git</connection>
     <developerConnection>scm:git:git@github.com:xwiki-contrib/oidc.git</developerConnection>
-    <url>https://github.com/xwiki-contrib/oidc</url>
+    <url>https://github.com/xwiki-contrib/oidc/tree/master</url>
     <tag>HEAD</tag>
   </scm>
+
+  <issueManagement>
+   <system>jira</system>
+   <url>http://jira.xwiki.org/jira/browse/OIDC</url>
+ </issueManagement>
 </project>

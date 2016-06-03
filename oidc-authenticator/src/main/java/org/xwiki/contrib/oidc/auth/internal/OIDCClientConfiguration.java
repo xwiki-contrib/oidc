@@ -100,8 +100,6 @@ public class OIDCClientConfiguration
 
     public static final String PROP_SESSION_IDTOKEN = "oidc.idtoken";
 
-    public static final String PROP_SESSION_USERINFO = "oidc.userinfo";
-
     public static final String PROP_SESSION_USERINFO_EXPORATIONDATE = "oidc.session.userinfoexpirationdate";
 
     @Inject
