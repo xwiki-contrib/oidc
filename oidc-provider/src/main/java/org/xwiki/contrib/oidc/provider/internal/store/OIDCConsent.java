@@ -61,6 +61,8 @@ public class OIDCConsent extends BaseObject
 
     public static final String FIELD_ALLOW = "allow";
 
+    private ClaimsRequest claims;
+
     public ClientID getClientID()
     {
         String str = getStringValue(FIELD_CLIENTID);
@@ -132,13 +134,15 @@ public class OIDCConsent extends BaseObject
      */
     public ClaimsRequest getClaims() throws ParseException
     {
-        String claims = getLargeStringValue(FIELD_CLAIMS);
+        if (this.claims == null) {
+            String claimsString = getLargeStringValue(FIELD_CLAIMS);
 
-        if (StringUtils.isNotEmpty(claims)) {
-            return ClaimsRequest.parse(claims);
+            if (StringUtils.isNotEmpty(claimsString)) {
+                this.claims = ClaimsRequest.parse(claimsString);
+            }
         }
 
-        return null;
+        return claims;
     }
 
     /**
@@ -146,6 +150,8 @@ public class OIDCConsent extends BaseObject
      */
     public void setClaims(ClaimsRequest claims)
     {
+        this.claims = claims;
+
         if (claims != null) {
             setLargeStringValue(FIELD_CLAIMS, claims.toString());
         } else {

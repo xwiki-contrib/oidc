@@ -47,6 +47,7 @@ import com.nimbusds.oauth2.sdk.token.BearerAccessToken;
 import com.nimbusds.openid.connect.sdk.AuthenticationErrorResponse;
 import com.nimbusds.openid.connect.sdk.AuthenticationRequest;
 import com.nimbusds.openid.connect.sdk.AuthenticationSuccessResponse;
+import com.nimbusds.openid.connect.sdk.ClaimsRequest;
 import com.nimbusds.openid.connect.sdk.OIDCError;
 import com.nimbusds.openid.connect.sdk.Prompt;
 import com.xpn.xwiki.XWikiContext;
@@ -137,10 +138,12 @@ public class AuthorizationOIDCEndpoint implements OIDCEndpoint
                     request.getState(), null);
             }
 
+            ClaimsRequest resolvedClaims = ClaimsRequest.resolve(request);
+
             // Ask user for consent
             Boolean consentAnswer = getConsent(httpRequest);
             if (consentAnswer == null) {
-                return askConsent(request, httpRequest);
+                return askConsent(request, httpRequest, resolvedClaims);
             } else if (!consentAnswer) {
                 return new AuthenticationErrorResponse(request.getRedirectionURI(), OAuth2Error.UNAUTHORIZED_CLIENT,
                     request.getState(), null);
@@ -152,7 +155,9 @@ public class AuthorizationOIDCEndpoint implements OIDCEndpoint
 
             consent.setClientID(clientID);
             consent.setRedirectURI(request.getRedirectionURI());
-            consent.setClaims(request.getClaims());
+
+            // Convert scope into individual claims
+            consent.setClaims(resolvedClaims);
 
             // Save consent
             this.store.saveConsent(consent, "Add new OIDC consent");
@@ -167,7 +172,7 @@ public class AuthorizationOIDCEndpoint implements OIDCEndpoint
                 this.store.saveConsent(consent, "Store new OIDC access token");
             }
             idToken = this.manager.createdIdToken(clientID, consent.getUserReference(), request.getNonce(),
-                request.getClaims() != null ? request.getClaims().getIDTokenClaims() : null);
+                request.getClaims());
         }
 
         // Remember authorization code
@@ -212,12 +217,14 @@ public class AuthorizationOIDCEndpoint implements OIDCEndpoint
         return null;
     }
 
-    private Response askConsent(AuthenticationRequest request, HTTPRequest httpRequest) throws Exception
+    private Response askConsent(AuthenticationRequest request, HTTPRequest httpRequest, ClaimsRequest resolvedClaims)
+        throws Exception
     {
         // Set various information in the script context
         Map<String, Object> oidc = new HashMap<>();
         oidc.put("request", request);
         oidc.put("httprequest", httpRequest);
+        oidc.put("resolvedClaims", resolvedClaims);
         this.scripts.getScriptContext().setAttribute("oidc", oidc, ScriptContext.ENGINE_SCOPE);
 
         return this.manager.executeTemplate("oidc/provider/consent.vm", request);

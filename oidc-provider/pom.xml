@@ -67,6 +67,11 @@
       <groupId>com.nimbusds</groupId>
       <artifactId>oauth2-oidc-sdk</artifactId>
     </dependency>
+    <dependency>
+      <groupId>org.xwiki.platform</groupId>
+      <artifactId>xwiki-platform-instance</artifactId>
+      <version>${platform.version}</version>
+    </dependency>
   </dependencies>
 
   <build>
@@ -84,6 +89,7 @@
               org/xwiki/contrib/oidc/provider/internal/OIDCResourceReferenceHandler.java,
               org/xwiki/contrib/oidc/provider/internal/util/OIDCServletUtils.java,
               org/xwiki/contrib/oidc/provider/internal/endpoint/AuthorizationOIDCEndpoint.java,
+              org/xwiki/contrib/oidc/provider/internal/endpoint/UserInfoOIDCEndpoint.java,
               org/xwiki/contrib/oidc/provider/internal/util/StoreUtils.java
           </excludes>
         </configuration>

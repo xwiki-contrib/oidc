@@ -20,31 +20,45 @@
 package org.xwiki.contrib.oidc.provider.internal.endpoint;
 
 import java.net.URI;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
 
 import javax.inject.Inject;
 import javax.inject.Named;
+import javax.inject.Provider;
 import javax.inject.Singleton;
-import javax.mail.internet.AddressException;
 import javax.mail.internet.InternetAddress;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.exception.ExceptionUtils;
+import org.slf4j.Logger;
 import org.xwiki.component.annotation.Component;
+import org.xwiki.contrib.oidc.OIDCUserInfo;
 import org.xwiki.contrib.oidc.provider.internal.OIDCManager;
 import org.xwiki.contrib.oidc.provider.internal.OIDCResourceReference;
 import org.xwiki.contrib.oidc.provider.internal.store.OIDCConsent;
 import org.xwiki.contrib.oidc.provider.internal.store.OIDCStore;
+import org.xwiki.model.reference.DocumentReference;
+import org.xwiki.model.reference.EntityReferenceSerializer;
 
 import com.nimbusds.oauth2.sdk.Response;
 import com.nimbusds.oauth2.sdk.http.HTTPRequest;
 import com.nimbusds.oauth2.sdk.token.AccessToken;
 import com.nimbusds.oauth2.sdk.token.BearerTokenError;
+import com.nimbusds.openid.connect.sdk.ClaimsRequest;
+import com.nimbusds.openid.connect.sdk.ClaimsRequest.Entry;
 import com.nimbusds.openid.connect.sdk.UserInfoErrorResponse;
 import com.nimbusds.openid.connect.sdk.UserInfoRequest;
 import com.nimbusds.openid.connect.sdk.UserInfoSuccessResponse;
 import com.nimbusds.openid.connect.sdk.claims.Address;
 import com.nimbusds.openid.connect.sdk.claims.UserInfo;
+import com.xpn.xwiki.XWikiContext;
+import com.xpn.xwiki.XWikiException;
 import com.xpn.xwiki.doc.XWikiDocument;
 import com.xpn.xwiki.objects.BaseObject;
+import com.xpn.xwiki.objects.BaseProperty;
+import com.xpn.xwiki.objects.PropertyInterface;
 
 /**
  * UserInfo endpoint for OpenId Connect.
@@ -67,6 +81,15 @@ public class UserInfoOIDCEndpoint implements OIDCEndpoint
     @Inject
     private OIDCManager manager;
 
+    @Inject
+    private Provider<XWikiContext> xcontextProvider;
+
+    @Inject
+    private EntityReferenceSerializer<String> serializer;
+
+    @Inject
+    private Logger logger;
+
     @Override
     public Response handle(HTTPRequest httpRequest, OIDCResourceReference reference) throws Exception
     {
@@ -82,51 +105,132 @@ public class UserInfoOIDCEndpoint implements OIDCEndpoint
             return new UserInfoErrorResponse(BearerTokenError.INVALID_TOKEN);
         }
 
-        // TODO: get the claims from the consent
+        ClaimsRequest claims = consent.getClaims();
 
-        BaseObject userObject = this.store.getUserObject(consent);
-        XWikiDocument userDocument = userObject.getOwnerDocument();
+        DocumentReference userReference = consent.getUserReference();
 
-        UserInfo userInfo = new UserInfo(this.manager.getSubject(consent.getUserReference()));
+        UserInfo userInfo = new UserInfo(this.manager.getSubject(userReference));
 
-        // Update time
-        userInfo.setUpdatedTime(userDocument.getDate());
+        XWikiContext xcontext = this.xcontextProvider.get();
 
-        // Address
-        Address address = new Address();
-        address.setFormatted(userObject.getLargeStringValue("address"));
-        userInfo.setAddress(address);
+        if (claims != null) {
+            BaseObject userObject = this.store.getUserObject(consent);
+            XWikiDocument userDocument = userObject.getOwnerDocument();
 
-        // Email
-        String email = userObject.getStringValue("email");
-        if (StringUtils.isNotEmpty(email)) {
-            try {
-                userInfo.setEmail(new InternetAddress(email));
-            } catch (AddressException e) {
-                // TODO: log
+            for (Entry claim : claims.getUserInfoClaims()) {
+                try {
+                    switch (claim.getClaimName()) {
+                        // OIDC core
+
+                        case OIDCUserInfo.CLAIM_ADDRESS:
+                            Address address = new Address();
+                            address.setFormatted(userObject.getLargeStringValue("address"));
+                            userInfo.setAddress(address);
+                            break;
+                        case OIDCUserInfo.CLAIM_EMAIL:
+                            String email = userObject.getStringValue("email");
+                            if (StringUtils.isNotEmpty(email)) {
+                                userInfo.setEmail(new InternetAddress(email));
+                            }
+                            break;
+                        case OIDCUserInfo.CLAIM_EMAIL_VERIFIED:
+                            userInfo.setEmailVerified(true);
+                            break;
+                        case OIDCUserInfo.CLAIM_FAMILY_NAME:
+                            userInfo.setFamilyName(userObject.getStringValue("last_name"));
+                            break;
+                        case OIDCUserInfo.CLAIM_GIVEN_NAME:
+                            userInfo.setGivenName(userObject.getStringValue("first_name"));
+                            break;
+                        case OIDCUserInfo.CLAIM_PHONE_NUMBER:
+                            userInfo.setPhoneNumber(userObject.getStringValue("phone"));
+                            break;
+                        case OIDCUserInfo.CLAIM_PHONE_NUMBER_VERIFIED:
+                            userInfo.setPhoneNumberVerified(true);
+                            break;
+                        case OIDCUserInfo.CLAIM_PICTURE:
+                            userInfo.setPicture(this.store.getUserAvatarURI(userDocument));
+                            break;
+                        case OIDCUserInfo.CLAIM_PROFILE:
+                            userInfo.setProfile(this.store.getUserProfileURI(userDocument));
+                            break;
+                        case OIDCUserInfo.CLAIM_UPDATED_AT:
+                            userInfo.setUpdatedTime(userDocument.getDate());
+                            break;
+                        case OIDCUserInfo.CLAIM_WEBSITE:
+                            userInfo.setWebsite(new URI(userObject.getStringValue("blog")));
+                            break;
+                        case OIDCUserInfo.CLAIM_NAME:
+                            userInfo.setName(xcontext.getWiki().getPlainUserName(userReference, xcontext));
+                            break;
+                        case OIDCUserInfo.CLAIM_PREFERRED_NAME:
+                            userInfo.setPreferredUsername(xcontext.getWiki().getPlainUserName(userReference, xcontext));
+                            break;
+                        case OIDCUserInfo.CLAIM_ZONEINFO:
+                        case OIDCUserInfo.CLAIM_LOCALE:
+                        case OIDCUserInfo.CLAIM_MIDDLE_NAME:
+                        case OIDCUserInfo.CLAIM_NICKNAME:
+                        case OIDCUserInfo.CLAIM_GENDER:
+                        case OIDCUserInfo.CLAIM_BIRTHDATE:
+                            // TODO
+                            break;
+
+                        // XWiki core
+                        // Note: most of the XWiki core fields are handled by #setCustomUserInfoClaim
+
+                        case OIDCUserInfo.CLAIM_XWIKI_GROUPS:
+                            userInfo.setClaim(OIDCUserInfo.CLAIM_XWIKI_GROUPS, getUserGroups(userDocument, xcontext));
+                            break;
+
+                        default:
+                            setCustomUserInfoClaim(userInfo, claim, userObject, userDocument, xcontext);
+                            break;
+                    }
+                } catch (Exception e) {
+                    // Failed to set one of the claims
+                    this.logger.warn("Failed to get claim [{}] for user [{}]: {}", claim.getClaimName(), userReference,
+                        ExceptionUtils.getRootCauseMessage(e));
+                }
             }
         }
 
-        // Last name
-        userInfo.setFamilyName(userObject.getStringValue("last_name"));
+        return new UserInfoSuccessResponse(userInfo);
+    }
 
-        // First name
-        userInfo.setGivenName(userObject.getStringValue("first_name"));
+    private Collection<String> getUserGroups(XWikiDocument userDocument, XWikiContext xcontext) throws XWikiException
+    {
+        Collection<DocumentReference> references = xcontext.getWiki().getGroupService(xcontext)
+            .getAllGroupsReferencesForMember(userDocument.getDocumentReference(), -1, 0, xcontext);
 
-        // Phone
-        userInfo.setPhoneNumber(userObject.getStringValue("phone"));
-
-        // Avatar
-        URI avatarURI = this.store.getUserAvatarURI(userDocument);
-        if (avatarURI != null) {
-            userInfo.setPicture(avatarURI);
+        List<String> names = new ArrayList<>(references.size());
+        for (DocumentReference reference : references) {
+            names.add(this.serializer.serialize(reference));
         }
 
-        // TODO: Time zone
+        return names;
+    }
 
-        // Profile external URL
-        userInfo.setProfile(this.store.getUserProfileURI(userDocument));
+    private void setCustomUserInfoClaim(UserInfo userInfo, Entry claim, BaseObject userObject,
+        XWikiDocument userDocument, XWikiContext xcontext)
+    {
+        if (claim.getClaimName().startsWith(OIDCUserInfo.CLAIMPREFIX_XWIKI_USER)) {
+            String userField = claim.getClaimName().substring(OIDCUserInfo.CLAIMPREFIX_XWIKI_USER.length());
 
-        return new UserInfoSuccessResponse(userInfo);
+            // Try user object first
+            PropertyInterface property = userObject.safeget(userField);
+
+            if (property != null) {
+                userInfo.setClaim(claim.getClaimName(), ((BaseProperty) property).getValue());
+            } else {
+                // Try the whole document if not in user object
+                BaseObject obj = userDocument.getFirstObject(userField, xcontext);
+                if (obj != null) {
+                    property = obj.safeget(userField);
+                    if (property != null) {
+                        userInfo.setClaim(claim.getClaimName(), ((BaseProperty) property).getValue());
+                    }
+                }
+            }
+        }
     }
 }

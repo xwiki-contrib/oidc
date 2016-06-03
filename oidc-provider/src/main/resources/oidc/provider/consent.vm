@@ -36,33 +36,29 @@
         #end
 
         ## Ask the consent
-        $escapetool.xml($services.localization.render('oidc.template.consent.question', [$oidc.request.redirectionURI]))
+        <p>$escapetool.xml($services.localization.render('oidc.template.consent.question', [$oidc.request.redirectionURI]))</p>
 
-        $escapetool.xml($services.localization.render('oidc.template.consent.clais.scope'))
-        #set($scope = $oidc.request.scope)
-        #if (!$scope.isEmpty())
-          <ul>
-            #foreach($scopeValue in $scope)
-              <li>$scopeValue</li>
-            #end
-          </ul>
-        #end
-
-        $escapetool.xml($services.localization.render('oidc.template.consent.clais.idtoken'))
-        #set($idTokenClaims = $oidc.request.getIDTokenClaims())
+        ## Id Token claims
+        ## TODO: allow the user to select/unselect individual claims
+        <p>$escapetool.xml($services.localization.render('oidc.template.consent.clais.idtoken'))</p>
+        #set($idTokenClaims = $oidc.resolvedClaims.getIDTokenClaims())
         #if (!$idTokenClaims.isEmpty())
           <ul>
             #foreach($claim in $idTokenClaims)
+              ## TODO: find nice icon for each (known) claim
               <li>$claim</li>
             #end
           </ul>
         #end
 
-        $escapetool.xml($services.localization.render('oidc.template.consent.clais.userinfo'))
-        #set($userInfoClaims = $oidc.request.getUserInfoClaims())
+        ## User info claims
+        ## TODO: allow the user to select/unselect individual claims
+        <p>$escapetool.xml($services.localization.render('oidc.template.consent.clais.userinfo'))</p>
+        #set($userInfoClaims = $oidc.resolvedClaims.getUserInfoClaims())
         #if (!$userInfoClaims.isEmpty())
           <ul>
             #foreach($claim in $userInfoClaims)
+              ## TODO: find nice icon for each (known) claim
               <li>$claim</li>
             #end
           </ul>
@@ -70,8 +66,8 @@
 
         <br/><br/>
 
-        <input type="submit" name="consent_accept" value="$escapetool.xml($services.localization.render('oidc.template.consent.answer.accept'))"/>
-        <input type="submit" name="consent_refuse" value="$escapetool.xml($services.localization.render('oidc.template.consent.answer.refuse'))"/>
+        <input type="submit" class="button" name="consent_accept" value="$escapetool.xml($services.localization.render('oidc.template.consent.answer.accept'))"/>
+        <input type="submit" class="button" name="consent_refuse" value="$escapetool.xml($services.localization.render('oidc.template.consent.answer.refuse'))"/>
       </form>
     </div>
   </body>

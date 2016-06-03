@@ -23,6 +23,7 @@ import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 
@@ -37,6 +38,8 @@ import org.xwiki.container.Container;
 import org.xwiki.container.Request;
 import org.xwiki.container.Session;
 import org.xwiki.container.servlet.ServletSession;
+import org.xwiki.contrib.oidc.OIDCIdToken;
+import org.xwiki.contrib.oidc.OIDCUserInfo;
 import org.xwiki.contrib.oidc.provider.internal.OIDCManager;
 import org.xwiki.contrib.oidc.provider.internal.endpoint.AuthorizationOIDCEndpoint;
 import org.xwiki.contrib.oidc.provider.internal.endpoint.TokenOIDCEndpoint;
@@ -81,7 +84,13 @@ public class OIDCClientConfiguration
 
     public static final String PROP_USERINFOCLAIMS = "oidc.userinfoclaims";
 
+    public static final List<String> DEFAULT_USERINFOCLAIMS = Arrays.asList(OIDCUserInfo.CLAIM_XWIKI_ACCESSIBILITY,
+        OIDCUserInfo.CLAIM_XWIKI_COMPANY, OIDCUserInfo.CLAIM_XWIKI_DISPLAYHIDDENDOCUMENTS,
+        OIDCUserInfo.CLAIM_XWIKI_EDITOR, OIDCUserInfo.CLAIM_XWIKI_USERTYPE);
+
     public static final String PROP_IDTOKENCLAIMS = "oidc.idtokenclaims";
+
+    public static final List<String> DEFAULT_IDTOKENCLAIMS = Arrays.asList(OIDCIdToken.CLAIM_XWIKI_INSTANCE_ID);
 
     public static final String PROP_INITIAL_REQUEST = "xwiki.initialRequest";
 
@@ -294,7 +303,7 @@ public class OIDCClientConfiguration
      */
     public List<String> getIDTokenClaims()
     {
-        return getProperty(PROP_USERINFOCLAIMS, List.class);
+        return getProperty(PROP_USERINFOCLAIMS, DEFAULT_IDTOKENCLAIMS);
     }
 
     /**
@@ -302,7 +311,7 @@ public class OIDCClientConfiguration
      */
     public List<String> getUserInfoClaims()
     {
-        return getProperty(PROP_IDTOKENCLAIMS, List.class);
+        return getProperty(PROP_IDTOKENCLAIMS, DEFAULT_USERINFOCLAIMS);
     }
 
     /**

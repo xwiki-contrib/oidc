@@ -36,6 +36,153 @@ import javax.mail.internet.InternetAddress;
  */
 public interface OIDCUserInfo extends OIDCClaimsSet
 {
+    // Scope openid
+
+    /**
+     * @since 1.3
+     */
+    String CLAIM_SUB = "sub";
+
+    // Scope profile
+
+    /**
+     * @since 1.3
+     */
+    String CLAIM_NAME = "name";
+
+    /**
+     * @since 1.3
+     */
+    String CLAIM_FAMILY_NAME = "family_name";
+
+    /**
+     * @since 1.3
+     */
+    String CLAIM_GIVEN_NAME = "given_name";
+
+    /**
+     * @since 1.3
+     */
+    String CLAIM_MIDDLE_NAME = "middle_name";
+
+    /**
+     * @since 1.3
+     */
+    String CLAIM_NICKNAME = "nickname";
+
+    /**
+     * @since 1.3
+     */
+    String CLAIM_PREFERRED_NAME = "preferred_username";
+
+    /**
+     * @since 1.3
+     */
+    String CLAIM_PROFILE = "profile";
+
+    /**
+     * @since 1.3
+     */
+    String CLAIM_PICTURE = "picture";
+
+    /**
+     * @since 1.3
+     */
+    String CLAIM_WEBSITE = "website";
+
+    /**
+     * @since 1.3
+     */
+    String CLAIM_GENDER = "gender";
+
+    /**
+     * @since 1.3
+     */
+    String CLAIM_BIRTHDATE = "birthdate";
+
+    /**
+     * @since 1.3
+     */
+    String CLAIM_ZONEINFO = "zoneinfo";
+
+    /**
+     * @since 1.3
+     */
+    String CLAIM_LOCALE = "locale";
+
+    /**
+     * @since 1.3
+     */
+    String CLAIM_UPDATED_AT = "updated_at";
+
+    // Scope email
+
+    /**
+     * @since 1.3
+     */
+    String CLAIM_EMAIL = "email";
+
+    /**
+     * @since 1.3
+     */
+    String CLAIM_EMAIL_VERIFIED = "email_verified";
+
+    // Scope address
+
+    /**
+     * @since 1.3
+     */
+    String CLAIM_ADDRESS = "address";
+
+    // Scope phone
+
+    /**
+     * @since 1.3
+     */
+    String CLAIM_PHONE_NUMBER = "phone_number";
+
+    /**
+     * @since 1.3
+     */
+    String CLAIM_PHONE_NUMBER_VERIFIED = "phone_number_verified";
+
+    // XWiki claims
+
+    /**
+     * @since 1.3
+     */
+    String CLAIM_XWIKI_GROUPS = "xwiki_groups";
+
+    /**
+     * @since 1.3
+     */
+    String CLAIMPREFIX_XWIKI_USER = "xwiki_user_";
+
+    /**
+     * @since 1.3
+     */
+    String CLAIM_XWIKI_COMPANY = CLAIMPREFIX_XWIKI_USER + "company";
+
+    /**
+     * @since 1.3
+     */
+    String CLAIM_XWIKI_EDITOR = CLAIMPREFIX_XWIKI_USER + "editor";
+
+    /**
+     * @since 1.3
+     */
+    String CLAIM_XWIKI_USERTYPE = CLAIMPREFIX_XWIKI_USER + "usertype";
+
+    /**
+     * @since 1.3
+     */
+    String CLAIM_XWIKI_ACCESSIBILITY = CLAIMPREFIX_XWIKI_USER + "accessibility";
+
+    /**
+     * @since 1.3
+     */
+    String CLAIM_XWIKI_DISPLAYHIDDENDOCUMENTS = CLAIMPREFIX_XWIKI_USER + "displayHiddenDocuments";
+
     /**
      * Gets the UserInfo subject. Corresponds to the {@code sub} claim.
      *

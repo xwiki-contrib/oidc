@@ -38,6 +38,7 @@ import com.nimbusds.openid.connect.sdk.UserInfoRequest;
 @Component
 @Named(JWKOIDCEndpoint.HINT)
 @Singleton
+// TODO
 public class JWKOIDCEndpoint implements OIDCEndpoint
 {
     /**

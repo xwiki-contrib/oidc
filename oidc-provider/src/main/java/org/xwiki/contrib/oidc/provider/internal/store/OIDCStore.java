@@ -142,8 +142,7 @@ public class OIDCStore
         return getConsent(entries);
     }
 
-    public OIDCConsent getConsent(ClientID clientID, URI redirectURI, AuthorizationCode code)
-        throws QueryException, XWikiException
+    public OIDCConsent getConsent(ClientID clientID, URI redirectURI, AuthorizationCode code) throws XWikiException
     {
         DocumentReference userReference = getUserReference(code);
 

@@ -38,7 +38,7 @@
 
         ## TODO: allow giving the endpoints
 
-        <input type="submit" value="$escapetool.xml($services.localization.render('oidc.template.provider.submit'))"/>
+        <input type="submit" class="button" value="$escapetool.xml($services.localization.render('oidc.template.provider.submit'))"/>
       </form>
 
       <hr/>
@@ -46,7 +46,7 @@
       <form>
         <input type="hidden" name="oidc.skipped" value="true"/>
 
-        <input type="submit" value="$escapetool.xml($services.localization.render('oidc.template.provider.skip.submit'))"/>
+        <input type="submit" class="button" value="$escapetool.xml($services.localization.render('oidc.template.provider.skip.submit'))"/>
       </form>
     </div>
   </body>

@@ -36,6 +36,13 @@ import java.util.List;
 public interface OIDCIdToken extends OIDCClaimsSet
 {
     /**
+     * The id of the XWiki provider instance.
+     * 
+     * @since 1.3
+     */
+    String CLAIM_XWIKI_INSTANCE_ID = "xwiki.instance.id";
+
+    /**
      * Gets the ID token issuer. Corresponds to the {@code iss} claim.
      *
      * @return The issuer.

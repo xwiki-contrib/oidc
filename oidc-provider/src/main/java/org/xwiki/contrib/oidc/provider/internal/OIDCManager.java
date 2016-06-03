@@ -24,7 +24,6 @@ import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.Callable;
 
@@ -36,7 +35,9 @@ import javax.servlet.http.HttpServletResponse;
 import org.apache.commons.io.IOUtils;
 import org.joda.time.LocalDateTime;
 import org.xwiki.component.annotation.Component;
+import org.xwiki.contrib.oidc.OIDCIdToken;
 import org.xwiki.contrib.oidc.provider.internal.util.ContentResponse;
+import org.xwiki.instance.InstanceIdManager;
 import org.xwiki.model.reference.DocumentReference;
 import org.xwiki.model.reference.EntityReferenceSerializer;
 import org.xwiki.template.Template;
@@ -53,6 +54,7 @@ import com.nimbusds.oauth2.sdk.id.ClientID;
 import com.nimbusds.oauth2.sdk.id.Issuer;
 import com.nimbusds.oauth2.sdk.id.Subject;
 import com.nimbusds.openid.connect.sdk.AuthenticationRequest;
+import com.nimbusds.openid.connect.sdk.ClaimsRequest;
 import com.nimbusds.openid.connect.sdk.ClaimsRequest.Entry;
 import com.nimbusds.openid.connect.sdk.Nonce;
 import com.nimbusds.openid.connect.sdk.claims.IDTokenClaimsSet;
@@ -85,6 +87,9 @@ public class OIDCManager
 
     @Inject
     private SUExecutor suExecutor;
+
+    @Inject
+    private InstanceIdManager instance;
 
     /**
      * @return the issuer
@@ -158,8 +163,9 @@ public class OIDCManager
      * @return the id token
      * @throws ParseException when failing to create the id token
      * @throws MalformedURLException when failing to get issuer
+     * @since 1.3
      */
-    public JWT createdIdToken(ClientID clientID, DocumentReference userReference, Nonce nonce, Collection<Entry> claims)
+    public JWT createdIdToken(ClientID clientID, DocumentReference userReference, Nonce nonce, ClaimsRequest claims)
         throws ParseException, MalformedURLException
     {
         Issuer issuer = getIssuer();
@@ -174,9 +180,18 @@ public class OIDCManager
 
         idTokenClaimSet.setNonce(nonce);
 
-        // TODO: Add claims
+        // Add custom claims
         if (claims != null) {
-            
+            for (Entry claim : claims.getIDTokenClaims()) {
+                switch (claim.getClaimName()) {
+                    case OIDCIdToken.CLAIM_XWIKI_INSTANCE_ID:
+                        idTokenClaimSet.setClaim(OIDCIdToken.CLAIM_XWIKI_INSTANCE_ID, this.instance.getInstanceId());
+                        break;
+
+                    default:
+                        break;
+                }
+            }
         }
 
         // Convert to JWT
@@ -189,6 +204,7 @@ public class OIDCManager
      */
     public Subject getSubject(DocumentReference userReference)
     {
+        // TODO: optimize a bit to not always return full reference
         return new Subject(this.referenceSerializer.serialize(userReference));
     }
 
