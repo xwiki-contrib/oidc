@@ -46,7 +46,7 @@
           <ul>
             #foreach($claim in $idTokenClaims)
               ## TODO: find nice icon for each (known) claim
-              <li>$claim</li>
+              <li>$claim.claimName</li>
             #end
           </ul>
         #end
@@ -59,7 +59,7 @@
           <ul>
             #foreach($claim in $userInfoClaims)
               ## TODO: find nice icon for each (known) claim
-              <li>$claim</li>
+              <li>$claim.claimName</li>
             #end
           </ul>
         #end
