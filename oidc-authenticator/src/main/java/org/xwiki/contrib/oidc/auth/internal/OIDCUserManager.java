@@ -27,7 +27,9 @@ import java.net.URL;
 import java.security.Principal;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 
@@ -42,6 +44,7 @@ import org.slf4j.Logger;
 import org.xwiki.component.annotation.Component;
 import org.xwiki.component.manager.ComponentManager;
 import org.xwiki.context.concurrent.ExecutionContextRunnable;
+import org.xwiki.contrib.oidc.OIDCUserInfo;
 import org.xwiki.contrib.oidc.auth.event.OIDCUserEventData;
 import org.xwiki.contrib.oidc.auth.event.OIDCUserUpdated;
 import org.xwiki.contrib.oidc.auth.event.OIDCUserUpdating;
@@ -67,6 +70,7 @@ import com.xpn.xwiki.XWikiContext;
 import com.xpn.xwiki.XWikiException;
 import com.xpn.xwiki.doc.XWikiDocument;
 import com.xpn.xwiki.objects.BaseObject;
+import com.xpn.xwiki.objects.classes.BaseClass;
 import com.xpn.xwiki.user.api.XWikiRightService;
 import com.xpn.xwiki.web.XWikiRequest;
 
@@ -177,21 +181,21 @@ public class OIDCUserManager
 
     private Principal updateUser(IDTokenClaimsSet idToken, UserInfo userInfo) throws XWikiException, QueryException
     {
-        XWikiDocument document =
+        XWikiDocument userDocument =
             this.store.searchDocument(idToken.getIssuer().getValue(), userInfo.getSubject().toString());
 
         XWikiDocument modifiableDocument;
         boolean newUser;
-        if (document == null) {
-            document = getNewUserDocument(idToken, userInfo);
+        if (userDocument == null) {
+            userDocument = getNewUserDocument(idToken, userInfo);
 
             newUser = true;
-            modifiableDocument = document;
+            modifiableDocument = userDocument;
         } else {
             // Don't change the document author to not change document execution right
 
             newUser = false;
-            modifiableDocument = document.clone();
+            modifiableDocument = userDocument.clone();
         }
 
         XWikiContext xcontext = this.xcontextProvider.get();
@@ -199,11 +203,6 @@ public class OIDCUserManager
         // Set user fields
         BaseObject userObject = modifiableDocument
             .getXObject(xcontext.getWiki().getUserClass(xcontext).getDocumentReference(), true, xcontext);
-
-        // TODO: Time Zone
-        if (userInfo.getZoneinfo() != null) {
-            userInfo.getZoneinfo();
-        }
 
         // Address
         Address address = userInfo.getAddress();
@@ -236,8 +235,16 @@ public class OIDCUserManager
             userInfo.getPicture();
         }
 
+        // TODO: Time Zone
+        if (userInfo.getZoneinfo() != null) {
+            userInfo.getZoneinfo();
+        }
+
+        // XWiki claims
+        updateXWikiClaims(userDocument, userObject.getXClass(xcontext), userObject, userInfo, xcontext);
+
         // Set OIDC fields
-        this.store.updateOIDCUser(document, idToken.getIssuer().getValue(), userInfo.getSubject().getValue());
+        this.store.updateOIDCUser(userDocument, idToken.getIssuer().getValue(), userInfo.getSubject().getValue());
 
         // Prevent data to send with the event
         OIDCUserEventData eventData =
@@ -248,7 +255,7 @@ public class OIDCUserManager
             eventData);
 
         // Apply the modifications
-        if (newUser || document.apply(modifiableDocument)) {
+        if (newUser || userDocument.apply(modifiableDocument)) {
             String comment;
             if (newUser) {
                 comment = "Create user from OpenID Connect";
@@ -256,18 +263,58 @@ public class OIDCUserManager
                 comment = "Update user from OpenID Connect";
             }
 
-            xcontext.getWiki().saveDocument(document, comment, xcontext);
+            xcontext.getWiki().saveDocument(userDocument, comment, xcontext);
 
             // Now let's add new the user to XWiki.XWikiAllGroup
             if (newUser) {
-                xcontext.getWiki().setUserDefaultGroup(document.getFullName(), xcontext);
+                xcontext.getWiki().setUserDefaultGroup(userDocument.getFullName(), xcontext);
             }
 
             // Notify
-            this.observation.notify(new OIDCUserUpdated(document.getDocumentReference()), document, eventData);
+            this.observation.notify(new OIDCUserUpdated(userDocument.getDocumentReference()), userDocument, eventData);
         }
 
-        return new SimplePrincipal(document.getPrefixedFullName());
+        return new SimplePrincipal(userDocument.getPrefixedFullName());
+    }
+
+    private void updateXWikiClaims(XWikiDocument userDocument, BaseClass userClass, BaseObject userObject,
+        UserInfo userInfo, XWikiContext xcontext)
+    {
+        for (Map.Entry<String, Object> entry : userInfo.toJSONObject().entrySet()) {
+            if (entry.getKey().startsWith(OIDCUserInfo.CLAIMPREFIX_XWIKI_USER)) {
+                String xwikiKey = entry.getKey().substring(OIDCUserInfo.CLAIMPREFIX_XWIKI_USER.length());
+
+                // Try in the user object
+                if (userClass.getField(xwikiKey) != null) {
+                    setValue(userObject, xwikiKey, entry.getValue(), xcontext);
+
+                    continue;
+                }
+
+                // Try in the whole user document
+                BaseObject xobject = userDocument.getFirstObject(xwikiKey);
+                if (xobject != null) {
+                    setValue(xobject, xwikiKey, entry.getValue(), xcontext);
+
+                    continue;
+                }
+            }
+        }
+    }
+
+    private void setValue(BaseObject xobject, String key, Object value, XWikiContext xcontext)
+    {
+        Object cleanValue;
+
+        if (value instanceof List) {
+            cleanValue = value;
+        } else {
+            // Go through String to be safe
+            // TODO: find a more effective converter (the best would be to userObject#set to be stronger)
+            cleanValue = Objects.toString(value);
+        }
+
+        xobject.set(key, cleanValue, xcontext);
     }
 
     private XWikiDocument getNewUserDocument(IDTokenClaimsSet idToken, UserInfo userInfo) throws XWikiException
