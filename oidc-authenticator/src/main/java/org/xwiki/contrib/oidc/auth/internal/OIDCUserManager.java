@@ -325,8 +325,8 @@ public class OIDCUserManager
             putVariable(map, "oidc.provider", providerURL.toString());
             putVariable(map, "oidc.provider.host", providerURL.getHost());
             putVariable(map, "oidc.provider.path", providerURL.getPath());
-            map.put("oidc.provider.protocol", providerURL.getProtocol());
-            map.put("oidc.provider.port", String.valueOf(providerURL.getPort()));
+            putVariable(map, "oidc.provider.protocol", providerURL.getProtocol());
+            putVariable(map, "oidc.provider.port", String.valueOf(providerURL.getPort()));
         }
 
         // Issuer
@@ -335,8 +335,8 @@ public class OIDCUserManager
             URI issuerURI = new URI(idToken.getIssuer().getValue());
             putVariable(map, "oidc.issuer.host", issuerURI.getHost());
             putVariable(map, "oidc.issuer.path", issuerURI.getPath());
-            map.put("oidc.issuer.protocol", issuerURI.getScheme());
-            map.put("oidc.issuer.port", String.valueOf(issuerURI.getPort()));
+            putVariable(map, "oidc.issuer.scheme", issuerURI.getScheme());
+            putVariable(map, "oidc.issuer.port", String.valueOf(issuerURI.getPort()));
         } catch (URISyntaxException e) {
             // TODO: log something ?
         }
