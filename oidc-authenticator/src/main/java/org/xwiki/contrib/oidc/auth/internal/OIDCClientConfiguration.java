@@ -282,9 +282,10 @@ public class OIDCClientConfiguration
         if (idtokenclaims != null && !idtokenclaims.isEmpty()) {
             // ID Token claims
             for (String claim : idtokenclaims) {
-                claimsRequest.addUserInfoClaim(claim);
+                claimsRequest.addIDTokenClaim(claim);
             }
         }
+
         // UserInfo claims
         List<String> userinfoclaims = getUserInfoClaims();
         if (idtokenclaims != null && !userinfoclaims.isEmpty()) {
