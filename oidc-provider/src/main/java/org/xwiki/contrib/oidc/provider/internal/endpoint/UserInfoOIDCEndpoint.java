@@ -39,6 +39,7 @@ import org.xwiki.contrib.oidc.provider.internal.OIDCManager;
 import org.xwiki.contrib.oidc.provider.internal.OIDCResourceReference;
 import org.xwiki.contrib.oidc.provider.internal.store.OIDCConsent;
 import org.xwiki.contrib.oidc.provider.internal.store.OIDCStore;
+import org.xwiki.localization.LocaleUtils;
 import org.xwiki.model.reference.DocumentReference;
 import org.xwiki.model.reference.EntityReferenceSerializer;
 import org.xwiki.model.reference.WikiReference;
@@ -124,9 +125,12 @@ public class UserInfoOIDCEndpoint implements OIDCEndpoint
                         // OIDC core
 
                         case OIDCUserInfo.CLAIM_ADDRESS:
-                            Address address = new Address();
-                            address.setFormatted(userObject.getLargeStringValue("address"));
-                            userInfo.setAddress(address);
+                            String addressString = userObject.getLargeStringValue("address");
+                            if (StringUtils.isNotEmpty(addressString)) {
+                                Address address = new Address();
+                                address.setFormatted(addressString);
+                                userInfo.setAddress(address);
+                            }
                             break;
                         case OIDCUserInfo.CLAIM_EMAIL:
                             String email = userObject.getStringValue("email");
@@ -135,19 +139,23 @@ public class UserInfoOIDCEndpoint implements OIDCEndpoint
                             }
                             break;
                         case OIDCUserInfo.CLAIM_EMAIL_VERIFIED:
-                            userInfo.setEmailVerified(true);
+                            if (userInfo.getEmail() != null) {
+                                userInfo.setEmailVerified(true);
+                            }
                             break;
                         case OIDCUserInfo.CLAIM_FAMILY_NAME:
-                            userInfo.setFamilyName(userObject.getStringValue("last_name"));
+                            userInfo.setFamilyName(getStringValue(userObject, "last_name"));
                             break;
                         case OIDCUserInfo.CLAIM_GIVEN_NAME:
-                            userInfo.setGivenName(userObject.getStringValue("first_name"));
+                            userInfo.setGivenName(getStringValue(userObject, "first_name"));
                             break;
                         case OIDCUserInfo.CLAIM_PHONE_NUMBER:
-                            userInfo.setPhoneNumber(userObject.getStringValue("phone"));
+                            userInfo.setPhoneNumber(getStringValue(userObject, "phone"));
                             break;
                         case OIDCUserInfo.CLAIM_PHONE_NUMBER_VERIFIED:
-                            userInfo.setPhoneNumberVerified(true);
+                            if (userInfo.getPhoneNumber() != null) {
+                                userInfo.setPhoneNumberVerified(true);
+                            }
                             break;
                         case OIDCUserInfo.CLAIM_PICTURE:
                             userInfo.setPicture(this.store.getUserAvatarURI(userDocument));
@@ -159,7 +167,10 @@ public class UserInfoOIDCEndpoint implements OIDCEndpoint
                             userInfo.setUpdatedTime(userDocument.getDate());
                             break;
                         case OIDCUserInfo.CLAIM_WEBSITE:
-                            userInfo.setWebsite(new URI(userObject.getStringValue("blog")));
+                            String blog = userObject.getStringValue("blog");
+                            if (StringUtils.isNotEmpty(blog)) {
+                                userInfo.setWebsite(new URI(blog));
+                            }
                             break;
                         case OIDCUserInfo.CLAIM_NAME:
                             userInfo.setName(xcontext.getWiki().getPlainUserName(userReference, xcontext));
@@ -168,7 +179,17 @@ public class UserInfoOIDCEndpoint implements OIDCEndpoint
                             userInfo.setPreferredUsername(xcontext.getWiki().getPlainUserName(userReference, xcontext));
                             break;
                         case OIDCUserInfo.CLAIM_ZONEINFO:
+                            String timezone = userObject.getStringValue("timezone");
+                            if (StringUtils.isNotEmpty(timezone)) {
+                                userInfo.setZoneinfo(timezone);
+                            }
+                            break;
                         case OIDCUserInfo.CLAIM_LOCALE:
+                            String locale = userObject.getStringValue("default_language");
+                            if (StringUtils.isNotEmpty(locale)) {
+                                userInfo.setLocale(LocaleUtils.toLocale(locale).toLanguageTag());
+                            }
+                            break;
                         case OIDCUserInfo.CLAIM_MIDDLE_NAME:
                         case OIDCUserInfo.CLAIM_NICKNAME:
                         case OIDCUserInfo.CLAIM_GENDER:
@@ -196,6 +217,13 @@ public class UserInfoOIDCEndpoint implements OIDCEndpoint
         }
 
         return new UserInfoSuccessResponse(userInfo);
+    }
+
+    private String getStringValue(BaseObject obj, String key)
+    {
+        String value = obj.getStringValue(key);
+
+        return StringUtils.isEmpty(value) ? null : value;
     }
 
     private Collection<String> getUserGroups(XWikiDocument userDocument, XWikiContext xcontext) throws XWikiException

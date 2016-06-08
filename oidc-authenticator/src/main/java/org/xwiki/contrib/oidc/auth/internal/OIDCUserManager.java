@@ -20,14 +20,17 @@
 package org.xwiki.contrib.oidc.auth.internal;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.net.URLConnection;
 import java.security.Principal;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.Executor;
@@ -37,7 +40,9 @@ import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
 
+import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.commons.lang3.text.StrSubstitutor;
 import org.securityfilter.realm.SimplePrincipal;
 import org.slf4j.Logger;
@@ -230,21 +235,43 @@ public class OIDCUserManager
             userObject.set("phone", userInfo.getPhoneNumber(), xcontext);
         }
 
-        // TODO: Avatar
-        if (userInfo.getPicture() != null) {
-            userInfo.getPicture();
+        // Default locale
+        if (userInfo.getLocale() != null) {
+            userObject.set("default_language", Locale.forLanguageTag(userInfo.getLocale()).toString(), xcontext);
         }
 
-        // TODO: Time Zone
+        // Time Zone
         if (userInfo.getZoneinfo() != null) {
-            userInfo.getZoneinfo();
+            userObject.set("timezone", userInfo.getZoneinfo(), xcontext);
+        }
+
+        // Website
+        if (userInfo.getWebsite() != null) {
+            userObject.set("blog", userInfo.getWebsite(), xcontext);
+        }
+
+        // Avatar
+        if (userInfo.getPicture() != null) {
+            try {
+                String filename = FilenameUtils.getName(userInfo.getPicture().toString());
+                URLConnection connection = userInfo.getPicture().toURL().openConnection();
+                connection.setRequestProperty("User-Agent", this.getClass().getPackage().getImplementationTitle() + '/'
+                    + this.getClass().getPackage().getImplementationVersion());
+                try (InputStream content = connection.getInputStream()) {
+                    modifiableDocument.addAttachment(filename, content, xcontext);
+                }
+                userObject.set("avatar", filename, xcontext);
+            } catch (IOException e) {
+                this.logger.warn("Failed to get user avatar from URL [{}]: {}", userInfo.getPicture(),
+                    ExceptionUtils.getRootCauseMessage(e));
+            }
         }
 
         // XWiki claims
-        updateXWikiClaims(userDocument, userObject.getXClass(xcontext), userObject, userInfo, xcontext);
+        updateXWikiClaims(modifiableDocument, userObject.getXClass(xcontext), userObject, userInfo, xcontext);
 
         // Set OIDC fields
-        this.store.updateOIDCUser(userDocument, idToken.getIssuer().getValue(), userInfo.getSubject().getValue());
+        this.store.updateOIDCUser(modifiableDocument, idToken.getIssuer().getValue(), userInfo.getSubject().getValue());
 
         // Prevent data to send with the event
         OIDCUserEventData eventData =
