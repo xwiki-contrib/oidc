@@ -116,11 +116,14 @@ public class OIDCAuthServiceImpl extends XWikiAuthServiceImpl
                 Boolean.class);
         }
 
-        // Make sure the session is free from anything related to a previously authenticated user (i.e. in case we are
-        // just after a logout)
-        // FIXME: probably cleaner provide a custom com.xpn.xwiki.user.impl.xwiki.XWikiAuthenticator extending
-        // MyFormAuthenticator
-        this.users.logout();
+        if (this.configuration.getAccessToken() != null) {
+            // Make sure the session is free from anything related to a previously authenticated user (i.e. in case we
+            // are
+            // just after a logout)
+            // FIXME: probably cleaner provide a custom com.xpn.xwiki.user.impl.xwiki.XWikiAuthenticator extending
+            // MyFormAuthenticator
+            this.users.logout();
+        }
 
         // If the URL contain a OIDC provider, assume it was asked to the user
         String provider = context.getRequest().getParameter(OIDCClientConfiguration.PROP_XWIKIPROVIDER);
@@ -137,6 +140,7 @@ public class OIDCAuthServiceImpl extends XWikiAuthServiceImpl
 
         // TODO: non interactive authentication if we have enough information for it but remember in the session that it
         // failed to not try again
+        // TODO: check cookie
     }
 
     private void showLoginOIDC(XWikiContext context) throws Exception
