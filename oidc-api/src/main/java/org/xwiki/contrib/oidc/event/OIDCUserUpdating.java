@@ -17,46 +17,37 @@
  * Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
  */
-package org.xwiki.contrib.oidc.auth.event;
+package org.xwiki.contrib.oidc.event;
 
-import org.xwiki.contrib.oidc.OIDCIdToken;
-import org.xwiki.contrib.oidc.OIDCUserInfo;
+import org.xwiki.model.reference.DocumentReference;
 
 /**
- * Data sent with user related events.
+ * Event sent when a user document update from OpenID Connect UserInfo is about to be applied.
+ * <p>
+ * The event also send the following parameters:
+ * </p>
+ * <ul>
+ * <li>source: the {@link com.xpn.xwiki.doc.XWikiDocument} instance to modify</li>
+ * <li>data: an {@link OIDCUserEventData} instance containing various informations about the user and its provider</li>
+ * </ul>
  * 
  * @version $Id$
  * @since 1.2
  */
-public class OIDCUserEventData
+public class OIDCUserUpdating extends AbstractOIDCUserEvent
 {
-    private final OIDCIdToken idToken;
-
-    private final OIDCUserInfo userInfo;
-
     /**
-     * @param idToken the id token
-     * @param userInfo the user info
+     * Matches all users.
      */
-    public OIDCUserEventData(OIDCIdToken idToken, OIDCUserInfo userInfo)
+    public OIDCUserUpdating()
     {
-        this.idToken = idToken;
-        this.userInfo = userInfo;
     }
 
     /**
-     * @return the id token
+     * @param user the user for which the event has been sent
      */
-    public OIDCIdToken getIdToken()
+    public OIDCUserUpdating(DocumentReference user)
     {
-        return this.idToken;
-    }
-
-    /**
-     * @return the user info
-     */
-    public OIDCUserInfo getUserInfo()
-    {
-        return this.userInfo;
+        super(user);
     }
 }

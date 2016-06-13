@@ -17,51 +17,37 @@
  * Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
  */
-package org.xwiki.contrib.oidc.auth.event;
+package org.xwiki.contrib.oidc.event;
 
 import org.xwiki.model.reference.DocumentReference;
-import org.xwiki.observation.event.Event;
 
 /**
- * Base class for OpenID Connect users related events.
+ * Event sent when a user document has been updated from OpenID Connect UserInfo.
+ * <p>
+ * The event also send the following parameters:
+ * </p>
+ * <ul>
+ * <li>source: the modified instance of {@link com.xpn.xwiki.doc.XWikiDocument}</li>
+ * <li>data: an {@link OIDCUserEventData} instance containing various informations about the user and its provider</li>
+ * </ul>
  * 
  * @version $Id$
  * @since 1.2
  */
-public abstract class AbstractOIDCUserEvent implements Event
+public class OIDCUserUpdated extends AbstractOIDCUserEvent
 {
-    private DocumentReference user;
-
     /**
      * Matches all users.
      */
-    public AbstractOIDCUserEvent()
+    public OIDCUserUpdated()
     {
     }
 
     /**
      * @param user the user for which the event has been sent
      */
-    public AbstractOIDCUserEvent(DocumentReference user)
+    public OIDCUserUpdated(DocumentReference user)
     {
-        this.user = user;
-    }
-
-    /**
-     * @return the user for which the event has been sent
-     */
-    public DocumentReference getUser()
-    {
-        return this.user;
-    }
-
-    @Override
-    public boolean matches(Object otherEvent)
-    {
-        if (otherEvent instanceof AbstractOIDCUserEvent) {
-            return getUser() == null || getUser().equals(((AbstractOIDCUserEvent) otherEvent).getUser());
-        }
-
-        return false;
+        super(user);
     }
 }

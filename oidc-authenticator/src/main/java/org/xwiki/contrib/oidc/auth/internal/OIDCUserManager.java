@@ -50,10 +50,10 @@ import org.xwiki.component.annotation.Component;
 import org.xwiki.component.manager.ComponentManager;
 import org.xwiki.context.concurrent.ExecutionContextRunnable;
 import org.xwiki.contrib.oidc.OIDCUserInfo;
-import org.xwiki.contrib.oidc.auth.event.OIDCUserEventData;
-import org.xwiki.contrib.oidc.auth.event.OIDCUserUpdated;
-import org.xwiki.contrib.oidc.auth.event.OIDCUserUpdating;
 import org.xwiki.contrib.oidc.auth.internal.store.OIDCUserStore;
+import org.xwiki.contrib.oidc.event.OIDCUserEventData;
+import org.xwiki.contrib.oidc.event.OIDCUserUpdated;
+import org.xwiki.contrib.oidc.event.OIDCUserUpdating;
 import org.xwiki.contrib.oidc.provider.internal.OIDCException;
 import org.xwiki.model.reference.DocumentReference;
 import org.xwiki.model.reference.SpaceReference;
@@ -423,6 +423,8 @@ public class OIDCUserManager
     public void logout()
     {
         XWikiRequest request = this.xcontextProvider.get().getRequest();
+
+        // TODO: remove cookies
 
         // Make sure the session is free from anything related to a previously authenticated user (i.e. in case we are
         // just after a logout)
