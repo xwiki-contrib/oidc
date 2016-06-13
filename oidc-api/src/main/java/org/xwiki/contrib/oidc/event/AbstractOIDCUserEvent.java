@@ -26,7 +26,7 @@ import org.xwiki.observation.event.Event;
  * Base class for OpenID Connect users related events.
  * 
  * @version $Id$
- * @since 1.2
+ * @since 1.4
  */
 public abstract class AbstractOIDCUserEvent implements Event
 {

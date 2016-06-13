@@ -32,7 +32,7 @@ import org.xwiki.model.reference.DocumentReference;
  * </ul>
  * 
  * @version $Id$
- * @since 1.2
+ * @since 1.4
  */
 public class OIDCUserUpdating extends AbstractOIDCUserEvent
 {

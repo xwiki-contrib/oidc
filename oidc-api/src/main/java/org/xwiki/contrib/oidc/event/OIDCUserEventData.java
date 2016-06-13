@@ -26,7 +26,7 @@ import org.xwiki.contrib.oidc.OIDCUserInfo;
  * Data sent with user related events.
  * 
  * @version $Id$
- * @since 1.2
+ * @since 1.4
  */
 public class OIDCUserEventData
 {
