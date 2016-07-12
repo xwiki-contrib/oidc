@@ -41,6 +41,8 @@
          root Component Manager (since they're executed before the wiki is extracted from the URL during
          the URL parsing process). -->
     <xwiki.extension.namespaces>{root}</xwiki.extension.namespaces>
+
+    <xwiki.extension.category>authenticator</xwiki.extension.category>
   </properties>
 
   <dependencies>

@@ -35,6 +35,10 @@
   <packaging>jar</packaging>
   <description>Various public OpenID Connect generic APIs</description>
 
+  <properties>
+    <xwiki.extension.category>api</xwiki.extension.category>
+  </properties>
+
   <dependencies>
     <dependency>
       <groupId>javax.mail</groupId>
