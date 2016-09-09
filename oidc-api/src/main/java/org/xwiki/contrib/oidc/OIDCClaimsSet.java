@@ -35,7 +35,7 @@ public interface OIDCClaimsSet
      * @param name The claim name. Must not be {@code null}.
      * @return The claim value, {@code null} if not specified.
      */
-    Object getClaim(final String name);
+    Object getClaim(String name);
 
     /**
      * Gets a claim that casts to the specified class.
@@ -45,7 +45,7 @@ public interface OIDCClaimsSet
      * @param clazz The Java class that the claim value should cast to. Must not be {@code null}.
      * @return The claim value, {@code null} if not specified or casting failed.
      */
-    <T> T getClaim(final String name, final Class<T> clazz);
+    <T> T getClaim(String name, Class<T> clazz);
 
     // TODO: add support for lang tag
 }
