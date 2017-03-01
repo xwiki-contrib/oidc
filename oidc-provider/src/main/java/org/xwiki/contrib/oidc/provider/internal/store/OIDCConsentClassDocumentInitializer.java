@@ -56,12 +56,12 @@ public class OIDCConsentClassDocumentInitializer extends AbstractMandatoryDocume
 
         BaseClass bclass = document.getXClass();
 
-        // FIXME: uncomment when http://jira.xwiki.org/browse/XWIKI-13456 is fixed
-        // String customClass = OIDCConsent.class.getName();
-        // if (!customClass.equals(bclass.getCustomClass())) {
-        // bclass.setCustomClass(customClass);
-        // needsUpdate = true;
-        // }
+        // Use custom class to make easier to manipulate consent objects
+        String customClass = OIDCConsent.class.getName();
+        if (!customClass.equals(bclass.getCustomClass())) {
+            bclass.setCustomClass(customClass);
+            needsUpdate = true;
+        }
 
         needsUpdate |= bclass.addTextField(OIDCConsent.FIELD_CLIENTID, "Client ID", 30);
         needsUpdate |= bclass.addTextField(OIDCConsent.FIELD_REDIRECTURI, "Redirect URI", 30);

@@ -28,7 +28,6 @@ import javax.inject.Singleton;
 
 import org.apache.commons.lang3.StringUtils;
 import org.xwiki.component.annotation.Component;
-import org.xwiki.contrib.oidc.provider.internal.util.StoreUtils;
 import org.xwiki.model.reference.DocumentReference;
 import org.xwiki.model.reference.DocumentReferenceResolver;
 import org.xwiki.query.Query;
@@ -62,8 +61,7 @@ public class OIDCUserStore
     {
         XWikiContext xcontext = this.xcontextProvider.get();
 
-        OIDCUser user =
-            StoreUtils.getCustomObject(userDocument, OIDCUser.CLASS_REFERENCE, true, xcontext, OIDCUser.class);
+        OIDCUser user = (OIDCUser) userDocument.getXObject(OIDCUser.CLASS_REFERENCE, true, xcontext);
 
         boolean needUpdate = false;
 

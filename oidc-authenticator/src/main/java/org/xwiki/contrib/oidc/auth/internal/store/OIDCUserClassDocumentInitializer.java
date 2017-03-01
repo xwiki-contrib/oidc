@@ -48,12 +48,11 @@ public class OIDCUserClassDocumentInitializer extends AbstractMandatoryDocumentI
 
         BaseClass bclass = document.getXClass();
 
-        // FIXME: uncomment when http://jira.xwiki.org/browse/XWIKI-13456 is fixed
-        /*String customClass = OIDCUser.class.getName();
+        String customClass = OIDCUser.class.getName();
         if (!customClass.equals(bclass.getCustomClass())) {
             bclass.setCustomClass(customClass);
             needsUpdate = true;
-        }*/
+        }
 
         needsUpdate |= bclass.addTextField(OIDCUser.FIELD_ISSUER, "Issuer", 30);
         needsUpdate |= bclass.addTextField(OIDCUser.FIELD_SUBJECT, "Subject", 30);

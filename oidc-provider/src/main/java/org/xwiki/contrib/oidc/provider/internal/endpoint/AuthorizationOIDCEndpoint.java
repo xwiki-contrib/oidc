@@ -33,7 +33,6 @@ import org.xwiki.contrib.oidc.provider.internal.OIDCManager;
 import org.xwiki.contrib.oidc.provider.internal.OIDCResourceReference;
 import org.xwiki.contrib.oidc.provider.internal.store.OIDCConsent;
 import org.xwiki.contrib.oidc.provider.internal.store.OIDCStore;
-import org.xwiki.contrib.oidc.provider.internal.util.StoreUtils;
 import org.xwiki.csrf.CSRFToken;
 import org.xwiki.script.ScriptContextManager;
 
@@ -150,8 +149,7 @@ public class AuthorizationOIDCEndpoint implements OIDCEndpoint
             }
 
             // Create new consent
-            consent = StoreUtils.newCustomObject(this.store.getUserDocument(), OIDCConsent.REFERENCE, xcontext,
-                OIDCConsent.class);
+            consent = (OIDCConsent) this.store.getUserDocument().newXObject(OIDCConsent.REFERENCE, xcontext);
 
             consent.setClientID(clientID);
             consent.setRedirectURI(request.getRedirectionURI());

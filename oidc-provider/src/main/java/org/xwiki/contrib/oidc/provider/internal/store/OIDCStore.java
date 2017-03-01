@@ -33,7 +33,6 @@ import javax.inject.Singleton;
 
 import org.apache.commons.lang3.StringUtils;
 import org.xwiki.component.annotation.Component;
-import org.xwiki.contrib.oidc.provider.internal.util.StoreUtils;
 import org.xwiki.model.reference.DocumentReference;
 import org.xwiki.model.reference.DocumentReferenceResolver;
 import org.xwiki.query.Query;
@@ -70,8 +69,7 @@ public class OIDCStore
         XWikiContext xcontext = this.xcontextProvider.get();
 
         XWikiDocument userDocument = xcontext.getWiki().getDocument(userReference, xcontext);
-        for (OIDCConsent consent : StoreUtils.getCustomObjects(userDocument, OIDCConsent.REFERENCE,
-            OIDCConsent.class)) {
+        for (OIDCConsent consent : (List<OIDCConsent>) (List) userDocument.getXObjects(OIDCConsent.REFERENCE)) {
             if (consent != null) {
                 if (clientID.equals(consent.getClientID())
                     && (redirectURI == null || redirectURI.equals(consent.getRedirectURI()))) {
@@ -119,8 +117,7 @@ public class OIDCStore
         DocumentReference userReference = this.resolver.resolve((String) user[0]);
         XWikiDocument userDocument = xcontext.getWiki().getDocument(userReference, xcontext);
 
-        return StoreUtils.getCustomObject(userDocument, OIDCConsent.REFERENCE, ((Number) user[1]).intValue(),
-            OIDCConsent.class);
+        return (OIDCConsent) userDocument.getXObject(OIDCConsent.REFERENCE, ((Number) user[1]).intValue());
     }
 
     public OIDCConsent getConsent(AccessToken accessToken) throws QueryException, XWikiException
@@ -164,7 +161,7 @@ public class OIDCStore
         for (BaseObject consent : userDocument.getXObjects(OIDCConsent.REFERENCE)) {
             if (consent != null && clientIDString.equals(consent.getStringValue(OIDCConsent.FIELD_CLIENTID))
                 && redirectURIString.equals(consent.getStringValue(OIDCConsent.FIELD_REDIRECTURI))) {
-                return StoreUtils.convertObject(userDocument, consent, OIDCConsent.class);
+                return (OIDCConsent) consent;
             }
         }
 

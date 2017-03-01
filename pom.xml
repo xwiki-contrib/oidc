@@ -41,6 +41,9 @@
     <xwiki.release.jira.skip>false</xwiki.release.jira.skip>
     <xwiki.issueManagement.system>jira</xwiki.issueManagement.system>
     <xwiki.issueManagement.url>https://jira.xwiki.org/browse/OIDC</xwiki.issueManagement.url>
+
+    <!-- Requires at least 7.4.4 because of http://jira.xwiki.org/browse/XWIKI-13456 -->
+    <commons.version>7.4.4</commons.version>
   </properties>
 
   <dependencyManagement>
