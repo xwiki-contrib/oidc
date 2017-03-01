@@ -247,7 +247,7 @@ public class OIDCUserManager
 
         // Website
         if (userInfo.getWebsite() != null) {
-            userObject.set("blog", userInfo.getWebsite(), xcontext);
+            userObject.set("blog", userInfo.getWebsite().toString(), xcontext);
         }
 
         // Avatar
