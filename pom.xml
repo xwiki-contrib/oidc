@@ -40,7 +40,7 @@
   <properties>
     <xwiki.release.jira.skip>false</xwiki.release.jira.skip>
     <xwiki.issueManagement.system>jira</xwiki.issueManagement.system>
-    <xwiki.issueManagement.url>https://jira.xwiki.org/jira/browse/OIDC</xwiki.issueManagement.url>
+    <xwiki.issueManagement.url>https://jira.xwiki.org/browse/OIDC</xwiki.issueManagement.url>
   </properties>
 
   <dependencyManagement>
