@@ -34,6 +34,7 @@ import org.xwiki.container.servlet.ServletSession;
 import org.xwiki.contrib.oidc.auth.internal.OIDCClientConfiguration;
 import org.xwiki.contrib.oidc.auth.internal.OIDCUserManager;
 import org.xwiki.contrib.oidc.provider.internal.OIDCException;
+import org.xwiki.contrib.oidc.provider.internal.OIDCManager;
 import org.xwiki.contrib.oidc.provider.internal.OIDCResourceReference;
 import org.xwiki.contrib.oidc.provider.internal.endpoint.OIDCEndpoint;
 import org.xwiki.contrib.oidc.provider.internal.util.RedirectResponse;
@@ -78,6 +79,9 @@ public class CallbackOIDCEndpoint implements OIDCEndpoint
     private OIDCClientConfiguration configuration;
 
     @Inject
+    private OIDCManager oidc;
+
+    @Inject
     private OIDCUserManager users;
 
     @Override
@@ -112,9 +116,11 @@ public class CallbackOIDCEndpoint implements OIDCEndpoint
         // Get authorization code
         AuthorizationCode code = successResponse.getAuthorizationCode();
 
+        // Generate callback URL
+        URI callback = this.oidc.createEndPointURI(CallbackOIDCEndpoint.HINT);
+
         // Get access token
-        AuthorizationGrant authorizationGrant =
-            new AuthorizationCodeGrant(code, authorizationResponse.getRedirectionURI());
+        AuthorizationGrant authorizationGrant = new AuthorizationCodeGrant(code, callback);
         // TODO: setup some client authentication, secret, all that
         TokenRequest tokeRequest = new TokenRequest(this.configuration.getTokenOIDCEndpoint(),
             this.configuration.getClientID(), authorizationGrant);
