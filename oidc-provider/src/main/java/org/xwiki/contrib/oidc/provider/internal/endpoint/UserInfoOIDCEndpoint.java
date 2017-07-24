@@ -216,6 +216,8 @@ public class UserInfoOIDCEndpoint implements OIDCEndpoint
             }
         }
 
+        this.logger.debug("User infos:" + userInfo.toJSONObject().toString());
+
         return new UserInfoSuccessResponse(userInfo);
     }
 

@@ -28,6 +28,7 @@ import javax.inject.Provider;
 import javax.inject.Singleton;
 import javax.script.ScriptContext;
 
+import org.slf4j.Logger;
 import org.xwiki.component.annotation.Component;
 import org.xwiki.contrib.oidc.provider.internal.OIDCManager;
 import org.xwiki.contrib.oidc.provider.internal.OIDCResourceReference;
@@ -38,6 +39,8 @@ import org.xwiki.script.ScriptContextManager;
 
 import com.nimbusds.jwt.JWT;
 import com.nimbusds.oauth2.sdk.AuthorizationCode;
+import com.nimbusds.oauth2.sdk.AuthorizationRequest;
+import com.nimbusds.oauth2.sdk.AuthorizationSuccessResponse;
 import com.nimbusds.oauth2.sdk.OAuth2Error;
 import com.nimbusds.oauth2.sdk.Response;
 import com.nimbusds.oauth2.sdk.http.HTTPRequest;
@@ -48,6 +51,7 @@ import com.nimbusds.openid.connect.sdk.AuthenticationRequest;
 import com.nimbusds.openid.connect.sdk.AuthenticationSuccessResponse;
 import com.nimbusds.openid.connect.sdk.ClaimsRequest;
 import com.nimbusds.openid.connect.sdk.OIDCError;
+import com.nimbusds.openid.connect.sdk.OIDCScopeValue;
 import com.nimbusds.openid.connect.sdk.Prompt;
 import com.xpn.xwiki.XWikiContext;
 import com.xpn.xwiki.user.api.XWikiUser;
@@ -82,11 +86,19 @@ public class AuthorizationOIDCEndpoint implements OIDCEndpoint
     @Inject
     private ScriptContextManager scripts;
 
+    @Inject
+    private Logger logger;
+
     @Override
     public Response handle(HTTPRequest httpRequest, OIDCResourceReference reference) throws Exception
     {
         // Parse the request
-        AuthenticationRequest request = AuthenticationRequest.parse(httpRequest);
+        AuthorizationRequest request = AuthorizationRequest.parse(httpRequest);
+
+        if (request.getScope() != null && request.getScope().equals(OIDCScopeValue.OPENID)) {
+            // OpenID Connect
+            request = AuthenticationRequest.parse(httpRequest);
+        }
 
         XWikiContext xcontext = this.xcontextProvider.get();
 
@@ -137,7 +149,12 @@ public class AuthorizationOIDCEndpoint implements OIDCEndpoint
                     request.getState(), null);
             }
 
-            ClaimsRequest resolvedClaims = ClaimsRequest.resolve(request);
+            // Resolve claims
+            ClaimsRequest resolvedClaims = null;
+            if (request instanceof AuthenticationRequest) {
+                resolvedClaims = ClaimsRequest.resolve(request.getResponseType(), request.getScope());
+                resolvedClaims.add(((AuthenticationRequest) request).getClaims());
+            }
 
             // Ask user for consent
             Boolean consentAnswer = getConsent(httpRequest);
@@ -169,26 +186,54 @@ public class AuthorizationOIDCEndpoint implements OIDCEndpoint
                 consent.setAccessToken(new BearerAccessToken());
                 this.store.saveConsent(consent, "Store new OIDC access token");
             }
-            idToken = this.manager.createdIdToken(clientID, consent.getUserReference(), request.getNonce(),
-                request.getClaims());
+            if (request instanceof AuthenticationRequest) {
+                idToken = this.manager.createdIdToken(clientID, consent.getUserReference(),
+                    ((AuthenticationRequest) request).getNonce(), ((AuthenticationRequest) request).getClaims());
+            }
         }
+
+        this.logger.debug("Remember authorization code [{}]", authorizationCode);
 
         // Remember authorization code
         this.store.setAuthorizationCode(authorizationCode, consent.getDocumentReference());
 
         // Create response
         if (request.getResponseType().impliesCodeFlow()) {
-            return new AuthenticationSuccessResponse(request.getRedirectionURI(), authorizationCode, null, null,
-                request.getState(), null, null);
+            if (request instanceof AuthenticationRequest) {
+                // OpenID Connect
+                return new AuthenticationSuccessResponse(request.getRedirectionURI(), authorizationCode, null, null,
+                    request.getState(), null, null);
+            } else {
+                // OAuth2
+                return new AuthorizationSuccessResponse(request.getRedirectionURI(), authorizationCode, null,
+                    request.getState(), null);
+            }
         } else {
-            return new AuthenticationSuccessResponse(request.getRedirectionURI(), null, idToken,
-                consent.getAccessToken(), request.getState(), null, null);
+            if (request instanceof AuthenticationRequest) {
+                // OpenID Connect
+                return new AuthenticationSuccessResponse(request.getRedirectionURI(), null, idToken,
+                    consent.getAccessToken(), request.getState(), null, null);
+            } else {
+                // OAuth2
+                return new AuthorizationSuccessResponse(request.getRedirectionURI(), null, consent.getAccessToken(),
+                    request.getState(), null);
+            }
         }
     }
 
-    private boolean prompt(AuthenticationRequest request, Prompt.Type type)
+    private boolean prompt(AuthorizationRequest request, Prompt.Type type)
     {
-        return request.getPrompt() != null ? request.getPrompt().contains(type) : false;
+        if (request instanceof AuthenticationRequest) {
+            // OpenID Connect
+            if (((AuthenticationRequest) request).getPrompt() != null) {
+                return ((AuthenticationRequest) request).getPrompt().contains(type);
+            }
+        } else {
+            // OAuth2
+            return false;
+        }
+
+        return false;
     }
 
     private Boolean getConsent(HTTPRequest httpRequest)
@@ -215,7 +260,7 @@ public class AuthorizationOIDCEndpoint implements OIDCEndpoint
         return null;
     }
 
-    private Response askConsent(AuthenticationRequest request, HTTPRequest httpRequest, ClaimsRequest resolvedClaims)
+    private Response askConsent(AuthorizationRequest request, HTTPRequest httpRequest, ClaimsRequest resolvedClaims)
         throws Exception
     {
         // Set various information in the script context

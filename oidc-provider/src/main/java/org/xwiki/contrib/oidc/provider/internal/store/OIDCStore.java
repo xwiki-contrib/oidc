@@ -32,6 +32,7 @@ import javax.inject.Provider;
 import javax.inject.Singleton;
 
 import org.apache.commons.lang3.StringUtils;
+import org.slf4j.Logger;
 import org.xwiki.component.annotation.Component;
 import org.xwiki.model.reference.DocumentReference;
 import org.xwiki.model.reference.DocumentReferenceResolver;
@@ -60,6 +61,9 @@ public class OIDCStore
     @Inject
     @Named("current")
     private DocumentReferenceResolver<String> resolver;
+
+    @Inject
+    private Logger logger;
 
     private Map<AuthorizationCode, DocumentReference> authorizationMap = new ConcurrentHashMap<>();
 
@@ -143,6 +147,8 @@ public class OIDCStore
     {
         DocumentReference userReference = getUserReference(code);
 
+        this.logger.debug("Get consent USER: reference={}", userReference);
+
         if (userReference == null) {
             return null;
         }
@@ -155,10 +161,17 @@ public class OIDCStore
             return null;
         }
 
-        String clientIDString = clientID.getValue();
+        String clientIDString = clientID != null ? clientID.getValue() : "";
         String redirectURIString = redirectURI.toString();
 
+        this.logger.debug("Get consent OIDC: clientIDString={} redirectURIString={}", clientIDString,
+            redirectURIString);
+
         for (BaseObject consent : userDocument.getXObjects(OIDCConsent.REFERENCE)) {
+            this.logger.debug("Get consent STORED: clientIDString={} redirectURIString={}",
+                consent.getStringValue(OIDCConsent.FIELD_CLIENTID),
+                consent.getStringValue(OIDCConsent.FIELD_REDIRECTURI));
+
             if (consent != null && clientIDString.equals(consent.getStringValue(OIDCConsent.FIELD_CLIENTID))
                 && redirectURIString.equals(consent.getStringValue(OIDCConsent.FIELD_REDIRECTURI))) {
                 return (OIDCConsent) consent;

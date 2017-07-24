@@ -23,6 +23,7 @@ import javax.inject.Inject;
 import javax.inject.Named;
 import javax.inject.Singleton;
 
+import org.slf4j.Logger;
 import org.xwiki.component.annotation.Component;
 import org.xwiki.contrib.oidc.provider.internal.OIDCManager;
 import org.xwiki.contrib.oidc.provider.internal.OIDCResourceReference;
@@ -39,6 +40,7 @@ import com.nimbusds.oauth2.sdk.TokenErrorResponse;
 import com.nimbusds.oauth2.sdk.TokenRequest;
 import com.nimbusds.oauth2.sdk.auth.ClientAuthentication;
 import com.nimbusds.oauth2.sdk.http.HTTPRequest;
+import com.nimbusds.oauth2.sdk.id.ClientID;
 import com.nimbusds.oauth2.sdk.token.BearerAccessToken;
 import com.nimbusds.openid.connect.sdk.OIDCTokenResponse;
 import com.nimbusds.openid.connect.sdk.token.OIDCTokens;
@@ -64,6 +66,9 @@ public class TokenOIDCEndpoint implements OIDCEndpoint
     @Inject
     private OIDCManager manager;
 
+    @Inject
+    private Logger logger;
+
     @Override
     public Response handle(HTTPRequest httpRequest, OIDCResourceReference reference) throws Exception
     {
@@ -72,17 +77,25 @@ public class TokenOIDCEndpoint implements OIDCEndpoint
 
         AuthorizationGrant authorizationGrant = request.getAuthorizationGrant();
 
-        // TODO: authenticate the client if needed
+        ClientID clientID = request.getClientID();
+
+        ClientAuthentication authentication = request.getClientAuthentication();
+        if (authentication != null) {
+            clientID = authentication.getClientID();
+        }
+
         if (authorizationGrant.getType().requiresClientAuthentication()) {
-            ClientAuthentication authentication = request.getClientAuthentication();
-            // TODO
+            // TODO: authenticate the client if needed
         }
 
         if (authorizationGrant.getType() == GrantType.AUTHORIZATION_CODE) {
             AuthorizationCodeGrant grant = (AuthorizationCodeGrant) authorizationGrant;
 
+            this.logger.debug("Grant request: code={} redirectionURI={} clientID={}", grant.getAuthorizationCode(),
+                grant.getRedirectionURI(), clientID);
+
             OIDCConsent consent =
-                this.store.getConsent(request.getClientID(), grant.getRedirectionURI(), grant.getAuthorizationCode());
+                this.store.getConsent(clientID, grant.getRedirectionURI(), grant.getAuthorizationCode());
 
             if (consent == null) {
                 return new TokenErrorResponse(OAuth2Error.INVALID_GRANT);

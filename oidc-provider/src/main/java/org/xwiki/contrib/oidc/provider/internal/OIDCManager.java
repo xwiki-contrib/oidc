@@ -24,6 +24,7 @@ import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.Callable;
 
@@ -45,6 +46,7 @@ import org.xwiki.template.TemplateManager;
 
 import com.nimbusds.jwt.JWT;
 import com.nimbusds.jwt.PlainJWT;
+import com.nimbusds.oauth2.sdk.AuthorizationRequest;
 import com.nimbusds.oauth2.sdk.ParseException;
 import com.nimbusds.oauth2.sdk.Response;
 import com.nimbusds.oauth2.sdk.http.HTTPResponse;
@@ -53,7 +55,6 @@ import com.nimbusds.oauth2.sdk.id.Audience;
 import com.nimbusds.oauth2.sdk.id.ClientID;
 import com.nimbusds.oauth2.sdk.id.Issuer;
 import com.nimbusds.oauth2.sdk.id.Subject;
-import com.nimbusds.openid.connect.sdk.AuthenticationRequest;
 import com.nimbusds.openid.connect.sdk.ClaimsRequest;
 import com.nimbusds.openid.connect.sdk.ClaimsRequest.Entry;
 import com.nimbusds.openid.connect.sdk.Nonce;
@@ -170,7 +171,8 @@ public class OIDCManager
     {
         Issuer issuer = getIssuer();
         Subject subject = getSubject(userReference);
-        List<Audience> audiences = Arrays.asList(new Audience(clientID));
+        List<Audience> audiences =
+            clientID != null ? Arrays.asList(new Audience(clientID)) : Collections.<Audience>emptyList();
 
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime now1year = now.plusYears(1);
@@ -242,7 +244,7 @@ public class OIDCManager
      * @return the HTML content response
      * @throws Exception when failing to execute the template
      */
-    public Response executeTemplate(String templateName, AuthenticationRequest request) throws Exception
+    public Response executeTemplate(String templateName, AuthorizationRequest request) throws Exception
     {
         return executeTemplate(templateName);
     }
