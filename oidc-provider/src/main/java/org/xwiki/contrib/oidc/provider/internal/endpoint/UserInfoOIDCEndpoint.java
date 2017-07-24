@@ -115,10 +115,10 @@ public class UserInfoOIDCEndpoint implements OIDCEndpoint
 
         XWikiContext xcontext = this.xcontextProvider.get();
 
-        if (claims != null) {
-            BaseObject userObject = this.store.getUserObject(consent);
-            XWikiDocument userDocument = userObject.getOwnerDocument();
+        BaseObject userObject = this.store.getUserObject(consent);
+        XWikiDocument userDocument = userObject.getOwnerDocument();
 
+        if (claims != null) {
             for (Entry claim : claims.getUserInfoClaims()) {
                 try {
                     switch (claim.getClaimName()) {
@@ -214,6 +214,20 @@ public class UserInfoOIDCEndpoint implements OIDCEndpoint
                         ExceptionUtils.getRootCauseMessage(e));
                 }
             }
+        } else {
+            // Most probably OpenID Connect
+            String email = userObject.getStringValue("email");
+            if (StringUtils.isNotEmpty(email)) {
+                userInfo.setEmail(new InternetAddress(email));
+                userInfo.setEmailVerified(true);
+            }
+            
+            userInfo.setName(xcontext.getWiki().getPlainUserName(userReference, xcontext));
+            userInfo.setPreferredUsername(xcontext.getWiki().getPlainUserName(userReference, xcontext));
+
+            userInfo.setPicture(this.store.getUserAvatarURI(userDocument));
+
+            userInfo.setProfile(this.store.getUserProfileURI(userDocument));
         }
 
         this.logger.debug("User infos:" + userInfo.toJSONObject().toString());
