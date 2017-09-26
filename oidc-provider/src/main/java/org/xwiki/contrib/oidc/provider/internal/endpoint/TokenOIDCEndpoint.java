@@ -72,6 +72,8 @@ public class TokenOIDCEndpoint implements OIDCEndpoint
     @Override
     public Response handle(HTTPRequest httpRequest, OIDCResourceReference reference) throws Exception
     {
+        this.logger.debug("OIDC: Entering [token] endpoint");
+
         // Parse the request
         TokenRequest request = TokenRequest.parse(httpRequest);
 
@@ -91,8 +93,8 @@ public class TokenOIDCEndpoint implements OIDCEndpoint
         if (authorizationGrant.getType() == GrantType.AUTHORIZATION_CODE) {
             AuthorizationCodeGrant grant = (AuthorizationCodeGrant) authorizationGrant;
 
-            this.logger.debug("Grant request: code={} redirectionURI={} clientID={}", grant.getAuthorizationCode(),
-                grant.getRedirectionURI(), clientID);
+            this.logger.debug("OIDC.token: Grant request: code={} redirectionURI={} clientID={}",
+                grant.getAuthorizationCode(), grant.getRedirectionURI(), clientID);
 
             OIDCConsent consent =
                 this.store.getConsent(clientID, grant.getRedirectionURI(), grant.getAuthorizationCode());

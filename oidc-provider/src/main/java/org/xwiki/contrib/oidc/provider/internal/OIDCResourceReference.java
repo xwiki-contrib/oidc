@@ -86,4 +86,19 @@ public class OIDCResourceReference extends EntityResourceReference
     {
         return this.pathSegments;
     }
+
+    @Override
+    public String toString()
+    {
+        StringBuilder builder = new StringBuilder();
+
+        builder.append("path = ");
+        builder.append(getPath());
+        builder.append(", endpoint = ");
+        builder.append(getEndpoint());
+        builder.append(", pathSegments = ");
+        builder.append(getPathSegments());
+
+        return super.toString();
+    }
 }

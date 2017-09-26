@@ -28,6 +28,7 @@ import javax.inject.Singleton;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import org.slf4j.Logger;
 import org.xwiki.component.annotation.Component;
 import org.xwiki.component.manager.ComponentManager;
 import org.xwiki.container.Container;
@@ -76,6 +77,9 @@ public class OIDCResourceReferenceHandler extends AbstractResourceReferenceHandl
     @Inject
     private Execution execution;
 
+    @Inject
+    private Logger logger;
+
     @Override
     public List<ResourceType> getSupportedResourceReferences()
     {
@@ -116,6 +120,8 @@ public class OIDCResourceReferenceHandler extends AbstractResourceReferenceHandl
     {
         // Convert from Servlet http request to generic http request
         HTTPRequest httpRequest = ServletUtils.createHTTPRequest(httpServletRequest);
+
+        this.logger.debug("OIDC: Reference: [{}]", reference);
 
         Response response;
         if (this.componentManager.hasComponent(OIDCEndpoint.class, reference.getEndpoint())) {

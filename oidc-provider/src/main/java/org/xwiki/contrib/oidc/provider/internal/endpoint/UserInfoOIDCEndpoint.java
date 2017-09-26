@@ -95,6 +95,8 @@ public class UserInfoOIDCEndpoint implements OIDCEndpoint
     @Override
     public Response handle(HTTPRequest httpRequest, OIDCResourceReference reference) throws Exception
     {
+        this.logger.debug("OIDC: Entering [userinfo] endpoint");
+
         // Parse the request
         UserInfoRequest request = UserInfoRequest.parse(httpRequest);
 
@@ -221,7 +223,7 @@ public class UserInfoOIDCEndpoint implements OIDCEndpoint
                 userInfo.setEmail(new InternetAddress(email));
                 userInfo.setEmailVerified(true);
             }
-            
+
             userInfo.setName(xcontext.getWiki().getPlainUserName(userReference, xcontext));
             userInfo.setPreferredUsername(xcontext.getWiki().getPlainUserName(userReference, xcontext));
 
@@ -230,7 +232,7 @@ public class UserInfoOIDCEndpoint implements OIDCEndpoint
             userInfo.setProfile(this.store.getUserProfileURI(userDocument));
         }
 
-        this.logger.debug("User infos:" + userInfo.toJSONObject().toString());
+        this.logger.debug("OIDC.userinfo: User infos: [{}]", userInfo.toJSONObject());
 
         return new UserInfoSuccessResponse(userInfo);
     }
