@@ -92,12 +92,18 @@ public class AuthorizationOIDCEndpoint implements OIDCEndpoint
     @Override
     public Response handle(HTTPRequest httpRequest, OIDCResourceReference reference) throws Exception
     {
+        this.logger.debug("OIDC: Entering [authorization] endpoint");
+
         // Parse the request
         AuthorizationRequest request = AuthorizationRequest.parse(httpRequest);
 
-        if (request.getScope() != null && request.getScope().equals(OIDCScopeValue.OPENID)) {
+        if (request.getScope() != null && request.getScope().contains(OIDCScopeValue.OPENID)) {
+            this.logger.debug("OIDC: OpenID client");
+
             // OpenID Connect
             request = AuthenticationRequest.parse(httpRequest);
+        } else {
+            this.logger.debug("OIDC: Not OpenID Connect client, assuming OAuth2");
         }
 
         XWikiContext xcontext = this.xcontextProvider.get();
@@ -112,7 +118,7 @@ public class AuthorizationOIDCEndpoint implements OIDCEndpoint
         // Authenticate
         XWikiUser user = xcontext.getWiki().checkAuth(xcontext);
         if (user == null) {
-            if (prompt(request, Prompt.Type.NONE)) {
+            if (prompt(request, Prompt.Type.NONE, false)) {
                 // Interactive login is disabled but the user was not automatically authenticated
                 return new AuthenticationErrorResponse(request.getRedirectionURI(), OIDCError.INTERACTION_REQUIRED,
                     request.getState(), null);
@@ -121,12 +127,14 @@ public class AuthorizationOIDCEndpoint implements OIDCEndpoint
             xcontext.getWiki().getAuthService().showLogin(xcontext);
 
             return null;
-        } else if (prompt(request, Prompt.Type.LOGIN)) {
+        } else if (prompt(request, Prompt.Type.LOGIN, false)) {
             // Login is forced by the client
             xcontext.getWiki().getAuthService().showLogin(xcontext);
 
             return null;
         }
+
+        this.logger.debug("OIDC: Current user: [{}]", user);
 
         // Set context user
         xcontext.setUser(user.getUser());
@@ -138,13 +146,17 @@ public class AuthorizationOIDCEndpoint implements OIDCEndpoint
         // Required to look up the client in the provider's database
         ClientID clientID = request.getClientID();
 
+        this.logger.debug("OIDC: Client id: [{}]", user);
+
         // Get current consent for provided client id
         OIDCConsent consent = this.store.getConsent(clientID, request.getRedirectionURI());
 
+        this.logger.debug("OIDC: Existing consent: [{}]", consent);
+
         // TODO: Check if claims are the same
-        if (consent == null || prompt(request, Prompt.Type.CONSENT)) {
+        if (consent == null || prompt(request, Prompt.Type.CONSENT, false)) {
             // Impossible to validate consent without user interaction
-            if (prompt(request, Prompt.Type.NONE)) {
+            if (prompt(request, Prompt.Type.NONE, false)) {
                 return new AuthenticationErrorResponse(request.getRedirectionURI(), OIDCError.CONSENT_REQUIRED,
                     request.getState(), null);
             }
@@ -176,6 +188,8 @@ public class AuthorizationOIDCEndpoint implements OIDCEndpoint
 
             // Save consent
             this.store.saveConsent(consent, "Add new OIDC consent");
+
+            this.logger.debug("OIDC: New consent: [{}]", consent);
         }
 
         // Generate authorization code or tokens depending on the response type
@@ -221,7 +235,7 @@ public class AuthorizationOIDCEndpoint implements OIDCEndpoint
         }
     }
 
-    private boolean prompt(AuthorizationRequest request, Prompt.Type type)
+    private boolean prompt(AuthorizationRequest request, Prompt.Type type, boolean def)
     {
         if (request instanceof AuthenticationRequest) {
             // OpenID Connect
@@ -230,7 +244,7 @@ public class AuthorizationOIDCEndpoint implements OIDCEndpoint
             }
         } else {
             // OAuth2
-            return false;
+            return def;
         }
 
         return false;
