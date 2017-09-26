@@ -3,7 +3,7 @@
 Various tools to manipulate OpenID Connect protocol in XWiki.
 
 * Project Lead: [Thomas Mortagne](http://www.xwiki.org/xwiki/bin/view/XWiki/ThomasMortagne)
-* [Documentation & Downloads](http://extensions.xwiki.org/xwiki/bin/view/Extension/OpenID Connect/)
+* [Documentation & Downloads](http://extensions.xwiki.org/xwiki/bin/view/Extension/OpenID%20Connect/)
 * [Issue Tracker](http://jira.xwiki.org/browse/OIDC)
 * Communication: [Mailing List](http://dev.xwiki.org/xwiki/bin/view/Community/MailingLists), [IRC](http://dev.xwiki.org/xwiki/bin/view/Community/IRC)
 * [Development Practices](http://dev.xwiki.org)
