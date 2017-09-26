@@ -149,7 +149,7 @@ public class AuthorizationOIDCEndpoint implements OIDCEndpoint
         this.logger.debug("OIDC: Client id: [{}]", user);
 
         // Get current consent for provided client id
-        OIDCConsent consent = this.store.getConsent(clientID, request.getRedirectionURI());
+        OIDCConsent consent = this.store.getConsent(clientID, request.getRedirectionURI(), xcontext.getUserReference());
 
         this.logger.debug("OIDC: Existing consent: [{}]", consent);
 

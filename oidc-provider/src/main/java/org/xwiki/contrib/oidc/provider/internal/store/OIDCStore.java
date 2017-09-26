@@ -133,29 +133,30 @@ public class OIDCStore
         return getConsent(entries);
     }
 
-    public OIDCConsent getConsent(ClientID clientID, URI redirectURI) throws QueryException, XWikiException
-    {
-        Map<String, String> entries = new HashMap<>();
-
-        entries.put(OIDCConsent.FIELD_CLIENTID, clientID.getValue());
-        entries.put(OIDCConsent.FIELD_REDIRECTURI, redirectURI.toString());
-
-        return getConsent(entries);
-    }
-
     public OIDCConsent getConsent(ClientID clientID, URI redirectURI, AuthorizationCode code) throws XWikiException
     {
         DocumentReference userReference = getUserReference(code);
-
-        this.logger.debug("Get consent USER: reference={}", userReference);
 
         if (userReference == null) {
             return null;
         }
 
+        return getConsent(clientID, redirectURI, userReference);
+    }
+
+    public OIDCConsent getConsent(ClientID clientID, URI redirectURI, DocumentReference userReference)
+        throws XWikiException
+    {
         XWikiContext xcontext = this.xcontextProvider.get();
 
         XWikiDocument userDocument = xcontext.getWiki().getDocument(userReference, xcontext);
+
+        return getConsent(clientID, redirectURI, userDocument);
+    }
+
+    public OIDCConsent getConsent(ClientID clientID, URI redirectURI, XWikiDocument userDocument)
+    {
+        this.logger.debug("Get consent USER: reference={}", userDocument.getDocumentReference());
 
         if (userDocument.isNew()) {
             return null;
@@ -167,14 +168,19 @@ public class OIDCStore
         this.logger.debug("Get consent OIDC: clientIDString={} redirectURIString={}", clientIDString,
             redirectURIString);
 
-        for (BaseObject consent : userDocument.getXObjects(OIDCConsent.REFERENCE)) {
-            this.logger.debug("Get consent STORED: clientIDString={} redirectURIString={}",
-                consent.getStringValue(OIDCConsent.FIELD_CLIENTID),
-                consent.getStringValue(OIDCConsent.FIELD_REDIRECTURI));
+        List<BaseObject> consents = userDocument.getXObjects(OIDCConsent.REFERENCE);
+        if (consents != null) {
+            for (BaseObject consent : consents) {
+                if (consent != null) {
+                    this.logger.debug("Get consent STORED: clientIDString={} redirectURIString={}",
+                        consent.getStringValue(OIDCConsent.FIELD_CLIENTID),
+                        consent.getStringValue(OIDCConsent.FIELD_REDIRECTURI));
 
-            if (consent != null && clientIDString.equals(consent.getStringValue(OIDCConsent.FIELD_CLIENTID))
-                && redirectURIString.equals(consent.getStringValue(OIDCConsent.FIELD_REDIRECTURI))) {
-                return (OIDCConsent) consent;
+                    if (clientIDString.equals(consent.getStringValue(OIDCConsent.FIELD_CLIENTID))
+                        && redirectURIString.equals(consent.getStringValue(OIDCConsent.FIELD_REDIRECTURI))) {
+                        return (OIDCConsent) consent;
+                    }
+                }
             }
         }
 
