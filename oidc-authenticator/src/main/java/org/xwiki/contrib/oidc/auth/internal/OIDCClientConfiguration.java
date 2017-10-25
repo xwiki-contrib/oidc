@@ -288,7 +288,7 @@ public class OIDCClientConfiguration
 
         // UserInfo claims
         List<String> userinfoclaims = getUserInfoClaims();
-        if (idtokenclaims != null && !userinfoclaims.isEmpty()) {
+        if (userinfoclaims != null && !userinfoclaims.isEmpty()) {
             for (String claim : userinfoclaims) {
                 claimsRequest.addUserInfoClaim(claim);
             }
