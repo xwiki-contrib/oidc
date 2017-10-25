@@ -208,7 +208,7 @@ public class OIDCClientConfiguration
 
     public String getUserNameFormater()
     {
-        String userFormatter = getProperty(DEFAULT_USER_NAMEFORMATER, String.class);
+        String userFormatter = getProperty(PROP_USER_NAMEFORMATER, String.class);
         if (userFormatter == null) {
             userFormatter = DEFAULT_USER_NAMEFORMATER;
         }
