@@ -389,7 +389,7 @@ public class OIDCUserManager
 
         // User informations
         putVariable(map, "oidc.user.subject", userInfo.getSubject().getValue());
-        putVariable(map, "oidc.user.mail", userInfo.getEmail().getAddress());
+        putVariable(map, "oidc.user.mail", userInfo.getEmail() == null ? "" : userInfo.getEmail().getAddress());
         putVariable(map, "oidc.user.familyName", userInfo.getFamilyName());
         putVariable(map, "oidc.user.givenName", userInfo.getGivenName());
 
