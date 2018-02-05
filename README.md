@@ -11,4 +11,4 @@ Various tools to manipulate OpenID Connect protocol in XWiki.
 * License: LGPL 2.1
 * Translations: N/A
 * Sonar Dashboard: N/A
-* Continuous Integration Status: [![Build Status](http://ci.xwiki.org/buildStatus/icon?job=Contrib%20-%20OpenID%20Connect)](http://ci.xwiki.org/job/Contrib%20-%20OpenID%20Connect/)
+* Continuous Integration Status: [![Build Status](http://ci.xwiki.org/job/XWiki%20Contrib/job/oidc/job/master/badge/icon)](http://ci.xwiki.org/job/XWiki%20Contrib/job/oidc/job/master/)
