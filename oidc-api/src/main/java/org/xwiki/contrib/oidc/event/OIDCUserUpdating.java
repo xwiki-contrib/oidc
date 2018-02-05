@@ -27,7 +27,7 @@ import org.xwiki.model.reference.DocumentReference;
  * The event also send the following parameters:
  * </p>
  * <ul>
- * <li>source: the {@link com.xpn.xwiki.doc.XWikiDocument} instance to modify</li>
+ * <li>source: the com.xpn.xwiki.doc.XWikiDocument instance to modify</li>
  * <li>data: an {@link OIDCUserEventData} instance containing various informations about the user and its provider</li>
  * </ul>
  * 
