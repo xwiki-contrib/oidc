@@ -28,7 +28,6 @@ import javax.inject.Inject;
 import javax.inject.Named;
 import javax.inject.Provider;
 import javax.inject.Singleton;
-import javax.mail.internet.InternetAddress;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
@@ -137,11 +136,11 @@ public class UserInfoOIDCEndpoint implements OIDCEndpoint
                         case OIDCUserInfo.CLAIM_EMAIL:
                             String email = userObject.getStringValue("email");
                             if (StringUtils.isNotEmpty(email)) {
-                                userInfo.setEmail(new InternetAddress(email));
+                                userInfo.setEmailAddress(email);
                             }
                             break;
                         case OIDCUserInfo.CLAIM_EMAIL_VERIFIED:
-                            if (userInfo.getEmail() != null) {
+                            if (userInfo.getEmailAddress() != null) {
                                 userInfo.setEmailVerified(true);
                             }
                             break;
@@ -220,7 +219,7 @@ public class UserInfoOIDCEndpoint implements OIDCEndpoint
             // Most probably OpenID Connect
             String email = userObject.getStringValue("email");
             if (StringUtils.isNotEmpty(email)) {
-                userInfo.setEmail(new InternetAddress(email));
+                userInfo.setEmailAddress(email);
                 userInfo.setEmailVerified(true);
             }
 

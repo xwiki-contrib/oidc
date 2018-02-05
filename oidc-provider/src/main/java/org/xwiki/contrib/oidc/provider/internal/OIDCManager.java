@@ -19,7 +19,6 @@
  */
 package org.xwiki.contrib.oidc.provider.internal;
 
-import java.io.InputStream;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -33,7 +32,6 @@ import javax.inject.Provider;
 import javax.inject.Singleton;
 import javax.servlet.http.HttpServletResponse;
 
-import org.apache.commons.io.IOUtils;
 import org.joda.time.LocalDateTime;
 import org.xwiki.component.annotation.Component;
 import org.xwiki.contrib.oidc.OIDCIdToken;
@@ -41,7 +39,7 @@ import org.xwiki.contrib.oidc.provider.internal.util.ContentResponse;
 import org.xwiki.instance.InstanceIdManager;
 import org.xwiki.model.reference.DocumentReference;
 import org.xwiki.model.reference.EntityReferenceSerializer;
-import org.xwiki.template.Template;
+import org.xwiki.security.authorization.AuthorExecutor;
 import org.xwiki.template.TemplateManager;
 
 import com.nimbusds.jwt.JWT;
@@ -61,7 +59,6 @@ import com.nimbusds.openid.connect.sdk.Nonce;
 import com.nimbusds.openid.connect.sdk.claims.IDTokenClaimsSet;
 import com.xpn.xwiki.XWiki;
 import com.xpn.xwiki.XWikiContext;
-import com.xpn.xwiki.internal.template.SUExecutor;
 import com.xpn.xwiki.user.api.XWikiRightService;
 import com.xpn.xwiki.web.XWikiURLFactory;
 
@@ -86,8 +83,9 @@ public class OIDCManager
     @Inject
     private TemplateManager templates;
 
+    // TODO: remove when requiring a version containing the fix for https://jira.xwiki.org/browse/XWIKI-14960
     @Inject
-    private SUExecutor suExecutor;
+    private AuthorExecutor authorExecutor;
 
     @Inject
     private InstanceIdManager instance;
@@ -219,21 +217,16 @@ public class OIDCManager
      */
     public Response executeTemplate(String templateName) throws Exception
     {
-        // Search overwritten template
-        Template template = this.templates.getTemplate(templateName);
-
-        if (template != null) {
-            return executeTemplate(template);
-        }
-
-        // Search default template
-        try (InputStream stream = getClass().getResourceAsStream('/' + templateName)) {
-            if (stream == null) {
-                throw new OIDCException("Failed to find template [" + templateName + "]");
+        String html = this.authorExecutor.call(new Callable<String>()
+        {
+            @Override
+            public String call() throws Exception
+            {
+                return templates.render(templateName);
             }
+        }, SUPERADMIN_REFERENCE);
 
-            return evaluateContent(IOUtils.toString(stream));
-        }
+        return new ContentResponse(ContentResponse.CONTENTTYPE_HTML, html, HTTPResponse.SC_OK);
     }
 
     /**
@@ -254,24 +247,5 @@ public class OIDCManager
         Response response = executeTemplate(templateName);
 
         ServletUtils.applyHTTPResponse(response.toHTTPResponse(), servletResponse);
-    }
-
-    private Response executeTemplate(Template template) throws Exception
-    {
-        return evaluateContent(template.getContent().getContent());
-    }
-
-    private Response evaluateContent(final String content) throws Exception
-    {
-        String html = this.suExecutor.call(new Callable<String>()
-        {
-            @Override
-            public String call() throws Exception
-            {
-                return xcontextProvider.get().getWiki().evaluateVelocity(content, "oidc");
-            }
-        }, SUPERADMIN_REFERENCE);
-
-        return new ContentResponse(ContentResponse.CONTENTTYPE_HTML, html, HTTPResponse.SC_OK);
     }
 }

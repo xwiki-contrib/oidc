@@ -216,8 +216,8 @@ public class OIDCUserManager
         }
 
         // Email
-        if (userInfo.getEmail() != null) {
-            userObject.set("email", userInfo.getEmail().toUnicodeString(), xcontext);
+        if (userInfo.getEmailAddress() != null) {
+            userObject.set("email", userInfo.getEmailAddress(), xcontext);
         }
 
         // Last name
@@ -389,7 +389,7 @@ public class OIDCUserManager
 
         // User informations
         putVariable(map, "oidc.user.subject", userInfo.getSubject().getValue());
-        putVariable(map, "oidc.user.mail", userInfo.getEmail() == null ? "" : userInfo.getEmail().getAddress());
+        putVariable(map, "oidc.user.mail", userInfo.getEmailAddress() == null ? "" : userInfo.getEmailAddress());
         putVariable(map, "oidc.user.familyName", userInfo.getFamilyName());
         putVariable(map, "oidc.user.givenName", userInfo.getGivenName());
 
