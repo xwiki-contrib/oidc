@@ -34,7 +34,7 @@ import org.xwiki.resource.entity.EntityResourceReference;
 public class OIDCResourceReference extends EntityResourceReference
 {
     /**
-     * Represents a WebJars Resource Type.
+     * Represents a OpenID Connect Resource Type.
      */
     public static final ResourceType TYPE = new ResourceType("oidc");
 
@@ -99,6 +99,6 @@ public class OIDCResourceReference extends EntityResourceReference
         builder.append(", pathSegments = ");
         builder.append(getPathSegments());
 
-        return super.toString();
+        return builder.toString();
     }
 }
