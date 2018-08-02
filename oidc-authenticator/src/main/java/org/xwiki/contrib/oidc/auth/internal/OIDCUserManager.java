@@ -113,6 +113,8 @@ public class OIDCUserManager
 
     private static final String XWIKI_GROUP_MEMBERFIELD = "member";
 
+    private static final String XWIKI_GROUP_PREFIX = "XWiki.";
+
     public void updateUserInfoAsync() throws MalformedURLException, URISyntaxException
     {
         final URI userInfoEndpoint = this.configuration.getUserInfoOIDCEndpoint();
@@ -287,17 +289,6 @@ public class OIDCUserManager
 
         Boolean userUpdated = false;
 
-        for (Map.Entry<String, Object> entry : userInfo.toJSONObject().entrySet()) {
-            if (entry.getKey().startsWith(OIDCUserInfo.CLAIM_XWIKI_GROUPS)) {
-                try {
-                    List<String> providerGroups = (List<String>) entry.getValue();
-                    userUpdated = syncXWikiGroupsMembership(userDocument.getFullName(), providerGroups, xcontext);
-                } catch (XWikiException e) {
-                    this.logger.error("Failed to synchronize user's groups membership", e);
-                }
-            }
-        }
-
         // Apply the modifications
         if (newUser || userDocument.apply(modifiableDocument)) {
             String comment;
@@ -317,8 +308,20 @@ public class OIDCUserManager
             userUpdated = true;
         }
 
+        // Sync user groups with the provider
+        for (Map.Entry<String, Object> entry : userInfo.toJSONObject().entrySet()) {
+            if (entry.getKey().startsWith(OIDCUserInfo.CLAIM_XWIKI_GROUPS)) {
+                try {
+                    List<String> providerGroups = (List<String>) entry.getValue();
+                    userUpdated = syncXWikiGroupsMembership(userDocument.getFullName(), providerGroups, xcontext);
+                } catch (XWikiException e) {
+                    this.logger.error("Failed to synchronize user's groups membership", e);
+                }
+            }
+        }
+
+        // Notify
         if (userUpdated) {
-            // Notify
             this.observation.notify(new OIDCUserUpdated(userDocument.getDocumentReference()), userDocument, eventData);
         }
 
@@ -367,7 +370,7 @@ public class OIDCUserManager
             BaseClass groupClass = context.getWiki().getGroupClass(context);
 
             // Get document representing group
-            XWikiDocument groupDoc = context.getWiki().getDocument("XWiki." + groupName, context);
+            XWikiDocument groupDoc = context.getWiki().getDocument(this.XWIKI_GROUP_PREFIX + groupName, context);
 
             this.logger.debug("Adding user [{}] to xwiki group [{}]", xwikiUserName, groupName);
 
@@ -436,8 +439,8 @@ public class OIDCUserManager
 
         for (String xwikiGroupName : xwikiUserGroupList) {
             this.logger.debug("Group for removals: PROVIDER'S GROUP LIST [{}] XWIKIGROUP [{}]", providerGroups, xwikiGroupName);
-            if (!providerGroups.contains(xwikiGroupName)) {
-                this.logger.debug("Removing ...");
+            if (!providerGroups.contains(xwikiGroupName.substring(this.XWIKI_GROUP_PREFIX.length()))) {
+                this.logger.debug("Removing user from [{}] ...", xwikiGroupName);
                 removeUserFromXWikiGroup(xwikiUserName, xwikiGroupName, context);
                 userUpdated = true;
             }
