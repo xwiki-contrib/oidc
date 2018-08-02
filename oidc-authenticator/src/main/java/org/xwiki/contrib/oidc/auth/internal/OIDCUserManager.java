@@ -451,14 +451,6 @@ public class OIDCUserManager
     {
         this.logger.debug("Updating XWiki claims");
         for (Map.Entry<String, Object> entry : userInfo.toJSONObject().entrySet()) {
-            if (entry.getKey().equals(OIDCUserInfo.CLAIM_XWIKI_GROUPS)) {
-                try {
-                    syncGroupsMembership(userDocument.getFullName(), (List<String>) entry.getValue(), xcontext);
-                } catch (XWikiException e) {
-                    this.logger.error("Failed to synchronise user's groups membership", e);
-                }
-            }
-
             if (entry.getKey().startsWith(OIDCUserInfo.CLAIMPREFIX_XWIKI_USER)) {
                 String xwikiKey = entry.getKey().substring(OIDCUserInfo.CLAIMPREFIX_XWIKI_USER.length());
 
