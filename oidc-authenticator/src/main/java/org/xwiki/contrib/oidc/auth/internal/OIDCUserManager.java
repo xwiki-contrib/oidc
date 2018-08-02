@@ -30,6 +30,7 @@ import java.security.Principal;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Collection;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
@@ -59,6 +60,7 @@ import org.xwiki.model.reference.DocumentReference;
 import org.xwiki.model.reference.SpaceReference;
 import org.xwiki.observation.ObservationManager;
 import org.xwiki.query.QueryException;
+import org.xwiki.rendering.syntax.Syntax;
 
 import com.nimbusds.oauth2.sdk.ParseException;
 import com.nimbusds.oauth2.sdk.http.HTTPRequest;
@@ -81,7 +83,7 @@ import com.xpn.xwiki.web.XWikiRequest;
 
 /**
  * Various tools to manipulate users.
- * 
+ *
  * @version $Id$
  * @since 1.2
  */
@@ -108,6 +110,10 @@ public class OIDCUserManager
     private Logger logger;
 
     private Executor executor = Executors.newFixedThreadPool(1);
+
+    private static final String XWIKI_GROUP_MEMBERFIELD = "member";
+
+    private static final String XWIKI_GROUP_PREFIX = "XWiki.";
 
     public void updateUserInfoAsync() throws MalformedURLException, URISyntaxException
     {
@@ -281,6 +287,8 @@ public class OIDCUserManager
         this.observation.notify(new OIDCUserUpdating(modifiableDocument.getDocumentReference()), modifiableDocument,
             eventData);
 
+        Boolean userUpdated = false;
+
         // Apply the modifications
         if (newUser || userDocument.apply(modifiableDocument)) {
             String comment;
@@ -297,16 +305,155 @@ public class OIDCUserManager
                 xcontext.getWiki().setUserDefaultGroup(userDocument.getFullName(), xcontext);
             }
 
-            // Notify
+            userUpdated = true;
+        }
+
+        // Sync user groups with the provider
+        for (Map.Entry<String, Object> entry : userInfo.toJSONObject().entrySet()) {
+            if (entry.getKey().startsWith(OIDCUserInfo.CLAIM_XWIKI_GROUPS)) {
+                try {
+                    List<String> providerGroups = (List<String>) entry.getValue();
+                    userUpdated = syncXWikiGroupsMembership(userDocument.getFullName(), providerGroups, xcontext);
+                } catch (XWikiException e) {
+                    this.logger.error("Failed to synchronize user's groups membership", e);
+                }
+            }
+        }
+
+        // Notify
+        if (userUpdated) {
             this.observation.notify(new OIDCUserUpdated(userDocument.getDocumentReference()), userDocument, eventData);
         }
 
         return new SimplePrincipal(userDocument.getPrefixedFullName());
     }
 
+    /**
+     * Remove user name from provided XWiki group.
+     *
+     * @param xwikiUserName the full name of the user.
+     * @param groupName the name of the group.
+     * @param context the XWiki context.
+     */
+    protected void removeUserFromXWikiGroup(String xwikiUserName, String groupName, XWikiContext context)
+    {
+        try {
+            BaseClass groupClass = context.getWiki().getGroupClass(context);
+
+            // Get the XWiki document holding the objects comprising the group membership list
+            XWikiDocument groupDoc = context.getWiki().getDocument(groupName, context);
+
+            synchronized (groupDoc) {
+                // Get and remove the specific group membership object for the user
+                BaseObject groupObj =
+                        groupDoc.getXObject(groupClass.getDocumentReference(), XWIKI_GROUP_MEMBERFIELD, xwikiUserName);
+                groupDoc.removeXObject(groupObj);
+
+                // Save modifications
+                context.getWiki().saveDocument(groupDoc, context);
+            }
+        } catch (Exception e) {
+            this.logger.error("Failed to remove user [{}] from group [{}]", xwikiUserName, groupName, e);
+        }
+    }
+
+    /**
+     * Add user name into provided XWiki group.
+     *
+     * @param xwikiUserName the full name of the user.
+     * @param groupName the name of the group.
+     * @param context the XWiki context.
+     */
+    protected void addUserToXWikiGroup(String xwikiUserName, String groupName, XWikiContext context)
+    {
+        try {
+            BaseClass groupClass = context.getWiki().getGroupClass(context);
+
+            // Get document representing group
+            XWikiDocument groupDoc = context.getWiki().getDocument(this.XWIKI_GROUP_PREFIX + groupName, context);
+
+            this.logger.debug("Adding user [{}] to xwiki group [{}]", xwikiUserName, groupName);
+
+            synchronized (groupDoc) {
+                // Make extra sure the group cannot contain duplicate (even if this method is not supposed to be called
+                // in this case)
+                List<BaseObject> xobjects = groupDoc.getXObjects(groupClass.getDocumentReference());
+                if (xobjects != null) {
+                    for (BaseObject memberObj : xobjects) {
+                        if (memberObj != null) {
+                            String existingMember = memberObj.getStringValue(XWIKI_GROUP_MEMBERFIELD);
+                            if (existingMember != null && existingMember.equals(xwikiUserName)) {
+                                this.logger.warn("User [{}] already exist in group [{}]", xwikiUserName,
+                                        groupDoc.getDocumentReference());
+                                return;
+                            }
+                        }
+                    }
+                }
+
+                // Add a member object to document
+                BaseObject memberObj = groupDoc.newXObject(groupClass.getDocumentReference(), context);
+                Map<String, String> map = new HashMap<String, String>();
+                map.put(XWIKI_GROUP_MEMBERFIELD, xwikiUserName);
+                groupClass.fromMap(map, memberObj);
+
+                // Save modifications
+                context.getWiki().saveDocument(groupDoc, context);
+            }
+
+            this.logger.debug("Finished adding user [{}] to xwiki group [{}]", xwikiUserName, groupName);
+        } catch (Exception e) {
+            this.logger.error("Failed to add a user [{}] to a group [{}]", new Object[]{ xwikiUserName, groupName, e });
+        }
+    }
+
+    /**
+     * Synchronize user XWiki membership with the Open ID xwiki_groups claim.
+     *
+     * @param xwikiUserName the name of the user.
+     * @param providerGroups the Open ID xwiki_groups claim.
+     * @param context the XWiki context.
+     * @throws XWikiException error when synchronizing user membership.
+     */
+    public Boolean syncXWikiGroupsMembership(String xwikiUserName, List<String> providerGroups,  XWikiContext context)
+        throws XWikiException
+    {
+        Boolean userUpdated = false;
+        this.logger.debug("Updating group membership for the user [{}]", xwikiUserName);
+
+        Collection<String> xwikiUserGroupList =
+                context.getWiki().getGroupService(context).getAllGroupsNamesForMember(xwikiUserName, 0, 0, context);
+
+        this.logger.debug("The user belongs to following XWiki groups: ");
+
+        for (String userGroupName : xwikiUserGroupList) {
+            this.logger.debug(userGroupName);
+        }
+
+        for (String providerGroupName : providerGroups) {
+            if (!xwikiUserGroupList.contains(providerGroupName)) {
+                addUserToXWikiGroup(xwikiUserName, providerGroupName, context);
+                userUpdated = true;
+            }
+        }
+
+        for (String xwikiGroupName : xwikiUserGroupList) {
+            this.logger.debug("Group for removals: PROVIDER'S GROUP LIST [{}] XWIKIGROUP [{}]", providerGroups,
+                    xwikiGroupName);
+            if (!providerGroups.contains(xwikiGroupName.substring(this.XWIKI_GROUP_PREFIX.length()))) {
+                this.logger.debug("Removing user from [{}] ...", xwikiGroupName);
+                removeUserFromXWikiGroup(xwikiUserName, xwikiGroupName, context);
+                userUpdated = true;
+            }
+        }
+
+        return userUpdated;
+    }
+
     private void updateXWikiClaims(XWikiDocument userDocument, BaseClass userClass, BaseObject userObject,
         UserInfo userInfo, XWikiContext xcontext)
     {
+        this.logger.debug("Updating XWiki claims");
         for (Map.Entry<String, Object> entry : userInfo.toJSONObject().entrySet()) {
             if (entry.getKey().startsWith(OIDCUserInfo.CLAIMPREFIX_XWIKI_USER)) {
                 String xwikiKey = entry.getKey().substring(OIDCUserInfo.CLAIMPREFIX_XWIKI_USER.length());
