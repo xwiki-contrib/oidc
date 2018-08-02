@@ -156,8 +156,8 @@ public class OIDCUserManager
     }
 
     public Principal updateUserInfo(BearerAccessToken accessToken)
-            throws URISyntaxException, IOException, ParseException, OIDCException, XWikiException, QueryException
-            {
+        throws URISyntaxException, IOException, ParseException, OIDCException, XWikiException, QueryException
+    {
         Principal principal =
                 updateUserInfo(this.configuration.getUserInfoOIDCEndpoint(), this.configuration.getIdToken(), accessToken);
 
@@ -168,8 +168,8 @@ public class OIDCUserManager
     }
 
     public Principal updateUserInfo(URI userInfoEndpoint, IDTokenClaimsSet idToken, BearerAccessToken accessToken)
-            throws IOException, ParseException, OIDCException, XWikiException, QueryException
-            {
+        throws IOException, ParseException, OIDCException, XWikiException, QueryException
+    {
         // Get OIDC user info
         UserInfoRequest userinfoRequest = new UserInfoRequest(userInfoEndpoint, accessToken);
         HTTPRequest userinfoHTTP = userinfoRequest.toHTTPRequest();
