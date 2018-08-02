@@ -159,7 +159,7 @@ public class OIDCUserManager
         throws URISyntaxException, IOException, ParseException, OIDCException, XWikiException, QueryException
     {
         Principal principal =
-                updateUserInfo(this.configuration.getUserInfoOIDCEndpoint(), this.configuration.getIdToken(), accessToken);
+            updateUserInfo(this.configuration.getUserInfoOIDCEndpoint(), this.configuration.getIdToken(), accessToken);
 
         // Restart user information expiration counter
         this.configuration.resetUserInfoExpirationDate();
@@ -174,7 +174,7 @@ public class OIDCUserManager
         UserInfoRequest userinfoRequest = new UserInfoRequest(userInfoEndpoint, accessToken);
         HTTPRequest userinfoHTTP = userinfoRequest.toHTTPRequest();
         userinfoHTTP.setHeader("User-Agent", this.getClass().getPackage().getImplementationTitle() + '/'
-                + this.getClass().getPackage().getImplementationVersion());
+            + this.getClass().getPackage().getImplementationVersion());
         HTTPResponse httpResponse = userinfoHTTP.send();
         UserInfoResponse userinfoResponse = UserInfoResponse.parse(httpResponse);
 
@@ -193,7 +193,7 @@ public class OIDCUserManager
     private Principal updateUser(IDTokenClaimsSet idToken, UserInfo userInfo) throws XWikiException, QueryException
     {
         XWikiDocument userDocument =
-                this.store.searchDocument(idToken.getIssuer().getValue(), userInfo.getSubject().toString());
+            this.store.searchDocument(idToken.getIssuer().getValue(), userInfo.getSubject().toString());
 
         XWikiDocument modifiableDocument;
         boolean newUser;
@@ -213,7 +213,7 @@ public class OIDCUserManager
 
         // Set user fields
         BaseObject userObject = modifiableDocument
-                .getXObject(xcontext.getWiki().getUserClass(xcontext).getDocumentReference(), true, xcontext);
+            .getXObject(xcontext.getWiki().getUserClass(xcontext).getDocumentReference(), true, xcontext);
 
         // Address
         Address address = userInfo.getAddress();
@@ -262,14 +262,14 @@ public class OIDCUserManager
                 String filename = FilenameUtils.getName(userInfo.getPicture().toString());
                 URLConnection connection = userInfo.getPicture().toURL().openConnection();
                 connection.setRequestProperty("User-Agent", this.getClass().getPackage().getImplementationTitle() + '/'
-                        + this.getClass().getPackage().getImplementationVersion());
+                    + this.getClass().getPackage().getImplementationVersion());
                 try (InputStream content = connection.getInputStream()) {
                     modifiableDocument.addAttachment(filename, content, xcontext);
                 }
                 userObject.set("avatar", filename, xcontext);
             } catch (IOException e) {
                 this.logger.warn("Failed to get user avatar from URL [{}]: {}", userInfo.getPicture(),
-                        ExceptionUtils.getRootCauseMessage(e));
+                    ExceptionUtils.getRootCauseMessage(e));
             }
         }
 
@@ -281,11 +281,11 @@ public class OIDCUserManager
 
         // Prevent data to send with the event
         OIDCUserEventData eventData =
-                new OIDCUserEventData(new NimbusOIDCIdToken(idToken), new NimbusOIDCUserInfo(userInfo));
+            new OIDCUserEventData(new NimbusOIDCIdToken(idToken), new NimbusOIDCUserInfo(userInfo));
 
         // Notify
         this.observation.notify(new OIDCUserUpdating(modifiableDocument.getDocumentReference()), modifiableDocument,
-                eventData);
+            eventData);
 
         Boolean userUpdated = false;
 
@@ -332,8 +332,8 @@ public class OIDCUserManager
      * Remove user name from provided XWiki group.
      *
      * @param xwikiUserName the full name of the user.
-     * @param groupName     the name of the group.
-     * @param context       the XWiki context.
+     * @param groupName the name of the group.
+     * @param context the XWiki context.
      */
     protected void removeUserFromXWikiGroup(String xwikiUserName, String groupName, XWikiContext context)
     {
@@ -361,8 +361,8 @@ public class OIDCUserManager
      * Add user name into provided XWiki group.
      *
      * @param xwikiUserName the full name of the user.
-     * @param groupName     the name of the group.
-     * @param context       the XWiki context.
+     * @param groupName the name of the group.
+     * @param context the XWiki context.
      */
     protected void addUserToXWikiGroup(String xwikiUserName, String groupName, XWikiContext context)
     {
@@ -403,20 +403,20 @@ public class OIDCUserManager
 
             this.logger.debug("Finished adding user [{}] to xwiki group [{}]", xwikiUserName, groupName);
         } catch (Exception e) {
-            this.logger.error("Failed to add a user [{}] to a group [{}]", new Object[]{xwikiUserName, groupName, e});
+            this.logger.error("Failed to add a user [{}] to a group [{}]", new Object[]{ xwikiUserName, groupName, e });
         }
     }
 
     /**
      * Synchronize user XWiki membership with the Open ID xwiki_groups claim.
      *
-     * @param xwikiUserName  the name of the user.
+     * @param xwikiUserName the name of the user.
      * @param providerGroups the Open ID xwiki_groups claim.
-     * @param context        the XWiki context.
+     * @param context the XWiki context.
      * @throws XWikiException error when synchronizing user membership.
      */
-    public Boolean syncXWikiGroupsMembership(String xwikiUserName, List<String> providerGroups,
-                                          XWikiContext context) throws XWikiException
+    public Boolean syncXWikiGroupsMembership(String xwikiUserName, List<String> providerGroups,  XWikiContext context)
+        throws XWikiException
     {
         Boolean userUpdated = false;
         this.logger.debug("Updating group membership for the user [{}]", xwikiUserName);
@@ -438,7 +438,8 @@ public class OIDCUserManager
         }
 
         for (String xwikiGroupName : xwikiUserGroupList) {
-            this.logger.debug("Group for removals: PROVIDER'S GROUP LIST [{}] XWIKIGROUP [{}]", providerGroups, xwikiGroupName);
+            this.logger.debug("Group for removals: PROVIDER'S GROUP LIST [{}] XWIKIGROUP [{}]", providerGroups,
+                    xwikiGroupName);
             if (!providerGroups.contains(xwikiGroupName.substring(this.XWIKI_GROUP_PREFIX.length()))) {
                 this.logger.debug("Removing user from [{}] ...", xwikiGroupName);
                 removeUserFromXWikiGroup(xwikiUserName, xwikiGroupName, context);
@@ -450,7 +451,7 @@ public class OIDCUserManager
     }
 
     private void updateXWikiClaims(XWikiDocument userDocument, BaseClass userClass, BaseObject userObject,
-                                   UserInfo userInfo, XWikiContext xcontext)
+        UserInfo userInfo, XWikiContext xcontext)
     {
         this.logger.debug("Updating XWiki claims");
         for (Map.Entry<String, Object> entry : userInfo.toJSONObject().entrySet()) {
