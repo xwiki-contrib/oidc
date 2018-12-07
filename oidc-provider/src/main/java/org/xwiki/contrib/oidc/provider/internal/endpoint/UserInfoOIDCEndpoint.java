@@ -40,7 +40,6 @@ import org.xwiki.contrib.oidc.provider.internal.store.OIDCConsent;
 import org.xwiki.contrib.oidc.provider.internal.store.OIDCStore;
 import org.xwiki.localization.LocaleUtils;
 import org.xwiki.model.reference.DocumentReference;
-import org.xwiki.model.reference.EntityReferenceSerializer;
 import org.xwiki.model.reference.WikiReference;
 
 import com.nimbusds.oauth2.sdk.Response;
@@ -84,9 +83,6 @@ public class UserInfoOIDCEndpoint implements OIDCEndpoint
 
     @Inject
     private Provider<XWikiContext> xcontextProvider;
-
-    @Inject
-    private EntityReferenceSerializer<String> serializer;
 
     @Inject
     private Logger logger;
@@ -261,7 +257,7 @@ public class UserInfoOIDCEndpoint implements OIDCEndpoint
             names = new ArrayList<>(references.size());
             for (DocumentReference reference : references) {
                 // TODO: also search groups of group
-                names.add(this.serializer.serialize(reference));
+                names.add(reference.getName());
             }
         } finally {
             xcontext.setWikiReference(currentWikiReference);
