@@ -34,6 +34,8 @@
   <description>Allow an XWiki instance to authenticate on an OpenID Connect provider</description>
 
   <properties>
+    <xwiki.jacoco.instructionRatio>0.40</xwiki.jacoco.instructionRatio>
+
     <!-- This extension needs to be installed at the farm level (ie in the root namespace) to work fine.
          This is because is contributes a new URL Resource Handler and those need to be installed in the
          root Component Manager (since they're executed before the wiki is extracted from the URL during
@@ -61,6 +63,20 @@
       <groupId>org.xwiki.contrib.oidc</groupId>
       <artifactId>oidc-provider</artifactId>
       <version>${project.version}</version>
+    </dependency>
+
+    <!-- Test dependencies -->
+    <dependency>
+      <groupId>org.xwiki.commons</groupId>
+      <artifactId>xwiki-commons-tool-test-component</artifactId>
+      <version>${commons.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.xwiki.platform</groupId>
+      <artifactId>xwiki-platform-test-oldcore</artifactId>
+      <version>${platform.version}</version>
+      <scope>test</scope>
     </dependency>
   </dependencies>
 

@@ -34,6 +34,7 @@ import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.slf4j.Logger;
 import org.xwiki.component.annotation.Component;
 import org.xwiki.contrib.oidc.OIDCUserInfo;
+import org.xwiki.contrib.oidc.internal.OIDCConfiguration;
 import org.xwiki.contrib.oidc.provider.internal.OIDCManager;
 import org.xwiki.contrib.oidc.provider.internal.OIDCResourceReference;
 import org.xwiki.contrib.oidc.provider.internal.store.OIDCConsent;
@@ -80,6 +81,9 @@ public class UserInfoOIDCEndpoint implements OIDCEndpoint
 
     @Inject
     private OIDCManager manager;
+
+    @Inject
+    private OIDCConfiguration configuration;
 
     @Inject
     private Provider<XWikiContext> xcontextProvider;
@@ -197,10 +201,6 @@ public class UserInfoOIDCEndpoint implements OIDCEndpoint
                         // XWiki core
                         // Note: most of the XWiki core fields are handled by #setCustomUserInfoClaim
 
-                        case OIDCUserInfo.CLAIM_XWIKI_GROUPS:
-                            userInfo.setClaim(OIDCUserInfo.CLAIM_XWIKI_GROUPS, getUserGroups(userDocument, xcontext));
-                            break;
-
                         default:
                             setCustomUserInfoClaim(userInfo, claim, userObject, userDocument, xcontext);
                             break;
@@ -267,9 +267,13 @@ public class UserInfoOIDCEndpoint implements OIDCEndpoint
     }
 
     private void setCustomUserInfoClaim(UserInfo userInfo, Entry claim, BaseObject userObject,
-        XWikiDocument userDocument, XWikiContext xcontext)
+        XWikiDocument userDocument, XWikiContext xcontext) throws XWikiException
     {
-        if (claim.getClaimName().startsWith(OIDCUserInfo.CLAIMPREFIX_XWIKI_USER)) {
+        String groupClaim = this.configuration.getGroupClaim();
+
+        if (claim.getClaimName().equals(groupClaim)) {
+            userInfo.setClaim(groupClaim, getUserGroups(userDocument, xcontext));
+        } else if (claim.getClaimName().startsWith(OIDCUserInfo.CLAIMPREFIX_XWIKI_USER)) {
             String userField = claim.getClaimName().substring(OIDCUserInfo.CLAIMPREFIX_XWIKI_USER.length());
 
             // Try user object first

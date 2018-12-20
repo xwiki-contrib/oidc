@@ -23,6 +23,8 @@ import java.net.URI;
 
 import javax.mail.internet.InternetAddress;
 
+import org.xwiki.contrib.oidc.internal.OIDCConfiguration;
+
 /**
  * The OpenID Connection user info.
  * <p>
@@ -150,8 +152,11 @@ public interface OIDCUserInfo extends OIDCClaimsSet
 
     /**
      * @since 1.3
+     * 
+     * @deprecated since 1.10, it's now configurable
      */
-    String CLAIM_XWIKI_GROUPS = "xwiki_groups";
+    @Deprecated
+    String CLAIM_XWIKI_GROUPS = OIDCConfiguration.DEFAULT_GROUPSCLAIM;
 
     /**
      * @since 1.3

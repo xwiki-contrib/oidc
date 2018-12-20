@@ -34,6 +34,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 
@@ -41,6 +42,7 @@ import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
 
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
@@ -51,6 +53,7 @@ import org.xwiki.component.annotation.Component;
 import org.xwiki.component.manager.ComponentManager;
 import org.xwiki.context.concurrent.ExecutionContextRunnable;
 import org.xwiki.contrib.oidc.OIDCUserInfo;
+import org.xwiki.contrib.oidc.auth.internal.OIDCClientConfiguration.GroupMapping;
 import org.xwiki.contrib.oidc.auth.internal.store.OIDCUserStore;
 import org.xwiki.contrib.oidc.event.OIDCUserEventData;
 import org.xwiki.contrib.oidc.event.OIDCUserUpdated;
@@ -189,8 +192,30 @@ public class OIDCUserManager
         return updateUser(idToken, userInfo);
     }
 
-    private Principal updateUser(IDTokenClaimsSet idToken, UserInfo userInfo) throws XWikiException, QueryException
+    public Principal updateUser(IDTokenClaimsSet idToken, UserInfo userInfo)
+        throws XWikiException, QueryException, OIDCException
     {
+        // Check allowed/forbidden groups
+        List<String> providerGroups = (List<String>) userInfo.getClaim(this.configuration.getGroupClaim());
+        if (providerGroups != null) {
+            // Filter allowed/denied groups
+            List<String> allowedGroups = this.configuration.getAllowedGroups();
+            List<String> forbiddenGroups = this.configuration.getForbiddenGroups();
+            for (String providerGroup : providerGroups) {
+                if (allowedGroups != null && !allowedGroups.contains(providerGroup)) {
+                    throw new OIDCException(
+                        "The user is not allowed to authenticate because it's not a member of the following groups: "
+                            + allowedGroups);
+                }
+
+                if (forbiddenGroups != null && forbiddenGroups.contains(providerGroup)) {
+                    throw new OIDCException(
+                        "The user is not allowed to authenticate because it's a member of one of the following groups: "
+                            + forbiddenGroups);
+                }
+            }
+        }
+
         XWikiDocument userDocument =
             this.store.searchDocument(idToken.getIssuer().getValue(), userInfo.getSubject().toString());
 
@@ -308,16 +333,7 @@ public class OIDCUserManager
         }
 
         // Sync user groups with the provider
-        for (Map.Entry<String, Object> entry : userInfo.toJSONObject().entrySet()) {
-            if (entry.getKey().startsWith(OIDCUserInfo.CLAIM_XWIKI_GROUPS)) {
-                try {
-                    List<String> providerGroups = (List<String>) entry.getValue();
-                    userUpdated = syncXWikiGroupsMembership(userDocument.getFullName(), providerGroups, xcontext);
-                } catch (XWikiException e) {
-                    this.logger.error("Failed to synchronize user's groups membership", e);
-                }
-            }
-        }
+        userUpdated = updateGroupMembership(userInfo, userDocument, xcontext);
 
         // Notify
         if (userUpdated) {
@@ -325,6 +341,17 @@ public class OIDCUserManager
         }
 
         return new SimplePrincipal(userDocument.getPrefixedFullName());
+    }
+
+    private boolean updateGroupMembership(UserInfo userInfo, XWikiDocument userDocument, XWikiContext xcontext)
+        throws XWikiException
+    {
+        List<String> providerGroups = (List<String>) userInfo.getClaim(this.configuration.getGroupClaim());
+        if (providerGroups != null) {
+            return syncXWikiGroupsMembership(userDocument.getFullName(), providerGroups, xcontext);
+        }
+
+        return false;
     }
 
     /**
@@ -425,26 +452,47 @@ public class OIDCUserManager
         Collection<String> xwikiUserGroupList =
             context.getWiki().getGroupService(context).getAllGroupsNamesForMember(xwikiUserName, 0, 0, context);
 
-        this.logger.debug("The user belongs to following XWiki groups: ");
+        this.logger.debug("The user belongs to following XWiki groups: {}", xwikiUserGroupList);
 
-        for (String userGroupName : xwikiUserGroupList) {
-            this.logger.debug(userGroupName);
-        }
+        GroupMapping groupMapping = this.configuration.getGroupMapping();
 
+        // Add missing group membership
         for (String providerGroupName : providerGroups) {
-            if (!xwikiUserGroupList.contains(XWIKI_GROUP_PREFIX + providerGroupName)) {
-                addUserToXWikiGroup(xwikiUserName, XWIKI_GROUP_PREFIX + providerGroupName, context);
-                userUpdated = true;
+            if (groupMapping == null) {
+                String xwikiGroup = this.configuration.toXWikiGroup(providerGroupName);
+                if (!xwikiUserGroupList.contains(xwikiGroup)) {
+                    addUserToXWikiGroup(xwikiUserName, xwikiGroup, context);
+                    userUpdated = true;
+                }
+            } else {
+                Set<String> mappedGroups = groupMapping.fromProvider(providerGroupName);
+                if (mappedGroups != null) {
+                    for (String mappedGroup : mappedGroups) {
+                        if (!xwikiUserGroupList.contains(mappedGroup)) {
+                            addUserToXWikiGroup(xwikiUserName, mappedGroup, context);
+                            userUpdated = true;
+                        }
+                    }
+                }
             }
         }
 
+        // Remove group membership
         for (String xwikiGroupName : xwikiUserGroupList) {
-            this.logger.debug("Group for removals: PROVIDER'S GROUP LIST [{}] XWIKIGROUP [{}]", providerGroups,
-                xwikiGroupName);
-
-            if (!providerGroups.contains(xwikiGroupName.substring(XWIKI_GROUP_PREFIX.length()))) {
-                removeUserFromXWikiGroup(xwikiUserName, xwikiGroupName, context);
-                userUpdated = true;
+            if (groupMapping == null) {
+                if (!providerGroups.contains(xwikiGroupName)
+                    && !providerGroups.contains(xwikiGroupName.substring(XWIKI_GROUP_PREFIX.length()))) {
+                    removeUserFromXWikiGroup(xwikiUserName, xwikiGroupName, context);
+                    userUpdated = true;
+                }
+            } else {
+                Set<String> mappedGroups = groupMapping.fromXWiki(xwikiGroupName);
+                if (mappedGroups != null) {
+                    if (!CollectionUtils.containsAny(providerGroups, mappedGroups)) {
+                        removeUserFromXWikiGroup(xwikiUserName, xwikiGroupName, context);
+                        userUpdated = true;
+                    }
+                }
             }
         }
 

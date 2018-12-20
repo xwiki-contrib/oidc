@@ -25,7 +25,11 @@ import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.Arrays;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -40,6 +44,7 @@ import org.xwiki.container.Session;
 import org.xwiki.container.servlet.ServletSession;
 import org.xwiki.contrib.oidc.OIDCIdToken;
 import org.xwiki.contrib.oidc.OIDCUserInfo;
+import org.xwiki.contrib.oidc.internal.OIDCConfiguration;
 import org.xwiki.contrib.oidc.provider.internal.OIDCManager;
 import org.xwiki.contrib.oidc.provider.internal.endpoint.AuthorizationOIDCEndpoint;
 import org.xwiki.contrib.oidc.provider.internal.endpoint.TokenOIDCEndpoint;
@@ -62,8 +67,34 @@ import com.nimbusds.openid.connect.sdk.claims.IDTokenClaimsSet;
  */
 @Component(roles = OIDCClientConfiguration.class)
 @Singleton
-public class OIDCClientConfiguration
+public class OIDCClientConfiguration extends OIDCConfiguration
 {
+    public class GroupMapping
+    {
+        private final Map<String, Set<String>> xwikiMapping;
+
+        private final Map<String, Set<String>> providerMapping;
+
+        /**
+         * @param size
+         */
+        public GroupMapping(int size)
+        {
+            this.xwikiMapping = new HashMap<>(size);
+            this.providerMapping = new HashMap<>(size);
+        }
+
+        public Set<String> fromXWiki(String xwikiGroup)
+        {
+            return this.xwikiMapping.get(xwikiGroup);
+        }
+
+        public Set<String> fromProvider(String providerGroup)
+        {
+            return this.providerMapping.get(providerGroup);
+        }
+    }
+
     public static final String PROP_XWIKIPROVIDER = "oidc.xwikiprovider";
 
     public static final String PROP_USER_NAMEFORMATER = "oidc.user.nameFormater";
@@ -92,6 +123,21 @@ public class OIDCClientConfiguration
 
     public static final List<String> DEFAULT_IDTOKENCLAIMS = Arrays.asList(OIDCIdToken.CLAIM_XWIKI_INSTANCE_ID);
 
+    /**
+     * @since 1.10
+     */
+    public static final String PROP_GROUPS_MAPPING = "oidc.groups.mapping";
+
+    /**
+     * @since 1.10
+     */
+    public static final String PROP_GROUPS_ALLOWED = "oidc.groups.allowed";
+
+    /**
+     * @since 1.10
+     */
+    public static final String PROP_GROUPS_FORBIDDEN = "oidc.groups.forbidden";
+
     public static final String PROP_INITIAL_REQUEST = "xwiki.initialRequest";
 
     public static final String PROP_STATE = "oidc.state";
@@ -101,6 +147,8 @@ public class OIDCClientConfiguration
     public static final String PROP_SESSION_IDTOKEN = "oidc.idtoken";
 
     public static final String PROP_SESSION_USERINFO_EXPORATIONDATE = "oidc.session.userinfoexpirationdate";
+
+    private static final String XWIKI_GROUP_PREFIX = "XWiki.";
 
     @Inject
     private InstanceIdManager instance;
@@ -170,7 +218,8 @@ public class OIDCClientConfiguration
         return null;
     }
 
-    public <T> T getProperty(String key, Class<T> valueClass)
+    @Override
+    protected <T> T getProperty(String key, Class<T> valueClass)
     {
         // Get property from request
         String requestValue = getRequestParameter(key);
@@ -188,7 +237,8 @@ public class OIDCClientConfiguration
         return this.configuration.getProperty(key, valueClass);
     }
 
-    private <T> T getProperty(String key, T def)
+    @Override
+    protected <T> T getProperty(String key, T def)
     {
         // Get property from request
         String requestValue = getRequestParameter(key);
@@ -328,6 +378,70 @@ public class OIDCClientConfiguration
     {
         return new Scope(OIDCScopeValue.OPENID, OIDCScopeValue.PROFILE, OIDCScopeValue.EMAIL, OIDCScopeValue.ADDRESS,
             OIDCScopeValue.PHONE);
+    }
+
+    /**
+     * @since 1.10
+     */
+    public GroupMapping getGroupMapping()
+    {
+        List<String> groupsMapping = getProperty(PROP_GROUPS_MAPPING, List.class);
+
+        GroupMapping groups;
+
+        if (groupsMapping != null && !groupsMapping.isEmpty()) {
+            groups = new GroupMapping(groupsMapping.size());
+
+            for (String groupMapping : groupsMapping) {
+                int index = groupMapping.indexOf('=');
+
+                if (index != -1) {
+                    String xwikiGroup = groupMapping.substring(0, index);
+                    String providerGroup = groupMapping.substring(index + 1);
+
+                    // Add to XWiki mapping
+                    Set<String> providerGroups = groups.xwikiMapping.computeIfAbsent(xwikiGroup, k -> new HashSet<>());
+                    providerGroups.add(providerGroup);
+
+                    // Add to provider mapping
+                    Set<String> xwikiGroups =
+                        groups.providerMapping.computeIfAbsent(providerGroup, k -> new HashSet<>());
+                    xwikiGroups.add(toXWikiGroup(xwikiGroup));
+                }
+            }
+        } else {
+            groups = null;
+        }
+
+        return groups;
+    }
+
+    /**
+     * @since 1.10
+     */
+    public String toXWikiGroup(String group)
+    {
+        return group.startsWith(XWIKI_GROUP_PREFIX) ? group : XWIKI_GROUP_PREFIX + group;
+    }
+
+    /**
+     * @since 1.10
+     */
+    public List<String> getAllowedGroups()
+    {
+        List<String> groups = getProperty(PROP_GROUPS_ALLOWED, List.class);
+
+        return groups != null && !groups.isEmpty() ? groups : null;
+    }
+
+    /**
+     * @since 1.10
+     */
+    public List<String> getForbiddenGroups()
+    {
+        List<String> groups = getProperty(PROP_GROUPS_FORBIDDEN, List.class);
+
+        return groups != null && !groups.isEmpty() ? groups : null;
     }
 
     // Session only
