@@ -177,7 +177,7 @@ public class UserInfoOIDCEndpoint implements OIDCEndpoint
                             userInfo.setName(xcontext.getWiki().getPlainUserName(userReference, xcontext));
                             break;
                         case OIDCUserInfo.CLAIM_PREFERRED_NAME:
-                            userInfo.setPreferredUsername(xcontext.getWiki().getPlainUserName(userReference, xcontext));
+                            userInfo.setPreferredUsername(userReference.getName());
                             break;
                         case OIDCUserInfo.CLAIM_ZONEINFO:
                             String timezone = userObject.getStringValue("timezone");

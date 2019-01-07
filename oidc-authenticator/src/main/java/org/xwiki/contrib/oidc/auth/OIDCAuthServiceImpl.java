@@ -176,6 +176,7 @@ public class OIDCAuthServiceImpl extends XWikiAuthServiceImpl
 
         maybeStoreRequestParameterURLInSession(request, OIDCClientConfiguration.PROP_XWIKIPROVIDER);
         maybeStoreRequestParameterInSession(request, OIDCClientConfiguration.PROP_USER_NAMEFORMATER);
+        maybeStoreRequestParameterInSession(request, OIDCClientConfiguration.PROP_USER_SUBJECTFORMATER);
         maybeStoreRequestParameterURLInSession(request, OIDCClientConfiguration.PROP_ENDPOINT_AUTHORIZATION);
         maybeStoreRequestParameterURLInSession(request, OIDCClientConfiguration.PROP_ENDPOINT_TOKEN);
         maybeStoreRequestParameterURLInSession(request, OIDCClientConfiguration.PROP_ENDPOINT_USERINFO);

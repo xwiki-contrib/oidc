@@ -99,7 +99,17 @@ public class OIDCClientConfiguration extends OIDCConfiguration
 
     public static final String PROP_USER_NAMEFORMATER = "oidc.user.nameFormater";
 
-    public static final String DEFAULT_USER_NAMEFORMATER = "${oidc.issuer.host.clean}-${oidc.user.subject.clean}";
+    public static final String DEFAULT_USER_NAMEFORMATER = "${oidc.issuer.host.clean}-${oidc.user.preferredUsername.clean}";
+
+    /**
+     * @since 1.11
+     */
+    public static final String PROP_USER_SUBJECTFORMATER = "oidc.user.subjectFormater";
+
+    /**
+     * @since 1.11
+     */
+    public static final String DEFAULT_USER_SUBJECTFORMATER = "${oidc.user.subject}";
 
     public static final String PROPPREFIX_ENDPOINT = "oidc.endpoint.";
 
@@ -256,7 +266,23 @@ public class OIDCClientConfiguration extends OIDCConfiguration
         return this.configuration.getProperty(key, def);
     }
 
-    public String getUserNameFormater()
+    /**
+     * @since 1.11
+     */
+    public String getSubjectdFormater()
+    {
+        String userFormatter = getProperty(PROP_USER_SUBJECTFORMATER, String.class);
+        if (userFormatter == null) {
+            userFormatter = DEFAULT_USER_SUBJECTFORMATER;
+        }
+
+        return userFormatter;
+    }
+
+    /**
+     * @since 1.11
+     */
+    public String getXWikiUserNameFormater()
     {
         String userFormatter = getProperty(PROP_USER_NAMEFORMATER, String.class);
         if (userFormatter == null) {

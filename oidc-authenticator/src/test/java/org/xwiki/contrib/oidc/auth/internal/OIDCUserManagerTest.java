@@ -156,6 +156,7 @@ public class OIDCUserManagerTest
 
         Address address = new Address();
         address.setFormatted("address");
+        userInfo.setPreferredUsername("preferredUserName");
         userInfo.setAddress(address);
         userInfo.setEmailAddress("mail@domain.com");
         userInfo.setFamilyName("familyName");
@@ -167,10 +168,10 @@ public class OIDCUserManagerTest
 
         Principal principal = this.mocker.getComponentUnderTest().updateUser(idToken, userInfo);
 
-        Assert.assertEquals("xwiki:XWiki.issuer-subject", principal.getName());
+        Assert.assertEquals("xwiki:XWiki.issuer-preferredUserName", principal.getName());
 
         XWikiDocument userDocument = this.oldcore.getSpyXWiki().getDocument(
-            new DocumentReference(this.oldcore.getXWikiContext().getWikiId(), "XWiki", "issuer-subject"),
+            new DocumentReference(this.oldcore.getXWikiContext().getWikiId(), "XWiki", "issuer-preferredUserName"),
             this.oldcore.getXWikiContext());
 
         Assert.assertFalse(userDocument.isNew());
@@ -307,5 +308,60 @@ public class OIDCUserManagerTest
 
         Assert.assertTrue(groupContains(this.group1Reference, userDocument.getFullName()));
         Assert.assertTrue(groupContains(this.group2Reference, userDocument.getFullName()));
+    }
+
+    @Test
+    public void updateUserInfoWithCustomNameAndIdPattern()
+        throws XWikiException, QueryException, OIDCException, ComponentLookupException, URISyntaxException
+    {
+        this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_USER_NAMEFORMATER,
+            "custom-${oidc.user.mail}-${oidc.user.mail.upperCase}-${oidc.user.mail.clean.upperCase}");
+        this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_USER_SUBJECTFORMATER,
+            "custom-${oidc.user.mail}-${oidc.user.mail.upperCase}-${oidc.user.mail.clean.upperCase}");
+
+        Issuer issuer = new Issuer("http://issuer");
+        Subject subject = new Subject("subject");
+        IDTokenClaimsSet idToken =
+            new IDTokenClaimsSet(issuer, subject, Collections.emptyList(), new Date(), new Date());
+        UserInfo userInfo = new UserInfo(subject);
+
+        Address address = new Address();
+        address.setFormatted("address");
+        userInfo.setPreferredUsername("preferredUserName");
+        userInfo.setAddress(address);
+        userInfo.setEmailAddress("mail@domain.com");
+        userInfo.setFamilyName("familyName");
+        userInfo.setGivenName("givenName");
+        userInfo.setPhoneNumber("phoneNumber");
+        userInfo.setLocale("fr");
+        userInfo.setZoneinfo("timezone");
+        userInfo.setWebsite(new URI("http://website"));
+
+        Principal principal = this.mocker.getComponentUnderTest().updateUser(idToken, userInfo);
+
+        Assert.assertEquals("xwiki:XWiki.custom-mail@domain\\.com-MAIL@DOMAIN\\.COM-MAILDOMAINCOM",
+            principal.getName());
+
+        XWikiDocument userDocument =
+            this.oldcore.getSpyXWiki().getDocument(new DocumentReference(this.oldcore.getXWikiContext().getWikiId(),
+                "XWiki", "custom-mail@domain.com-MAIL@DOMAIN.COM-MAILDOMAINCOM"), this.oldcore.getXWikiContext());
+
+        Assert.assertFalse(userDocument.isNew());
+
+        BaseObject userObject = userDocument
+            .getXObject(new DocumentReference(this.oldcore.getXWikiContext().getWikiId(), "XWiki", "XWikiUsers"));
+
+        Assert.assertNotNull(userObject);
+        Assert.assertEquals("address", userObject.getStringValue("address"));
+        Assert.assertEquals("mail@domain.com", userObject.getStringValue("email"));
+        Assert.assertEquals("familyName", userObject.getStringValue("last_name"));
+        Assert.assertEquals("givenName", userObject.getStringValue("first_name"));
+        Assert.assertEquals("phoneNumber", userObject.getStringValue("phone"));
+
+        OIDCUser oidcObject = (OIDCUser) userDocument.getXObject(this.oidcClassReference);
+
+        Assert.assertNotNull(oidcObject);
+        Assert.assertEquals("http://issuer", oidcObject.getIssuer());
+        Assert.assertEquals("custom-mail@domain.com-MAIL@DOMAIN.COM-MAILDOMAINCOM", oidcObject.getSubject());
     }
 }
