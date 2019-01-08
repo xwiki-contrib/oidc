@@ -143,9 +143,14 @@ public class CallbackOIDCEndpoint implements OIDCEndpoint
         if (httpResponse.getStatusCode() != HTTPResponse.SC_OK) {
             TokenErrorResponse error = TokenErrorResponse.parse(httpResponse);
 
-            this.logger.debug("OIDC callback: Failed to get access token ([{}])", error.getErrorObject());
+            this.logger.debug("OIDC callback: Failed to get access token ([{}])",
+                error.getErrorObject() != null ? error.getErrorObject() : httpResponse.getStatusCode());
 
-            throw new OIDCException("Failed to get access token", error.getErrorObject());
+            if (error.getErrorObject() != null) {
+                throw new OIDCException("Failed to get access token", error.getErrorObject());
+            } else {
+                throw new OIDCException("Failed to get access token (" + httpResponse.getStatusCode() + ')');
+            }
         }
 
         OIDCTokenResponse tokenResponse = OIDCTokenResponse.parse(httpResponse);

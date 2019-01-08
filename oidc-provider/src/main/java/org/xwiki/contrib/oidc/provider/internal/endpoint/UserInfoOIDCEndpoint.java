@@ -94,7 +94,7 @@ public class UserInfoOIDCEndpoint implements OIDCEndpoint
     @Override
     public Response handle(HTTPRequest httpRequest, OIDCResourceReference reference) throws Exception
     {
-        this.logger.debug("OIDC: Entering [userinfo] endpoint");
+        this.logger.debug("OIDC provider: Entering [userinfo] endpoint");
 
         // Parse the request
         UserInfoRequest request = UserInfoRequest.parse(httpRequest);
@@ -121,6 +121,8 @@ public class UserInfoOIDCEndpoint implements OIDCEndpoint
 
         if (claims != null) {
             for (Entry claim : claims.getUserInfoClaims()) {
+                this.logger.debug("OIDC provider: handling claim [{}]", claim);
+
                 try {
                     switch (claim.getClaimName()) {
                         // OIDC core
@@ -207,8 +209,8 @@ public class UserInfoOIDCEndpoint implements OIDCEndpoint
                     }
                 } catch (Exception e) {
                     // Failed to set one of the claims
-                    this.logger.warn("Failed to get claim [{}] for user [{}]: {}", claim.getClaimName(), userReference,
-                        ExceptionUtils.getRootCauseMessage(e));
+                    this.logger.warn("OIDC provider: Failed to get claim [{}] for user [{}]: {}", claim.getClaimName(),
+                        userReference, ExceptionUtils.getRootCauseMessage(e));
                 }
             }
         } else {
@@ -227,7 +229,9 @@ public class UserInfoOIDCEndpoint implements OIDCEndpoint
             userInfo.setProfile(this.store.getUserProfileURI(userDocument));
         }
 
-        this.logger.debug("OIDC.userinfo: User infos: [{}]", userInfo.toJSONObject());
+        if (this.logger.isDebugEnabled()) {
+            this.logger.debug("OIDC.userinfo: User infos: [{}]", userInfo.toJSONObject());
+        }
 
         return new UserInfoSuccessResponse(userInfo);
     }
@@ -241,8 +245,6 @@ public class UserInfoOIDCEndpoint implements OIDCEndpoint
 
     private Collection<String> getUserGroups(XWikiDocument userDocument, XWikiContext xcontext) throws XWikiException
     {
-        List<String> names;
-
         WikiReference currentWikiReference = xcontext.getWikiReference();
 
         try {
@@ -254,16 +256,16 @@ public class UserInfoOIDCEndpoint implements OIDCEndpoint
                 .getAllGroupsReferencesForMember(userDocument.getDocumentReference(), -1, 0, xcontext);
 
             // Convert reference into Strings
-            names = new ArrayList<>(references.size());
+            List<String> names = new ArrayList<>(references.size());
             for (DocumentReference reference : references) {
                 // TODO: also search groups of group
                 names.add(reference.getName());
             }
+
+            return names;
         } finally {
             xcontext.setWikiReference(currentWikiReference);
         }
-
-        return names;
     }
 
     private void setCustomUserInfoClaim(UserInfo userInfo, Entry claim, BaseObject userObject,
@@ -291,6 +293,8 @@ public class UserInfoOIDCEndpoint implements OIDCEndpoint
                     }
                 }
             }
+        } else {
+            this.logger.debug("Unknown claim [{}]", claim.getClaimName());
         }
     }
 }

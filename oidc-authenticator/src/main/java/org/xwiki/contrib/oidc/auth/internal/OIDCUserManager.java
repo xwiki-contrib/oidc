@@ -347,9 +347,17 @@ public class OIDCUserManager
     private boolean updateGroupMembership(UserInfo userInfo, XWikiDocument userDocument, XWikiContext xcontext)
         throws XWikiException
     {
-        List<String> providerGroups = (List<String>) userInfo.getClaim(this.configuration.getGroupClaim());
+        String groupClaim = this.configuration.getGroupClaim();
+
+        this.logger.debug("Getting groups sent by the provider associated with claim [{}]", groupClaim);
+
+        List<String> providerGroups = (List<String>) userInfo.getClaim(groupClaim);
         if (providerGroups != null) {
+            this.logger.debug("The provider sent the following groups: {}", providerGroups);
+
             return syncXWikiGroupsMembership(userDocument.getFullName(), providerGroups, xcontext);
+        } else {
+            this.logger.debug("The provider did not sent any group");
         }
 
         return false;
