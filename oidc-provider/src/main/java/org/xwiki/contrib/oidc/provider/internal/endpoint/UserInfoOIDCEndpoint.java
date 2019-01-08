@@ -110,6 +110,12 @@ public class UserInfoOIDCEndpoint implements OIDCEndpoint
 
         ClaimsRequest claims = consent.getClaims();
 
+        this.logger.debug("OIDC provider: found consent:");
+        this.logger.debug("OIDC provider:   reference: {}", consent.getReference());
+        this.logger.debug("OIDC provider:   client ID: {}", consent.getClientID());
+        this.logger.debug("OIDC provider:   redirect URI: {}", consent.getRedirectURI());
+        this.logger.debug("OIDC provider:   claims: {}", claims);
+
         DocumentReference userReference = consent.getUserReference();
 
         UserInfo userInfo = new UserInfo(this.manager.getSubject(userReference));
