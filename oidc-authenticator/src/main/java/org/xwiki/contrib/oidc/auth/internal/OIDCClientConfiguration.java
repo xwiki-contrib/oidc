@@ -124,6 +124,11 @@ public class OIDCClientConfiguration extends OIDCConfiguration
 
     public static final String PROP_SKIPPED = "oidc.skipped";
 
+    /**
+     * @since 1.12
+     */
+    public static final String PROP_USERINFOREFRESHRATE = "oidc.userinforefreshrate";
+
     public static final String PROP_USERINFOCLAIMS = "oidc.userinfoclaims";
 
     public static final List<String> DEFAULT_USERINFOCLAIMS = Arrays.asList(OIDCUserInfo.CLAIM_XWIKI_ACCESSIBILITY,
@@ -391,11 +396,11 @@ public class OIDCClientConfiguration extends OIDCConfiguration
     }
 
     /**
-     * @since 1.2
+     * @since 1.12
      */
     public int getUserInfoRefreshRate()
     {
-        return getProperty(PROP_IDTOKENCLAIMS, 600000);
+        return getProperty(PROP_USERINFOREFRESHRATE, 600000);
     }
 
     /**
