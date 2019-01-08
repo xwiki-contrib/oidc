@@ -28,6 +28,7 @@ import javax.inject.Singleton;
 import javax.servlet.http.HttpSession;
 
 import org.securityfilter.filter.SecurityRequestWrapper;
+import org.slf4j.Logger;
 import org.xwiki.component.annotation.Component;
 import org.xwiki.container.Container;
 import org.xwiki.container.servlet.ServletSession;
@@ -84,15 +85,22 @@ public class CallbackOIDCEndpoint implements OIDCEndpoint
     @Inject
     private OIDCUserManager users;
 
+    @Inject
+    private Logger logger;
+
     @Override
     public Response handle(HTTPRequest httpRequest, OIDCResourceReference reference) throws Exception
     {
+        this.logger.debug("OIDC callback: starting with request [{}]", httpRequest.getURL());
+
         // Parse the request
         AuthorizationResponse authorizationResponse = AuthorizationResponse.parse(httpRequest);
 
         // Validate state
         State state = authorizationResponse.getState();
         if (!Objects.equal(state, this.configuration.getSessionState())) {
+            this.logger.debug("OIDC callback: Invalid state ([{}])", state);
+
             throw new OIDCException("Invalid state [" + state + "]");
         }
         // TODO: remove the state from the session ?
@@ -105,6 +113,9 @@ public class CallbackOIDCEndpoint implements OIDCEndpoint
             // If impossible to authenticate without prompt, just ignore and redirect
             if (OIDCError.INTERACTION_REQUIRED.getCode().equals(errorResponse.getErrorObject().getCode())
                 || OIDCError.LOGIN_REQUIRED.getCode().equals(errorResponse.getErrorObject().getCode())) {
+                this.logger.debug("OIDC callback: Impossible to authenticate, redirect to ([{}])",
+                    authorizationResponse.getState().getValue());
+
                 // Redirect to original request
                 return new RedirectResponse(new URI(authorizationResponse.getState().getValue()));
             }
@@ -131,6 +142,9 @@ public class CallbackOIDCEndpoint implements OIDCEndpoint
 
         if (httpResponse.getStatusCode() != HTTPResponse.SC_OK) {
             TokenErrorResponse error = TokenErrorResponse.parse(httpResponse);
+
+            this.logger.debug("OIDC callback: Failed to get access token ([{}])", error.getErrorObject());
+
             throw new OIDCException("Failed to get access token", error.getErrorObject());
         }
 
@@ -152,6 +166,9 @@ public class CallbackOIDCEndpoint implements OIDCEndpoint
         session.setAttribute(SecurityRequestWrapper.PRINCIPAL_SESSION_KEY, principal);
 
         // TODO: put enough information in the cookie to automatically authenticate when coming back
+
+        this.logger.debug("OIDC callback: principal=[{}]", principal);
+        this.logger.debug("OIDC callback: redirect=[{}]", this.configuration.getSuccessRedirectURI());
 
         // Redirect to original request
         return new RedirectResponse(this.configuration.getSuccessRedirectURI());
