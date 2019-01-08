@@ -99,7 +99,8 @@ public class OIDCClientConfiguration extends OIDCConfiguration
 
     public static final String PROP_USER_NAMEFORMATER = "oidc.user.nameFormater";
 
-    public static final String DEFAULT_USER_NAMEFORMATER = "${oidc.issuer.host.clean}-${oidc.user.preferredUsername.clean}";
+    public static final String DEFAULT_USER_NAMEFORMATER =
+        "${oidc.issuer.host.clean}-${oidc.user.preferredUsername.clean}";
 
     /**
      * @since 1.11
@@ -378,7 +379,7 @@ public class OIDCClientConfiguration extends OIDCConfiguration
      */
     public List<String> getIDTokenClaims()
     {
-        return getProperty(PROP_USERINFOCLAIMS, DEFAULT_IDTOKENCLAIMS);
+        return getProperty(PROP_IDTOKENCLAIMS, DEFAULT_IDTOKENCLAIMS);
     }
 
     /**
@@ -386,7 +387,7 @@ public class OIDCClientConfiguration extends OIDCConfiguration
      */
     public List<String> getUserInfoClaims()
     {
-        return getProperty(PROP_IDTOKENCLAIMS, DEFAULT_USERINFOCLAIMS);
+        return getProperty(PROP_USERINFOCLAIMS, DEFAULT_USERINFOCLAIMS);
     }
 
     /**

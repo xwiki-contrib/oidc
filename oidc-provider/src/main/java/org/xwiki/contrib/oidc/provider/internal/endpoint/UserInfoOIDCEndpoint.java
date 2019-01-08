@@ -127,97 +127,7 @@ public class UserInfoOIDCEndpoint implements OIDCEndpoint
 
         if (claims != null) {
             for (Entry claim : claims.getUserInfoClaims()) {
-                this.logger.debug("OIDC provider: handling claim [{}]", claim.getClaimName());
-
-                try {
-                    switch (claim.getClaimName()) {
-                        // OIDC core
-
-                        case OIDCUserInfo.CLAIM_ADDRESS:
-                            String addressString = userObject.getLargeStringValue("address");
-                            if (StringUtils.isNotEmpty(addressString)) {
-                                Address address = new Address();
-                                address.setFormatted(addressString);
-                                userInfo.setAddress(address);
-                            }
-                            break;
-                        case OIDCUserInfo.CLAIM_EMAIL:
-                            String email = userObject.getStringValue("email");
-                            if (StringUtils.isNotEmpty(email)) {
-                                userInfo.setEmailAddress(email);
-                            }
-                            break;
-                        case OIDCUserInfo.CLAIM_EMAIL_VERIFIED:
-                            if (userInfo.getEmailAddress() != null) {
-                                userInfo.setEmailVerified(true);
-                            }
-                            break;
-                        case OIDCUserInfo.CLAIM_FAMILY_NAME:
-                            userInfo.setFamilyName(getStringValue(userObject, "last_name"));
-                            break;
-                        case OIDCUserInfo.CLAIM_GIVEN_NAME:
-                            userInfo.setGivenName(getStringValue(userObject, "first_name"));
-                            break;
-                        case OIDCUserInfo.CLAIM_PHONE_NUMBER:
-                            userInfo.setPhoneNumber(getStringValue(userObject, "phone"));
-                            break;
-                        case OIDCUserInfo.CLAIM_PHONE_NUMBER_VERIFIED:
-                            if (userInfo.getPhoneNumber() != null) {
-                                userInfo.setPhoneNumberVerified(true);
-                            }
-                            break;
-                        case OIDCUserInfo.CLAIM_PICTURE:
-                            userInfo.setPicture(this.store.getUserAvatarURI(userDocument));
-                            break;
-                        case OIDCUserInfo.CLAIM_PROFILE:
-                            userInfo.setProfile(this.store.getUserProfileURI(userDocument));
-                            break;
-                        case OIDCUserInfo.CLAIM_UPDATED_AT:
-                            userInfo.setUpdatedTime(userDocument.getDate());
-                            break;
-                        case OIDCUserInfo.CLAIM_WEBSITE:
-                            String blog = userObject.getStringValue("blog");
-                            if (StringUtils.isNotEmpty(blog)) {
-                                userInfo.setWebsite(new URI(blog));
-                            }
-                            break;
-                        case OIDCUserInfo.CLAIM_NAME:
-                            userInfo.setName(xcontext.getWiki().getPlainUserName(userReference, xcontext));
-                            break;
-                        case OIDCUserInfo.CLAIM_PREFERRED_NAME:
-                            userInfo.setPreferredUsername(userReference.getName());
-                            break;
-                        case OIDCUserInfo.CLAIM_ZONEINFO:
-                            String timezone = userObject.getStringValue("timezone");
-                            if (StringUtils.isNotEmpty(timezone)) {
-                                userInfo.setZoneinfo(timezone);
-                            }
-                            break;
-                        case OIDCUserInfo.CLAIM_LOCALE:
-                            String locale = userObject.getStringValue("default_language");
-                            if (StringUtils.isNotEmpty(locale)) {
-                                userInfo.setLocale(LocaleUtils.toLocale(locale).toLanguageTag());
-                            }
-                            break;
-                        case OIDCUserInfo.CLAIM_MIDDLE_NAME:
-                        case OIDCUserInfo.CLAIM_NICKNAME:
-                        case OIDCUserInfo.CLAIM_GENDER:
-                        case OIDCUserInfo.CLAIM_BIRTHDATE:
-                            // TODO
-                            break;
-
-                        // XWiki core
-                        // Note: most of the XWiki core fields are handled by #setCustomUserInfoClaim
-
-                        default:
-                            setCustomUserInfoClaim(userInfo, claim, userObject, userDocument, xcontext);
-                            break;
-                    }
-                } catch (Exception e) {
-                    // Failed to set one of the claims
-                    this.logger.warn("OIDC provider: Failed to get claim [{}] for user [{}]: {}", claim.getClaimName(),
-                        userReference, ExceptionUtils.getRootCauseMessage(e));
-                }
+                setClaim(userInfo, claim, userReference, userDocument, userObject, xcontext);
             }
         } else {
             // Most probably OpenID Connect
@@ -240,6 +150,102 @@ public class UserInfoOIDCEndpoint implements OIDCEndpoint
         }
 
         return new UserInfoSuccessResponse(userInfo);
+    }
+
+    private void setClaim(UserInfo userInfo, Entry claim, DocumentReference userReference, XWikiDocument userDocument,
+        BaseObject userObject, XWikiContext xcontext)
+    {
+        this.logger.debug("OIDC provider: handling claim [{}]", claim.getClaimName());
+
+        try {
+            switch (claim.getClaimName()) {
+                // OIDC core
+
+                case OIDCUserInfo.CLAIM_ADDRESS:
+                    String addressString = userObject.getLargeStringValue("address");
+                    if (StringUtils.isNotEmpty(addressString)) {
+                        Address address = new Address();
+                        address.setFormatted(addressString);
+                        userInfo.setAddress(address);
+                    }
+                    break;
+                case OIDCUserInfo.CLAIM_EMAIL:
+                    String email = userObject.getStringValue("email");
+                    if (StringUtils.isNotEmpty(email)) {
+                        userInfo.setEmailAddress(email);
+                    }
+                    break;
+                case OIDCUserInfo.CLAIM_EMAIL_VERIFIED:
+                    if (userInfo.getEmailAddress() != null) {
+                        userInfo.setEmailVerified(true);
+                    }
+                    break;
+                case OIDCUserInfo.CLAIM_FAMILY_NAME:
+                    userInfo.setFamilyName(getStringValue(userObject, "last_name"));
+                    break;
+                case OIDCUserInfo.CLAIM_GIVEN_NAME:
+                    userInfo.setGivenName(getStringValue(userObject, "first_name"));
+                    break;
+                case OIDCUserInfo.CLAIM_PHONE_NUMBER:
+                    userInfo.setPhoneNumber(getStringValue(userObject, "phone"));
+                    break;
+                case OIDCUserInfo.CLAIM_PHONE_NUMBER_VERIFIED:
+                    if (userInfo.getPhoneNumber() != null) {
+                        userInfo.setPhoneNumberVerified(true);
+                    }
+                    break;
+                case OIDCUserInfo.CLAIM_PICTURE:
+                    userInfo.setPicture(this.store.getUserAvatarURI(userDocument));
+                    break;
+                case OIDCUserInfo.CLAIM_PROFILE:
+                    userInfo.setProfile(this.store.getUserProfileURI(userDocument));
+                    break;
+                case OIDCUserInfo.CLAIM_UPDATED_AT:
+                    userInfo.setUpdatedTime(userDocument.getDate());
+                    break;
+                case OIDCUserInfo.CLAIM_WEBSITE:
+                    String blog = userObject.getStringValue("blog");
+                    if (StringUtils.isNotEmpty(blog)) {
+                        userInfo.setWebsite(new URI(blog));
+                    }
+                    break;
+                case OIDCUserInfo.CLAIM_NAME:
+                    userInfo.setName(xcontext.getWiki().getPlainUserName(userReference, xcontext));
+                    break;
+                case OIDCUserInfo.CLAIM_PREFERRED_NAME:
+                    userInfo.setPreferredUsername(userReference.getName());
+                    break;
+                case OIDCUserInfo.CLAIM_ZONEINFO:
+                    String timezone = userObject.getStringValue("timezone");
+                    if (StringUtils.isNotEmpty(timezone)) {
+                        userInfo.setZoneinfo(timezone);
+                    }
+                    break;
+                case OIDCUserInfo.CLAIM_LOCALE:
+                    String locale = userObject.getStringValue("default_language");
+                    if (StringUtils.isNotEmpty(locale)) {
+                        userInfo.setLocale(LocaleUtils.toLocale(locale).toLanguageTag());
+                    }
+                    break;
+                case OIDCUserInfo.CLAIM_MIDDLE_NAME:
+                case OIDCUserInfo.CLAIM_NICKNAME:
+                case OIDCUserInfo.CLAIM_GENDER:
+                case OIDCUserInfo.CLAIM_BIRTHDATE:
+                    // TODO
+                    break;
+
+                // XWiki core
+                // Note: most of the XWiki core fields are handled by #setCustomUserInfoClaim
+
+                default:
+                    setCustomUserInfoClaim(userInfo, claim, userObject, userDocument, xcontext);
+                    break;
+            }
+        } catch (Exception e) {
+            // Failed to set one of the claims
+            this.logger.warn("OIDC provider: Failed to get claim [{}] for user [{}]: {}", claim.getClaimName(),
+                userReference, ExceptionUtils.getRootCauseMessage(e));
+        }
     }
 
     private String getStringValue(BaseObject obj, String key)
