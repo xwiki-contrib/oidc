@@ -121,7 +121,7 @@ public class UserInfoOIDCEndpoint implements OIDCEndpoint
 
         if (claims != null) {
             for (Entry claim : claims.getUserInfoClaims()) {
-                this.logger.debug("OIDC provider: handling claim [{}]", claim);
+                this.logger.debug("OIDC provider: handling claim [{}]", claim.getClaimName());
 
                 try {
                     switch (claim.getClaimName()) {
@@ -273,6 +273,9 @@ public class UserInfoOIDCEndpoint implements OIDCEndpoint
     {
         String groupClaim = this.configuration.getGroupClaim();
 
+        this.logger.debug("OIDC provider: Try custom claim [{}]", claim.getClaimName());
+        this.logger.debug("OIDC provider: Configured group claim is [{}]", groupClaim);
+
         if (claim.getClaimName().equals(groupClaim)) {
             userInfo.setClaim(groupClaim, getUserGroups(userDocument, xcontext));
         } else if (claim.getClaimName().startsWith(OIDCUserInfo.CLAIMPREFIX_XWIKI_USER)) {
@@ -294,7 +297,7 @@ public class UserInfoOIDCEndpoint implements OIDCEndpoint
                 }
             }
         } else {
-            this.logger.debug("Unknown claim [{}]", claim.getClaimName());
+            this.logger.debug("OIDC provider: Unknown claim [{}]", claim.getClaimName());
         }
     }
 }
