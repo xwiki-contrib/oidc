@@ -88,6 +88,8 @@ public class OIDCUserManagerTest
 
     private DocumentReference group2Reference;
 
+    private DocumentReference existinggroupReference;
+
     private DocumentReference pgroup1Reference;
 
     private DocumentReference pgroup2Reference;
@@ -120,20 +122,43 @@ public class OIDCUserManagerTest
 
         this.group1Reference = new DocumentReference(this.oldcore.getXWikiContext().getWikiId(), "XWiki", "group1");
         this.group2Reference = new DocumentReference(this.oldcore.getXWikiContext().getWikiId(), "XWiki", "group2");
+        this.existinggroupReference =
+            new DocumentReference(this.oldcore.getXWikiContext().getWikiId(), "XWiki", "existinggroup");
         this.pgroup1Reference = new DocumentReference(this.oldcore.getXWikiContext().getWikiId(), "XWiki", "pgroup1");
         this.pgroup2Reference = new DocumentReference(this.oldcore.getXWikiContext().getWikiId(), "XWiki", "pgroup2");
     }
 
-    private boolean groupContains(DocumentReference group, String user) throws XWikiException
+    private void addMember(DocumentReference group, String member) throws XWikiException
     {
         XWikiDocument groupDocument = this.oldcore.getSpyXWiki().getDocument(group, this.oldcore.getXWikiContext());
 
+        if (!groupContains(groupDocument, member)) {
+            BaseObject memberObject = groupDocument.newXObject(
+                new DocumentReference(this.oldcore.getXWikiContext().getWikiId(), "XWiki", "XWikiGroups"),
+                this.oldcore.getXWikiContext());
+
+            memberObject.setStringValue("member", member);
+
+            this.oldcore.getSpyXWiki().saveDocument(groupDocument, this.oldcore.getXWikiContext());
+        }
+
+    }
+
+    private boolean groupContains(DocumentReference group, String member) throws XWikiException
+    {
+        XWikiDocument groupDocument = this.oldcore.getSpyXWiki().getDocument(group, this.oldcore.getXWikiContext());
+
+        return groupContains(groupDocument, member);
+    }
+
+    private boolean groupContains(XWikiDocument groupDocument, String member)
+    {
         List<BaseObject> groupObjects = groupDocument
             .getXObjects(new DocumentReference(this.oldcore.getXWikiContext().getWikiId(), "XWiki", "XWikiGroups"));
 
         if (groupObjects != null) {
             for (BaseObject groupObject : groupObjects) {
-                if (groupObject.getStringValue("member").equals(user)) {
+                if (groupObject != null && groupObject.getStringValue("member").equals(member)) {
                     return true;
                 }
             }
@@ -244,6 +269,16 @@ public class OIDCUserManagerTest
 
         userInfo.setClaim("groupclaim", Arrays.asList("pgroup1", "pgroup2"));
 
+        String userFullName = "XWiki.issuer-subject";
+
+        when(this.oldcore.getMockGroupService().getAllGroupsNamesForMember(userFullName, 0, 0,
+            this.oldcore.getXWikiContext())).thenReturn(Arrays.asList("XWiki.existinggroup"));
+        addMember(this.existinggroupReference, "XWiki.issuer-subject");
+
+        Assert.assertFalse(groupContains(this.group1Reference, userFullName));
+        Assert.assertFalse(groupContains(this.group2Reference, userFullName));
+        Assert.assertTrue(groupContains(this.existinggroupReference, userFullName));
+
         Principal principal = this.mocker.getComponentUnderTest().updateUser(idToken, userInfo);
 
         Assert.assertEquals("xwiki:XWiki.issuer-subject", principal.getName());
@@ -267,6 +302,7 @@ public class OIDCUserManagerTest
 
         Assert.assertTrue(groupContains(this.pgroup1Reference, userDocument.getFullName()));
         Assert.assertTrue(groupContains(this.pgroup2Reference, userDocument.getFullName()));
+        Assert.assertFalse(groupContains(this.existinggroupReference, userDocument.getFullName()));
     }
 
     @Test
@@ -274,7 +310,7 @@ public class OIDCUserManagerTest
         throws XWikiException, QueryException, OIDCException, ComponentLookupException
     {
         this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_GROUPS_MAPPING,
-            Arrays.asList("group1=pgroup1", "group1=pgroup2", "XWiki.group2=pgroup2"));
+            Arrays.asList("group1=pgroup1", "group1=pgroup2", "XWiki.group2=pgroup2", "existinggroup=othergroup"));
         this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_GROUPS_CLAIM, "groupclaim");
 
         Issuer issuer = new Issuer("http://issuer");
@@ -284,6 +320,16 @@ public class OIDCUserManagerTest
         UserInfo userInfo = new UserInfo(subject);
 
         userInfo.setClaim("groupclaim", Arrays.asList("pgroup1", "pgroup2"));
+
+        String userFullName = "XWiki.issuer-subject";
+
+        when(this.oldcore.getMockGroupService().getAllGroupsNamesForMember(userFullName, 0, 0,
+            this.oldcore.getXWikiContext())).thenReturn(Arrays.asList("XWiki.existinggroup"));
+        addMember(this.existinggroupReference, "XWiki.issuer-subject");
+
+        Assert.assertFalse(groupContains(this.group1Reference, userFullName));
+        Assert.assertFalse(groupContains(this.group2Reference, userFullName));
+        Assert.assertTrue(groupContains(this.existinggroupReference, userFullName));
 
         Principal principal = this.mocker.getComponentUnderTest().updateUser(idToken, userInfo);
 
@@ -308,6 +354,7 @@ public class OIDCUserManagerTest
 
         Assert.assertTrue(groupContains(this.group1Reference, userDocument.getFullName()));
         Assert.assertTrue(groupContains(this.group2Reference, userDocument.getFullName()));
+        Assert.assertFalse(groupContains(this.existinggroupReference, userDocument.getFullName()));
     }
 
     @Test
@@ -363,5 +410,112 @@ public class OIDCUserManagerTest
         Assert.assertNotNull(oidcObject);
         Assert.assertEquals("http://issuer", oidcObject.getIssuer());
         Assert.assertEquals("custom-mail@domain.com-MAIL@DOMAIN.COM-MAILDOMAINCOM", oidcObject.getSubject());
+    }
+
+    @Test
+    public void updateUserInfoWithAllowedGroup()
+        throws XWikiException, QueryException, OIDCException, ComponentLookupException
+    {
+        this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_GROUPS_ALLOWED,
+            Arrays.asList("pgroup1", "pgroup2"));
+        this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_GROUPS_CLAIM, "groupclaim");
+
+        Issuer issuer = new Issuer("http://issuer");
+        Subject subject = new Subject("subject");
+        IDTokenClaimsSet idToken =
+            new IDTokenClaimsSet(issuer, subject, Collections.emptyList(), new Date(), new Date());
+        UserInfo userInfo = new UserInfo(subject);
+
+        userInfo.setClaim("groupclaim", Arrays.asList("pgroup1", "pgroup3"));
+
+        Principal principal = this.mocker.getComponentUnderTest().updateUser(idToken, userInfo);
+
+        Assert.assertNotNull(principal);
+    }
+
+    @Test(expected = OIDCException.class)
+    public void updateUserInfoWithNotAllowedGroup()
+        throws XWikiException, QueryException, OIDCException, ComponentLookupException
+    {
+        this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_GROUPS_ALLOWED,
+            Arrays.asList("pgroup1"));
+        this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_GROUPS_CLAIM, "groupclaim");
+
+        Issuer issuer = new Issuer("http://issuer");
+        Subject subject = new Subject("subject");
+        IDTokenClaimsSet idToken =
+            new IDTokenClaimsSet(issuer, subject, Collections.emptyList(), new Date(), new Date());
+        UserInfo userInfo = new UserInfo(subject);
+
+        userInfo.setClaim("groupclaim", Arrays.asList("pgroup2", "pgroup3"));
+
+        Principal principal = this.mocker.getComponentUnderTest().updateUser(idToken, userInfo);
+
+        Assert.assertNotNull(principal);
+    }
+
+    @Test(expected = OIDCException.class)
+    public void updateUserInfoWithForbiddenGroup()
+        throws XWikiException, QueryException, OIDCException, ComponentLookupException
+    {
+        this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_GROUPS_FORBIDDEN,
+            Arrays.asList("pgroup1", "pgroup2"));
+        this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_GROUPS_CLAIM, "groupclaim");
+
+        Issuer issuer = new Issuer("http://issuer");
+        Subject subject = new Subject("subject");
+        IDTokenClaimsSet idToken =
+            new IDTokenClaimsSet(issuer, subject, Collections.emptyList(), new Date(), new Date());
+        UserInfo userInfo = new UserInfo(subject);
+
+        userInfo.setClaim("groupclaim", Arrays.asList("pgroup1", "pgroup3"));
+
+        Principal principal = this.mocker.getComponentUnderTest().updateUser(idToken, userInfo);
+
+        Assert.assertNotNull(principal);
+    }
+
+    @Test
+    public void updateUserInfoWithNotForbiddenGroup()
+        throws XWikiException, QueryException, OIDCException, ComponentLookupException
+    {
+        this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_GROUPS_FORBIDDEN,
+            Arrays.asList("pgroup1"));
+        this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_GROUPS_CLAIM, "groupclaim");
+
+        Issuer issuer = new Issuer("http://issuer");
+        Subject subject = new Subject("subject");
+        IDTokenClaimsSet idToken =
+            new IDTokenClaimsSet(issuer, subject, Collections.emptyList(), new Date(), new Date());
+        UserInfo userInfo = new UserInfo(subject);
+
+        userInfo.setClaim("groupclaim", Arrays.asList("pgroup2", "pgroup3"));
+
+        Principal principal = this.mocker.getComponentUnderTest().updateUser(idToken, userInfo);
+
+        Assert.assertNotNull(principal);
+    }
+
+    @Test
+    public void updateUserInfoWithAllowedAndForbiddenGroup()
+        throws XWikiException, QueryException, OIDCException, ComponentLookupException
+    {
+        this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_GROUPS_ALLOWED,
+            Arrays.asList("pgroup1", "pgroup2"));
+        this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_GROUPS_FORBIDDEN,
+            Arrays.asList("pgroup1", "pgroup2"));
+        this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_GROUPS_CLAIM, "groupclaim");
+
+        Issuer issuer = new Issuer("http://issuer");
+        Subject subject = new Subject("subject");
+        IDTokenClaimsSet idToken =
+            new IDTokenClaimsSet(issuer, subject, Collections.emptyList(), new Date(), new Date());
+        UserInfo userInfo = new UserInfo(subject);
+
+        userInfo.setClaim("groupclaim", Arrays.asList("pgroup1", "pgroup3"));
+
+        Principal principal = this.mocker.getComponentUnderTest().updateUser(idToken, userInfo);
+
+        Assert.assertNotNull(principal);
     }
 }

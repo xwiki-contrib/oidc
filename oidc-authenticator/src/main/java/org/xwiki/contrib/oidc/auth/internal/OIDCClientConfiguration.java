@@ -428,7 +428,7 @@ public class OIDCClientConfiguration extends OIDCConfiguration
                 int index = groupMapping.indexOf('=');
 
                 if (index != -1) {
-                    String xwikiGroup = groupMapping.substring(0, index);
+                    String xwikiGroup = toXWikiGroup(groupMapping.substring(0, index));
                     String providerGroup = groupMapping.substring(index + 1);
 
                     // Add to XWiki mapping
@@ -438,7 +438,7 @@ public class OIDCClientConfiguration extends OIDCConfiguration
                     // Add to provider mapping
                     Set<String> xwikiGroups =
                         groups.providerMapping.computeIfAbsent(providerGroup, k -> new HashSet<>());
-                    xwikiGroups.add(toXWikiGroup(xwikiGroup));
+                    xwikiGroups.add(xwikiGroup);
                 }
             }
         } else {

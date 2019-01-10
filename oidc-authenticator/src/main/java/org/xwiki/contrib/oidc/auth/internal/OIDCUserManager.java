@@ -192,29 +192,38 @@ public class OIDCUserManager
         return updateUser(idToken, userInfo);
     }
 
-    public Principal updateUser(IDTokenClaimsSet idToken, UserInfo userInfo)
-        throws XWikiException, QueryException, OIDCException
+    private void checkAllowedGroups(UserInfo userInfo) throws OIDCException
     {
-        // Check allowed/forbidden groups
         List<String> providerGroups = (List<String>) userInfo.getClaim(this.configuration.getGroupClaim());
         if (providerGroups != null) {
-            // Filter allowed/denied groups
+            // Check allowed groups
             List<String> allowedGroups = this.configuration.getAllowedGroups();
-            List<String> forbiddenGroups = this.configuration.getForbiddenGroups();
-            for (String providerGroup : providerGroups) {
-                if (allowedGroups != null && !allowedGroups.contains(providerGroup)) {
+            if (allowedGroups != null) {
+                if (!CollectionUtils.containsAny(providerGroups, allowedGroups)) {
+                    // Allowed groups have priority over forbidden groups
                     throw new OIDCException(
                         "The user is not allowed to authenticate because it's not a member of the following groups: "
                             + allowedGroups);
                 }
 
-                if (forbiddenGroups != null && forbiddenGroups.contains(providerGroup)) {
-                    throw new OIDCException(
-                        "The user is not allowed to authenticate because it's a member of one of the following groups: "
-                            + forbiddenGroups);
-                }
+                return;
+            }
+
+            // Check forbidden groups
+            List<String> forbiddenGroups = this.configuration.getForbiddenGroups();
+            if (forbiddenGroups != null && CollectionUtils.containsAny(providerGroups, forbiddenGroups)) {
+                throw new OIDCException(
+                    "The user is not allowed to authenticate because it's a member of one of the following groups: "
+                        + forbiddenGroups);
             }
         }
+    }
+
+    public Principal updateUser(IDTokenClaimsSet idToken, UserInfo userInfo)
+        throws XWikiException, QueryException, OIDCException
+    {
+        // Check allowed/forbidden groups
+        checkAllowedGroups(userInfo);
 
         String formattedSubject = formatSubjec(idToken, userInfo);
 
@@ -496,16 +505,15 @@ public class OIDCUserManager
                 }
             } else {
                 Set<String> mappedGroups = groupMapping.fromXWiki(xwikiGroupName);
-                if (mappedGroups != null) {
-                    if (!CollectionUtils.containsAny(providerGroups, mappedGroups)) {
-                        removeUserFromXWikiGroup(xwikiUserName, xwikiGroupName, context);
-                        userUpdated = true;
-                    }
+                if (mappedGroups != null && !CollectionUtils.containsAny(providerGroups, mappedGroups)) {
+                    removeUserFromXWikiGroup(xwikiUserName, xwikiGroupName, context);
+                    userUpdated = true;
                 }
             }
         }
 
         return userUpdated;
+
     }
 
     private void updateXWikiClaims(XWikiDocument userDocument, BaseClass userClass, BaseObject userObject,
@@ -663,7 +671,6 @@ public class OIDCUserManager
         // just after a logout)
         request.getSession().removeAttribute(OIDCClientConfiguration.PROP_SESSION_ACCESSTOKEN);
         request.getSession().removeAttribute(OIDCClientConfiguration.PROP_SESSION_IDTOKEN);
-        request.getSession().removeAttribute(OIDCClientConfiguration.PROP_SESSION_USERINFO_EXPORATIONDATE);
         request.getSession().removeAttribute(OIDCClientConfiguration.PROP_ENDPOINT_AUTHORIZATION);
         request.getSession().removeAttribute(OIDCClientConfiguration.PROP_ENDPOINT_TOKEN);
         request.getSession().removeAttribute(OIDCClientConfiguration.PROP_ENDPOINT_USERINFO);
