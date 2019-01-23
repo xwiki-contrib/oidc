@@ -138,7 +138,7 @@ public class UserInfoOIDCEndpoint implements OIDCEndpoint
             }
 
             userInfo.setName(xcontext.getWiki().getPlainUserName(userReference, xcontext));
-            userInfo.setPreferredUsername(xcontext.getWiki().getPlainUserName(userReference, xcontext));
+            userInfo.setPreferredUsername(userReference.getName());
 
             userInfo.setPicture(this.store.getUserAvatarURI(userDocument));
 
