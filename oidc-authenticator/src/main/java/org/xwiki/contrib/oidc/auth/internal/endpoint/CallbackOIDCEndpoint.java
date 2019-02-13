@@ -54,6 +54,7 @@ import com.nimbusds.oauth2.sdk.http.HTTPRequest;
 import com.nimbusds.oauth2.sdk.http.HTTPResponse;
 import com.nimbusds.oauth2.sdk.id.State;
 import com.nimbusds.oauth2.sdk.token.BearerAccessToken;
+import com.nimbusds.oauth2.sdk.auth.*;
 import com.nimbusds.openid.connect.sdk.OIDCError;
 import com.nimbusds.openid.connect.sdk.OIDCTokenResponse;
 import com.nimbusds.openid.connect.sdk.claims.IDTokenClaimsSet;
@@ -133,12 +134,29 @@ public class CallbackOIDCEndpoint implements OIDCEndpoint
         // Get access token
         AuthorizationGrant authorizationGrant = new AuthorizationCodeGrant(code, callback);
         // TODO: setup some client authentication, secret, all that
-        TokenRequest tokeRequest = new TokenRequest(this.configuration.getTokenOIDCEndpoint(),
-            this.configuration.getClientID(), authorizationGrant);
+        TokenRequest tokeRequest;
+        if (this.configuration.getSecret()!=null) {
+            this.logger.debug("OIDC callback: adding secret ({} {})", this.configuration.getClientID(), this.configuration.getSecret().getValue());
+            ClientAuthentication clientSecret;
+            if (this.configuration.getTokenEndPointAuthMethod()==ClientAuthenticationMethod.CLIENT_SECRET_POST)
+                clientSecret = new ClientSecretPost(this.configuration.getClientID(), this.configuration.getSecret());
+            else
+                clientSecret = new ClientSecretBasic(this.configuration.getClientID(), this.configuration.getSecret());
+	    tokeRequest = new TokenRequest(this.configuration.getTokenOIDCEndpoint(),
+            				   clientSecret, authorizationGrant);
+        } else {
+            tokeRequest = new TokenRequest(this.configuration.getTokenOIDCEndpoint(),
+            				   this.configuration.getClientID(), authorizationGrant);
+        }
+        
         HTTPRequest tokenHTTP = tokeRequest.toHTTPRequest();
         tokenHTTP.setHeader("User-Agent", this.getClass().getPackage().getImplementationTitle() + '/'
             + this.getClass().getPackage().getImplementationVersion());
+       
+	this.logger.debug("OIDC Token request ({}?{},{})", tokenHTTP.getURL(), tokenHTTP.getQuery(), tokenHTTP.getAuthorization());
+ 
         HTTPResponse httpResponse = tokenHTTP.send();
+        this.logger.debug("OIDC Token response ({})", httpResponse.getContent());
 
         if (httpResponse.getStatusCode() != HTTPResponse.SC_OK) {
             TokenErrorResponse error = TokenErrorResponse.parse(httpResponse);

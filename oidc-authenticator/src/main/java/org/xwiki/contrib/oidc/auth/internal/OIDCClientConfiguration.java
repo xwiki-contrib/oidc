@@ -55,6 +55,9 @@ import org.xwiki.properties.ConverterManager;
 import com.nimbusds.oauth2.sdk.Scope;
 import com.nimbusds.oauth2.sdk.id.ClientID;
 import com.nimbusds.oauth2.sdk.id.State;
+import com.nimbusds.oauth2.sdk.auth.Secret;
+import com.nimbusds.oauth2.sdk.auth.ClientAuthenticationMethod;
+import com.nimbusds.oauth2.sdk.http.HTTPRequest;
 import com.nimbusds.oauth2.sdk.token.BearerAccessToken;
 import com.nimbusds.openid.connect.sdk.ClaimsRequest;
 import com.nimbusds.openid.connect.sdk.OIDCScopeValue;
@@ -121,8 +124,14 @@ public class OIDCClientConfiguration extends OIDCConfiguration
     public static final String PROP_ENDPOINT_USERINFO = PROPPREFIX_ENDPOINT + UserInfoOIDCEndpoint.HINT;
 
     public static final String PROP_CLIENTID = "oidc.clientid";
+    
+    public static final String PROP_SECRET = "oidc.secret";
 
     public static final String PROP_SKIPPED = "oidc.skipped";
+
+    public static final String PROP_ENDPOINT_TOKEN_AUTH_METHOD = "oidc.endpoint.token.auth_method";
+
+    public static final String PROP_ENDPOINT_USERINFO_METHOD = "oidc.endpoint.userinfo.method";
 
     /**
      * @since 1.12
@@ -339,6 +348,33 @@ public class OIDCClientConfiguration extends OIDCConfiguration
 
         // Fallback on instance id
         return new ClientID(clientId != null ? clientId : this.instance.getInstanceId().getInstanceId());
+    }
+    
+    public Secret getSecret()
+    {
+        String secret = getProperty(PROP_SECRET, String.class);
+        if ((secret==null) || secret.trim().equals(""))
+          return null;
+        else
+          return new Secret(secret);
+    }
+
+    public ClientAuthenticationMethod getTokenEndPointAuthMethod() 
+    { 
+        String authMethod = getProperty(PROP_ENDPOINT_TOKEN_AUTH_METHOD, String.class);
+        if ("client_secret_post".equals(authMethod.toLowerCase()))
+          return ClientAuthenticationMethod.CLIENT_SECRET_POST;
+        else
+          return ClientAuthenticationMethod.CLIENT_SECRET_BASIC;
+    }
+
+    public HTTPRequest.Method getUserInfoEndPointMethod() 
+    {
+        String method = getProperty(PROP_ENDPOINT_USERINFO_METHOD, String.class);
+        if ("post".equals(method.toLowerCase()))
+          return HTTPRequest.Method.POST;
+        else
+          return HTTPRequest.Method.GET;
     }
 
     public State getSessionState()

@@ -173,11 +173,14 @@ public class OIDCUserManager
         throws IOException, ParseException, OIDCException, XWikiException, QueryException
     {
         // Get OIDC user info
-        UserInfoRequest userinfoRequest = new UserInfoRequest(userInfoEndpoint, accessToken);
+        this.logger.debug("OIDC user info request ({},{})", userInfoEndpoint, accessToken);
+        UserInfoRequest userinfoRequest = new UserInfoRequest(userInfoEndpoint, this.configuration.getUserInfoEndPointMethod(), accessToken);
         HTTPRequest userinfoHTTP = userinfoRequest.toHTTPRequest();
         userinfoHTTP.setHeader("User-Agent", this.getClass().getPackage().getImplementationTitle() + '/'
             + this.getClass().getPackage().getImplementationVersion());
+        this.logger.debug("OIDC user info request ({}?{})", userinfoHTTP.getURL(), userinfoHTTP.getQuery());
         HTTPResponse httpResponse = userinfoHTTP.send();
+        this.logger.debug("OIDF user info response ({})", httpResponse.getContent());
         UserInfoResponse userinfoResponse = UserInfoResponse.parse(httpResponse);
 
         if (!userinfoResponse.indicatesSuccess()) {
