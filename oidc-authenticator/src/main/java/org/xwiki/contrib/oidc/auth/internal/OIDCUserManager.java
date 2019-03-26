@@ -174,7 +174,8 @@ public class OIDCUserManager
     {
         // Get OIDC user info
         this.logger.debug("OIDC user info request ({},{})", userInfoEndpoint, accessToken);
-        UserInfoRequest userinfoRequest = new UserInfoRequest(userInfoEndpoint, this.configuration.getUserInfoEndPointMethod(), accessToken);
+        UserInfoRequest userinfoRequest =
+            new UserInfoRequest(userInfoEndpoint, this.configuration.getUserInfoEndPointMethod(), accessToken);
         HTTPRequest userinfoHTTP = userinfoRequest.toHTTPRequest();
         userinfoHTTP.setHeader("User-Agent", this.getClass().getPackage().getImplementationTitle() + '/'
             + this.getClass().getPackage().getImplementationVersion());

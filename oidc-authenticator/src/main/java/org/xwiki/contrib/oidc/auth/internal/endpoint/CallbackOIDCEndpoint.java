@@ -50,11 +50,15 @@ import com.nimbusds.oauth2.sdk.AuthorizationSuccessResponse;
 import com.nimbusds.oauth2.sdk.Response;
 import com.nimbusds.oauth2.sdk.TokenErrorResponse;
 import com.nimbusds.oauth2.sdk.TokenRequest;
+import com.nimbusds.oauth2.sdk.auth.ClientAuthentication;
+import com.nimbusds.oauth2.sdk.auth.ClientAuthenticationMethod;
+import com.nimbusds.oauth2.sdk.auth.ClientSecretBasic;
+import com.nimbusds.oauth2.sdk.auth.ClientSecretPost;
+import com.nimbusds.oauth2.sdk.auth.Secret;
 import com.nimbusds.oauth2.sdk.http.HTTPRequest;
 import com.nimbusds.oauth2.sdk.http.HTTPResponse;
 import com.nimbusds.oauth2.sdk.id.State;
 import com.nimbusds.oauth2.sdk.token.BearerAccessToken;
-import com.nimbusds.oauth2.sdk.auth.*;
 import com.nimbusds.openid.connect.sdk.OIDCError;
 import com.nimbusds.openid.connect.sdk.OIDCTokenResponse;
 import com.nimbusds.openid.connect.sdk.claims.IDTokenClaimsSet;
@@ -133,28 +137,32 @@ public class CallbackOIDCEndpoint implements OIDCEndpoint
 
         // Get access token
         AuthorizationGrant authorizationGrant = new AuthorizationCodeGrant(code, callback);
-        // TODO: setup some client authentication, secret, all that
+
         TokenRequest tokeRequest;
-        if (this.configuration.getSecret()!=null) {
-            this.logger.debug("OIDC callback: adding secret ({} {})", this.configuration.getClientID(), this.configuration.getSecret().getValue());
+        Secret secret = this.configuration.getSecret();
+        if (secret != null) {
+            this.logger.debug("OIDC callback: adding secret ({} {})", this.configuration.getClientID(),
+                secret.getValue());
+
             ClientAuthentication clientSecret;
-            if (this.configuration.getTokenEndPointAuthMethod()==ClientAuthenticationMethod.CLIENT_SECRET_POST)
-                clientSecret = new ClientSecretPost(this.configuration.getClientID(), this.configuration.getSecret());
-            else
-                clientSecret = new ClientSecretBasic(this.configuration.getClientID(), this.configuration.getSecret());
-	    tokeRequest = new TokenRequest(this.configuration.getTokenOIDCEndpoint(),
-            				   clientSecret, authorizationGrant);
+            if (this.configuration.getTokenEndPointAuthMethod() == ClientAuthenticationMethod.CLIENT_SECRET_POST) {
+                clientSecret = new ClientSecretPost(this.configuration.getClientID(), secret);
+            } else {
+                clientSecret = new ClientSecretBasic(this.configuration.getClientID(), secret);
+            }
+            tokeRequest = new TokenRequest(this.configuration.getTokenOIDCEndpoint(), clientSecret, authorizationGrant);
         } else {
-            tokeRequest = new TokenRequest(this.configuration.getTokenOIDCEndpoint(),
-            				   this.configuration.getClientID(), authorizationGrant);
+            tokeRequest = new TokenRequest(this.configuration.getTokenOIDCEndpoint(), this.configuration.getClientID(),
+                authorizationGrant);
         }
-        
+
         HTTPRequest tokenHTTP = tokeRequest.toHTTPRequest();
         tokenHTTP.setHeader("User-Agent", this.getClass().getPackage().getImplementationTitle() + '/'
             + this.getClass().getPackage().getImplementationVersion());
-       
-	this.logger.debug("OIDC Token request ({}?{},{})", tokenHTTP.getURL(), tokenHTTP.getQuery(), tokenHTTP.getAuthorization());
- 
+
+        this.logger.debug("OIDC Token request ({}?{},{})", tokenHTTP.getURL(), tokenHTTP.getQuery(),
+            tokenHTTP.getAuthorization());
+
         HTTPResponse httpResponse = tokenHTTP.send();
         this.logger.debug("OIDC Token response ({})", httpResponse.getContent());
 

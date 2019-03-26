@@ -35,6 +35,7 @@ import javax.inject.Inject;
 import javax.inject.Singleton;
 import javax.servlet.http.HttpSession;
 
+import org.apache.commons.lang3.StringUtils;
 import org.joda.time.LocalDateTime;
 import org.xwiki.component.annotation.Component;
 import org.xwiki.configuration.ConfigurationSource;
@@ -53,11 +54,11 @@ import org.xwiki.instance.InstanceIdManager;
 import org.xwiki.properties.ConverterManager;
 
 import com.nimbusds.oauth2.sdk.Scope;
+import com.nimbusds.oauth2.sdk.auth.ClientAuthenticationMethod;
+import com.nimbusds.oauth2.sdk.auth.Secret;
+import com.nimbusds.oauth2.sdk.http.HTTPRequest;
 import com.nimbusds.oauth2.sdk.id.ClientID;
 import com.nimbusds.oauth2.sdk.id.State;
-import com.nimbusds.oauth2.sdk.auth.Secret;
-import com.nimbusds.oauth2.sdk.auth.ClientAuthenticationMethod;
-import com.nimbusds.oauth2.sdk.http.HTTPRequest;
 import com.nimbusds.oauth2.sdk.token.BearerAccessToken;
 import com.nimbusds.openid.connect.sdk.ClaimsRequest;
 import com.nimbusds.openid.connect.sdk.OIDCScopeValue;
@@ -124,13 +125,22 @@ public class OIDCClientConfiguration extends OIDCConfiguration
     public static final String PROP_ENDPOINT_USERINFO = PROPPREFIX_ENDPOINT + UserInfoOIDCEndpoint.HINT;
 
     public static final String PROP_CLIENTID = "oidc.clientid";
-    
+
+    /**
+     * @since 1.13
+     */
     public static final String PROP_SECRET = "oidc.secret";
 
     public static final String PROP_SKIPPED = "oidc.skipped";
 
+    /**
+     * @since 1.13
+     */
     public static final String PROP_ENDPOINT_TOKEN_AUTH_METHOD = "oidc.endpoint.token.auth_method";
 
+    /**
+     * @since 1.13
+     */
     public static final String PROP_ENDPOINT_USERINFO_METHOD = "oidc.endpoint.userinfo.method";
 
     /**
@@ -349,32 +359,39 @@ public class OIDCClientConfiguration extends OIDCConfiguration
         // Fallback on instance id
         return new ClientID(clientId != null ? clientId : this.instance.getInstanceId().getInstanceId());
     }
-    
+
+    /**
+     * @since 1.13
+     */
     public Secret getSecret()
     {
         String secret = getProperty(PROP_SECRET, String.class);
-        if ((secret==null) || secret.trim().equals(""))
-          return null;
-        else
-          return new Secret(secret);
+        if (StringUtils.isBlank(secret)) {
+            return null;
+        } else {
+            return new Secret(secret);
+        }
     }
 
-    public ClientAuthenticationMethod getTokenEndPointAuthMethod() 
-    { 
-        String authMethod = getProperty(PROP_ENDPOINT_TOKEN_AUTH_METHOD, String.class);
-        if ("client_secret_post".equals(authMethod.toLowerCase()))
-          return ClientAuthenticationMethod.CLIENT_SECRET_POST;
-        else
-          return ClientAuthenticationMethod.CLIENT_SECRET_BASIC;
-    }
-
-    public HTTPRequest.Method getUserInfoEndPointMethod() 
+    /**
+     * @since 1.13
+     */
+    public ClientAuthenticationMethod getTokenEndPointAuthMethod()
     {
-        String method = getProperty(PROP_ENDPOINT_USERINFO_METHOD, String.class);
-        if ("post".equals(method.toLowerCase()))
-          return HTTPRequest.Method.POST;
-        else
-          return HTTPRequest.Method.GET;
+        String authMethod = getProperty(PROP_ENDPOINT_TOKEN_AUTH_METHOD, String.class);
+        if ("client_secret_post".equalsIgnoreCase(authMethod)) {
+            return ClientAuthenticationMethod.CLIENT_SECRET_POST;
+        } else {
+            return ClientAuthenticationMethod.CLIENT_SECRET_BASIC;
+        }
+    }
+
+    /**
+     * @since 1.13
+     */
+    public HTTPRequest.Method getUserInfoEndPointMethod()
+    {
+        return getProperty(PROP_ENDPOINT_USERINFO_METHOD, HTTPRequest.Method.class);
     }
 
     public State getSessionState()
