@@ -347,7 +347,9 @@ public class OIDCUserManager
         }
 
         // Sync user groups with the provider
-        userUpdated = updateGroupMembership(userInfo, userDocument, xcontext);
+        if (this.configuration.isGroupSync()) {
+            userUpdated = updateGroupMembership(userInfo, userDocument, xcontext);
+        }
 
         // Notify
         if (userUpdated) {

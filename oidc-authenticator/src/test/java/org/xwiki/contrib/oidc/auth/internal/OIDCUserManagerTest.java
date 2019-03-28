@@ -27,6 +27,7 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 
+import org.apache.commons.collections4.ListUtils;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
@@ -228,6 +229,10 @@ public class OIDCUserManagerTest
             new IDTokenClaimsSet(issuer, subject, Collections.emptyList(), new Date(), new Date());
         UserInfo userInfo = new UserInfo(subject);
 
+        this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_USERINFOCLAIMS,
+            ListUtils.sum(OIDCClientConfiguration.DEFAULT_USERINFOCLAIMS,
+                Arrays.asList(OIDCClientConfiguration.DEFAULT_GROUPSCLAIM)));
+
         userInfo.setClaim(OIDCClientConfiguration.DEFAULT_GROUPSCLAIM, Arrays.asList("pgroup1", "pgroup2"));
 
         Principal principal = this.mocker.getComponentUnderTest().updateUser(idToken, userInfo);
@@ -260,6 +265,9 @@ public class OIDCUserManagerTest
         throws XWikiException, QueryException, OIDCException, ComponentLookupException
     {
         this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_GROUPS_CLAIM, "groupclaim");
+        this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_USERINFOCLAIMS,
+            ListUtils.sum(OIDCClientConfiguration.DEFAULT_USERINFOCLAIMS, Arrays.asList(
+                this.oldcore.getConfigurationSource().<String>getProperty(OIDCClientConfiguration.PROP_GROUPS_CLAIM))));
 
         Issuer issuer = new Issuer("http://issuer");
         Subject subject = new Subject("subject");
@@ -312,6 +320,9 @@ public class OIDCUserManagerTest
         this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_GROUPS_MAPPING,
             Arrays.asList("group1=pgroup1", "group1=pgroup2", "XWiki.group2=pgroup2", "existinggroup=othergroup"));
         this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_GROUPS_CLAIM, "groupclaim");
+        this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_USERINFOCLAIMS,
+            ListUtils.sum(OIDCClientConfiguration.DEFAULT_USERINFOCLAIMS, Arrays.asList(
+                this.oldcore.getConfigurationSource().<String>getProperty(OIDCClientConfiguration.PROP_GROUPS_CLAIM))));
 
         Issuer issuer = new Issuer("http://issuer");
         Subject subject = new Subject("subject");
@@ -419,6 +430,9 @@ public class OIDCUserManagerTest
         this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_GROUPS_ALLOWED,
             Arrays.asList("pgroup1", "pgroup2"));
         this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_GROUPS_CLAIM, "groupclaim");
+        this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_USERINFOCLAIMS,
+            ListUtils.sum(OIDCClientConfiguration.DEFAULT_USERINFOCLAIMS, Arrays.asList(
+                this.oldcore.getConfigurationSource().<String>getProperty(OIDCClientConfiguration.PROP_GROUPS_CLAIM))));
 
         Issuer issuer = new Issuer("http://issuer");
         Subject subject = new Subject("subject");
@@ -440,6 +454,9 @@ public class OIDCUserManagerTest
         this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_GROUPS_ALLOWED,
             Arrays.asList("pgroup1"));
         this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_GROUPS_CLAIM, "groupclaim");
+        this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_USERINFOCLAIMS,
+            ListUtils.sum(OIDCClientConfiguration.DEFAULT_USERINFOCLAIMS, Arrays.asList(
+                this.oldcore.getConfigurationSource().<String>getProperty(OIDCClientConfiguration.PROP_GROUPS_CLAIM))));
 
         Issuer issuer = new Issuer("http://issuer");
         Subject subject = new Subject("subject");
@@ -461,6 +478,9 @@ public class OIDCUserManagerTest
         this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_GROUPS_FORBIDDEN,
             Arrays.asList("pgroup1", "pgroup2"));
         this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_GROUPS_CLAIM, "groupclaim");
+        this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_USERINFOCLAIMS,
+            ListUtils.sum(OIDCClientConfiguration.DEFAULT_USERINFOCLAIMS, Arrays.asList(
+                this.oldcore.getConfigurationSource().<String>getProperty(OIDCClientConfiguration.PROP_GROUPS_CLAIM))));
 
         Issuer issuer = new Issuer("http://issuer");
         Subject subject = new Subject("subject");
@@ -482,6 +502,9 @@ public class OIDCUserManagerTest
         this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_GROUPS_FORBIDDEN,
             Arrays.asList("pgroup1"));
         this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_GROUPS_CLAIM, "groupclaim");
+        this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_USERINFOCLAIMS,
+            ListUtils.sum(OIDCClientConfiguration.DEFAULT_USERINFOCLAIMS, Arrays.asList(
+                this.oldcore.getConfigurationSource().<String>getProperty(OIDCClientConfiguration.PROP_GROUPS_CLAIM))));
 
         Issuer issuer = new Issuer("http://issuer");
         Subject subject = new Subject("subject");
@@ -505,6 +528,9 @@ public class OIDCUserManagerTest
         this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_GROUPS_FORBIDDEN,
             Arrays.asList("pgroup1", "pgroup2"));
         this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_GROUPS_CLAIM, "groupclaim");
+        this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_USERINFOCLAIMS,
+            ListUtils.sum(OIDCClientConfiguration.DEFAULT_USERINFOCLAIMS, Arrays.asList(
+                this.oldcore.getConfigurationSource().<String>getProperty(OIDCClientConfiguration.PROP_GROUPS_CLAIM))));
 
         Issuer issuer = new Issuer("http://issuer");
         Subject subject = new Subject("subject");

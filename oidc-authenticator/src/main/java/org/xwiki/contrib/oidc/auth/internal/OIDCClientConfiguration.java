@@ -609,4 +609,16 @@ public class OIDCClientConfiguration extends OIDCConfiguration
     {
         setSessionAttribute(PROP_INITIAL_REQUEST, uri);
     }
+
+    /**
+     * @return true if groups should be synchronized (in which case if the provider does not answer to the group claim
+     *         it means the user does not belong to any group)
+     * @since 1.14
+     */
+    public boolean isGroupSync()
+    {
+        String groupClaim = getGroupClaim();
+
+        return getUserInfoClaims().contains(groupClaim);
+    }
 }
