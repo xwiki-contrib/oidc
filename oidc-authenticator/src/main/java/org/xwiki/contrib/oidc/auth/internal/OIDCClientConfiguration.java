@@ -129,10 +129,6 @@ public class OIDCClientConfiguration extends OIDCConfiguration
 
     public static final String PROP_SKIPPED = "oidc.skipped";
 
-    public static final String PROP_ENDPOINT_TOKEN_AUTH_METHOD = "oidc.endpoint.token.auth_method";
-
-    public static final String PROP_ENDPOINT_USERINFO_METHOD = "oidc.endpoint.userinfo.method";
-
     /**
      * @since 1.12
      */
@@ -147,6 +143,16 @@ public class OIDCClientConfiguration extends OIDCConfiguration
     public static final String PROP_IDTOKENCLAIMS = "oidc.idtokenclaims";
 
     public static final List<String> DEFAULT_IDTOKENCLAIMS = Arrays.asList(OIDCIdToken.CLAIM_XWIKI_INSTANCE_ID);
+
+    /**
+     * @since 1.13
+     */
+    public static final String PROP_ENDPOINT_TOKEN_AUTH_METHOD = "oidc.endpoint.token.auth_method";
+
+    /**
+     * @since 1.13
+     */
+    public static final String PROP_ENDPOINT_USERINFO_METHOD = "oidc.endpoint.userinfo.method";
 
     /**
      * @since 1.10
@@ -359,19 +365,25 @@ public class OIDCClientConfiguration extends OIDCConfiguration
           return new Secret(secret);
     }
 
+    /**
+     * @since 1.13
+     */
     public ClientAuthenticationMethod getTokenEndPointAuthMethod() 
     { 
         String authMethod = getProperty(PROP_ENDPOINT_TOKEN_AUTH_METHOD, String.class);
-        if ("client_secret_post".equals(authMethod.toLowerCase()))
+        if ("client_secret_post".equals((authMethod==null) ? "" : authMethod.toLowerCase()))
           return ClientAuthenticationMethod.CLIENT_SECRET_POST;
         else
           return ClientAuthenticationMethod.CLIENT_SECRET_BASIC;
     }
 
+    /**
+     * @since 1.13
+     */
     public HTTPRequest.Method getUserInfoEndPointMethod() 
     {
         String method = getProperty(PROP_ENDPOINT_USERINFO_METHOD, String.class);
-        if ("post".equals(method.toLowerCase()))
+        if ("post".equals((method==null) ? "" : method.toLowerCase()))
           return HTTPRequest.Method.POST;
         else
           return HTTPRequest.Method.GET;
