@@ -103,7 +103,7 @@ public class CallbackOIDCEndpoint implements OIDCEndpoint
 
         // Validate state
         State state = authorizationResponse.getState();
-        if (!Objects.equal(state, this.configuration.getSessionState())) {
+        if (!Objects.equal(state.getValue(), this.configuration.getSessionState())) {
             this.logger.debug("OIDC callback: Invalid state ([{}])", state);
 
             throw new OIDCException("Invalid state [" + state + "]");

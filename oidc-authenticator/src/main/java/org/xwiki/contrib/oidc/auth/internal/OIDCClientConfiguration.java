@@ -394,7 +394,7 @@ public class OIDCClientConfiguration extends OIDCConfiguration
         return getProperty(PROP_ENDPOINT_USERINFO_METHOD, HTTPRequest.Method.class);
     }
 
-    public State getSessionState()
+    public String getSessionState()
     {
         return getSessionAttribute(PROP_STATE);
     }

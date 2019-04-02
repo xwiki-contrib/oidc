@@ -168,7 +168,7 @@ public class OIDCAuthServiceImpl extends XWikiAuthServiceImpl
 
         // Generate unique state
         State state = new State();
-        request.getSession().setAttribute(OIDCClientConfiguration.PROP_STATE, state);
+        request.getSession().setAttribute(OIDCClientConfiguration.PROP_STATE, state.getValue());
 
         // Remember the current URL
         request.getSession().setAttribute(OIDCClientConfiguration.PROP_INITIAL_REQUEST,
