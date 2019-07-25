@@ -42,6 +42,7 @@
 
   <dependencyManagement>
     <dependencies>
+      <!-- Need XWiki 10.2+ to upgrade -->
       <dependency>
         <groupId>com.nimbusds</groupId>
         <artifactId>oauth2-oidc-sdk</artifactId>
