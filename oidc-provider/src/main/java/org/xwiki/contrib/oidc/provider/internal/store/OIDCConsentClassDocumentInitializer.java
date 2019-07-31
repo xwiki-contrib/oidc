@@ -26,10 +26,7 @@ import org.xwiki.component.annotation.Component;
 
 import com.xpn.xwiki.doc.XWikiDocument;
 import com.xpn.xwiki.internal.mandatory.AbstractMandatoryDocumentInitializer;
-import com.xpn.xwiki.objects.PropertyInterface;
 import com.xpn.xwiki.objects.classes.BaseClass;
-import com.xpn.xwiki.objects.classes.PasswordClass;
-import com.xpn.xwiki.objects.meta.PasswordMetaClass;
 
 /**
  * Initialize OIDC class.
@@ -67,19 +64,7 @@ public class OIDCConsentClassDocumentInitializer extends AbstractMandatoryDocume
         needsUpdate |= bclass.addTextField(OIDCConsent.FIELD_REDIRECTURI, "Redirect URI", 30);
         needsUpdate |= bclass.addBooleanField(OIDCConsent.FIELD_ALLOW, "Allow/Deny", "allow");
         needsUpdate |= bclass.addTextAreaField(OIDCConsent.FIELD_CLAIMS, "Claims", 60, 10);
-
-        // Access token
-        PasswordClass accessToken = new PasswordClass();
-        accessToken.setName(OIDCConsent.FIELD_ACCESSTOKEN);
-        accessToken.setPrettyName(OIDCConsent.FIELD_ACCESSTOKEN);
-        accessToken.setSize(30);
-        accessToken.setObject(bclass);
-        accessToken.setStringValue(PasswordMetaClass.STORAGE_TYPE, PasswordMetaClass.CLEAR);
-        PropertyInterface property = bclass.getField(OIDCConsent.FIELD_ACCESSTOKEN);
-        if (property == null || !(property instanceof PasswordClass)) {
-            bclass.put(OIDCConsent.FIELD_ACCESSTOKEN, accessToken);
-            needsUpdate = true;
-        }
+        needsUpdate |= bclass.addPasswordField(OIDCConsent.FIELD_ACCESSTOKEN, "Access Token", 30);
 
         needsUpdate |= setClassDocumentFields(document, "XWiki OIDC Consent Class");
 

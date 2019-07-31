@@ -1,4 +1,6 @@
 org.xwiki.contrib.oidc.provider.internal.OIDCManager
+org.xwiki.contrib.oidc.provider.internal.OIDCProviderAuthenticator
+org.xwiki.contrib.oidc.provider.internal.OIDCProviderConfiguration
 org.xwiki.contrib.oidc.provider.internal.OIDCResourceReferenceHandler
 org.xwiki.contrib.oidc.provider.internal.OIDCResourceReferenceResolver
 org.xwiki.contrib.oidc.provider.internal.endpoint.AuthorizationOIDCEndpoint

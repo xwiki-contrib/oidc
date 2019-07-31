@@ -29,8 +29,6 @@ import org.xwiki.model.reference.LocalDocumentReference;
 
 import com.nimbusds.oauth2.sdk.ParseException;
 import com.nimbusds.oauth2.sdk.id.ClientID;
-import com.nimbusds.oauth2.sdk.token.AccessToken;
-import com.nimbusds.oauth2.sdk.token.BearerAccessToken;
 import com.nimbusds.openid.connect.sdk.ClaimsRequest;
 import com.xpn.xwiki.XWiki;
 import com.xpn.xwiki.objects.BaseObject;
@@ -96,19 +94,19 @@ public class OIDCConsent extends BaseObject
         setStringValue(FIELD_REDIRECTURI, uri.toString());
     }
 
-    public AccessToken getAccessToken()
+    public String getAccessToken()
     {
         String str = getStringValue(FIELD_ACCESSTOKEN);
 
-        return StringUtils.isNotEmpty(str) ? new BearerAccessToken(str) : null;
+        return StringUtils.isNotEmpty(str) ? str : null;
     }
 
-    public void setAccessToken(AccessToken accessToken)
+    public void setAccessToken(XWikiBearerAccessToken accessToken)
     {
         if (accessToken == null) {
             removeField(FIELD_ACCESSTOKEN);
         } else {
-            setStringValue(FIELD_ACCESSTOKEN, accessToken.getValue());
+            setStringValue(FIELD_ACCESSTOKEN, accessToken.getRandom());
         }
     }
 

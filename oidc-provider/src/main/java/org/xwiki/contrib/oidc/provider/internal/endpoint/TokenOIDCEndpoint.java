@@ -29,6 +29,8 @@ import org.xwiki.contrib.oidc.provider.internal.OIDCManager;
 import org.xwiki.contrib.oidc.provider.internal.OIDCResourceReference;
 import org.xwiki.contrib.oidc.provider.internal.store.OIDCConsent;
 import org.xwiki.contrib.oidc.provider.internal.store.OIDCStore;
+import org.xwiki.contrib.oidc.provider.internal.store.XWikiBearerAccessToken;
+import org.xwiki.model.reference.EntityReferenceSerializer;
 
 import com.nimbusds.jwt.JWT;
 import com.nimbusds.oauth2.sdk.AuthorizationCodeGrant;
@@ -41,7 +43,6 @@ import com.nimbusds.oauth2.sdk.TokenRequest;
 import com.nimbusds.oauth2.sdk.auth.ClientAuthentication;
 import com.nimbusds.oauth2.sdk.http.HTTPRequest;
 import com.nimbusds.oauth2.sdk.id.ClientID;
-import com.nimbusds.oauth2.sdk.token.BearerAccessToken;
 import com.nimbusds.openid.connect.sdk.OIDCTokenResponse;
 import com.nimbusds.openid.connect.sdk.token.OIDCTokens;
 
@@ -65,6 +66,9 @@ public class TokenOIDCEndpoint implements OIDCEndpoint
 
     @Inject
     private OIDCManager manager;
+
+    @Inject
+    private EntityReferenceSerializer<String> defaultReferenceSerializer;
 
     @Inject
     private Logger logger;
@@ -103,21 +107,19 @@ public class TokenOIDCEndpoint implements OIDCEndpoint
                 return new TokenErrorResponse(OAuth2Error.INVALID_GRANT);
             }
 
-            // Generate new access token if none exist
-            if (consent.getAccessToken() == null) {
-                // TODO: set a configurable lifespan ?
-                consent.setAccessToken(new BearerAccessToken());
-
-                // Store new access token
-                this.store.saveConsent(consent, "Store new OIDC access token");
-            }
+            // Create and store a new token (impossible to reuse existing one if any)
+            XWikiBearerAccessToken accessToken =
+                XWikiBearerAccessToken.create(this.defaultReferenceSerializer.serialize(consent.getReference()));
+            // TODO: set a configurable lifespan ?
+            consent.setAccessToken(accessToken);
+            this.store.saveConsent(consent, "Store new OIDC access token");
 
             // Get rid of the temporary authorization code
             this.store.removeAuthorizationCode(grant.getAuthorizationCode());
 
             JWT idToken = this.manager.createdIdToken(request.getClientID(), consent.getUserReference(), null,
                 consent.getClaims());
-            OIDCTokens tokens = new OIDCTokens(idToken, consent.getAccessToken(), null);
+            OIDCTokens tokens = new OIDCTokens(idToken, accessToken, null);
 
             return new OIDCTokenResponse(tokens);
         }

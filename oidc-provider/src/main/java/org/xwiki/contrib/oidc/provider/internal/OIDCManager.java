@@ -22,12 +22,14 @@ package org.xwiki.contrib.oidc.provider.internal;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.security.SecureRandom;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.Callable;
 
 import javax.inject.Inject;
+import javax.inject.Named;
 import javax.inject.Provider;
 import javax.inject.Singleton;
 import javax.servlet.http.HttpServletResponse;
@@ -79,6 +81,10 @@ public class OIDCManager
 
     @Inject
     private EntityReferenceSerializer<String> referenceSerializer;
+
+    @Inject
+    @Named("compact")
+    private EntityReferenceSerializer<String> compactReferenceSerializer;
 
     @Inject
     private TemplateManager templates;

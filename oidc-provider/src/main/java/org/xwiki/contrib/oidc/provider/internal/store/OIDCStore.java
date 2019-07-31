@@ -21,7 +21,6 @@ package org.xwiki.contrib.oidc.provider.internal.store;
 
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -34,19 +33,19 @@ import javax.inject.Singleton;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.xwiki.component.annotation.Component;
+import org.xwiki.model.EntityType;
 import org.xwiki.model.reference.DocumentReference;
 import org.xwiki.model.reference.DocumentReferenceResolver;
-import org.xwiki.query.Query;
-import org.xwiki.query.QueryException;
-import org.xwiki.query.QueryManager;
+import org.xwiki.model.reference.EntityReference;
+import org.xwiki.model.reference.EntityReferenceResolver;
 
 import com.nimbusds.oauth2.sdk.AuthorizationCode;
 import com.nimbusds.oauth2.sdk.id.ClientID;
-import com.nimbusds.oauth2.sdk.token.AccessToken;
 import com.xpn.xwiki.XWikiContext;
 import com.xpn.xwiki.XWikiException;
 import com.xpn.xwiki.doc.XWikiDocument;
 import com.xpn.xwiki.objects.BaseObject;
+import com.xpn.xwiki.objects.classes.PasswordClass;
 
 @Component(roles = OIDCStore.class)
 @Singleton
@@ -56,11 +55,11 @@ public class OIDCStore
     private Provider<XWikiContext> xcontextProvider;
 
     @Inject
-    private QueryManager queryManager;
-
-    @Inject
     @Named("current")
     private DocumentReferenceResolver<String> resolver;
+
+    @Inject
+    private EntityReferenceResolver<String> entityResolver;
 
     @Inject
     private Logger logger;
@@ -85,52 +84,26 @@ public class OIDCStore
         return null;
     }
 
-    public OIDCConsent getConsent(Map<String, String> entries) throws QueryException, XWikiException
+    public OIDCConsent getConsent(XWikiBearerAccessToken xwikiAccessToken) throws XWikiException
     {
-        StringBuilder builder = new StringBuilder();
-
-        for (String key : entries.keySet()) {
-            if (builder.length() == 0) {
-                builder.append("select doc.fullName, consent.number from Document doc, doc.object("
-                    + OIDCConsent.REFERENCE_STRING + ") as consent where ");
-            } else {
-                builder.append(" AND ");
-            }
-
-            builder.append("consent." + key + " = :" + key);
-        }
-
-        Query query = this.queryManager.createQuery(builder.toString(), Query.XWQL);
-
-        for (Map.Entry<String, String> entry : entries.entrySet()) {
-            query.bindValue(entry.getKey(), entry.getValue());
-        }
-
-        List<Object[]> users = query.execute();
-
-        if (users.isEmpty()) {
-            return null;
-        }
-
-        // TODO: return an error when there is several ?
-
-        Object[] user = users.get(0);
+        EntityReference reference =
+            this.entityResolver.resolve(xwikiAccessToken.getObjectReference(), EntityType.OBJECT);
 
         XWikiContext xcontext = this.xcontextProvider.get();
 
-        DocumentReference userReference = this.resolver.resolve((String) user[0]);
-        XWikiDocument userDocument = xcontext.getWiki().getDocument(userReference, xcontext);
+        // Get the document containing the consent
+        XWikiDocument consentDocument = xcontext.getWiki().getDocument(reference, xcontext);
 
-        return (OIDCConsent) userDocument.getXObject(OIDCConsent.REFERENCE, ((Number) user[1]).intValue());
-    }
+        // Get the consent
+        OIDCConsent consent = (OIDCConsent) consentDocument.getXObject(reference);
 
-    public OIDCConsent getConsent(AccessToken accessToken) throws QueryException, XWikiException
-    {
-        Map<String, String> entries = new HashMap<>();
+        // Compare token values
+        final String stored = consent.getStringValue(OIDCConsent.FIELD_ACCESSTOKEN);
+        if (new PasswordClass().getEquivalentPassword(stored, xwikiAccessToken.getRandom()).equals(stored)) {
+            return consent;
+        }
 
-        entries.put(OIDCConsent.FIELD_ACCESSTOKEN, accessToken.getValue());
-
-        return getConsent(entries);
+        return null;
     }
 
     public OIDCConsent getConsent(ClientID clientID, URI redirectURI, AuthorizationCode code) throws XWikiException

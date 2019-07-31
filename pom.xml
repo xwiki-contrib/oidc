@@ -62,6 +62,15 @@
     <module>oidc-authenticator</module>
   </modules>
 
+  <profiles>
+    <profile>
+      <id>integration-tests</id>
+      <modules>
+        <module>oidc-test</module>
+      </modules>
+    </profile>
+  </profiles>
+
   <developers>
     <developer>
       <id>tmortagne</id>

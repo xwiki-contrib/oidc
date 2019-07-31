@@ -39,13 +39,13 @@ import org.xwiki.contrib.oidc.provider.internal.OIDCManager;
 import org.xwiki.contrib.oidc.provider.internal.OIDCResourceReference;
 import org.xwiki.contrib.oidc.provider.internal.store.OIDCConsent;
 import org.xwiki.contrib.oidc.provider.internal.store.OIDCStore;
+import org.xwiki.contrib.oidc.provider.internal.store.XWikiBearerAccessToken;
 import org.xwiki.localization.LocaleUtils;
 import org.xwiki.model.reference.DocumentReference;
 import org.xwiki.model.reference.WikiReference;
 
 import com.nimbusds.oauth2.sdk.Response;
 import com.nimbusds.oauth2.sdk.http.HTTPRequest;
-import com.nimbusds.oauth2.sdk.token.AccessToken;
 import com.nimbusds.oauth2.sdk.token.BearerTokenError;
 import com.nimbusds.openid.connect.sdk.ClaimsRequest;
 import com.nimbusds.openid.connect.sdk.ClaimsRequest.Entry;
@@ -100,9 +100,13 @@ public class UserInfoOIDCEndpoint implements OIDCEndpoint
         UserInfoRequest request = UserInfoRequest.parse(httpRequest);
 
         // Get the token associated to the user
-        AccessToken accessToken = request.getAccessToken();
+        XWikiBearerAccessToken xwikiAccessToken = XWikiBearerAccessToken.parse(request.getAccessToken());
 
-        OIDCConsent consent = this.store.getConsent(accessToken);
+        if (xwikiAccessToken == null) {
+            return new UserInfoErrorResponse(BearerTokenError.INVALID_TOKEN);
+        }
+
+        OIDCConsent consent = this.store.getConsent(xwikiAccessToken);
 
         if (consent == null) {
             return new UserInfoErrorResponse(BearerTokenError.INVALID_TOKEN);
