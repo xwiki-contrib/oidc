@@ -26,7 +26,6 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 import org.xwiki.contrib.oidc.test.po.OIDCClientProviderPage;
 import org.xwiki.contrib.oidc.test.po.OIDCProviderConsentPage;
-import org.xwiki.contrib.oidc.test.po.OIDCViewPage;
 import org.xwiki.test.integration.XWikiExecutor;
 import org.xwiki.test.ui.AbstractTest;
 import org.xwiki.test.ui.PersistentTestContext;
@@ -70,6 +69,12 @@ public class OIDCTest extends AbstractTest
         getUtil().gotoPage(getUtil().getURLToLogout());
     }
 
+    private void gotToLogin()
+    {
+        getUtil().gotoPage(
+            getUtil().getBaseBinURL() + "login/XWiki/XWikiLogin?xredirect=%2Fxwiki%2Fbin%2Fview%2FMain%2FWebHome");
+    }
+
     private void cleanupProvider() throws Exception
     {
         getUtil().switchExecutor(1);
@@ -104,10 +109,8 @@ public class OIDCTest extends AbstractTest
         getUtil().switchExecutor(0);
         getUtil().gotoPage("Main", "WebHome", "view");
 
-        OIDCViewPage page = new OIDCViewPage();
-
         // Login
-        page.clickLogin();
+        gotToLogin();
         // Go to client provider page
         OIDCClientProviderPage providerPage = new OIDCClientProviderPage();
 
@@ -138,8 +141,7 @@ public class OIDCTest extends AbstractTest
         logout();
 
         // Login again
-        view = getUtil().gotoPage("Main", "WebHome");
-        page.clickLogin();
+        gotToLogin();
         // Go to client provider page
         providerPage = new OIDCClientProviderPage();
 
