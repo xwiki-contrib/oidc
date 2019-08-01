@@ -12,3 +12,14 @@ Various tools to manipulate OpenID Connect protocol in XWiki.
 * Translations: N/A
 * Sonar Dashboard: N/A
 * Continuous Integration Status: [![Build Status](https://ci.xwiki.org/buildStatus/icon?job=XWiki+Contrib%2Foidc%2Fmaster)](https://ci.xwiki.org/job/XWiki%20Contrib/job/oidc/job/master/)
+
+# Release
+
+* Release
+
+```
+mvn release:prepare -Pintegration-tests
+mvn release:perform -Pintegration-tests
+```
+
+* Update http://extensions.xwiki.org/xwiki/bin/view/Extension/OpenID+Connect/#HReleaseNotes
