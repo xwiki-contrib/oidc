@@ -253,6 +253,9 @@ public class OIDCUserManager
         BaseObject userObject = modifiableDocument
             .getXObject(xcontext.getWiki().getUserClass(xcontext).getDocumentReference(), true, xcontext);
 
+        // Make sure the user is active by default
+        userObject.set("active", 1, xcontext);
+
         // Address
         Address address = userInfo.getAddress();
         if (address != null) {
@@ -324,7 +327,7 @@ public class OIDCUserManager
         // Notify
         this.observation.notify(new OIDCUserUpdating(modifiableDocument.getDocumentReference()), modifiableDocument,
             eventData);
-
+        
         Boolean userUpdated = false;
 
         // Apply the modifications
