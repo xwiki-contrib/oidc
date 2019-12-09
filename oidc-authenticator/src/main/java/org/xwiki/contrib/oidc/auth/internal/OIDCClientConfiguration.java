@@ -35,6 +35,8 @@ import javax.inject.Inject;
 import javax.inject.Singleton;
 import javax.servlet.http.HttpSession;
 
+import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.collections4.ListUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.joda.time.LocalDateTime;
 import org.xwiki.component.annotation.Component;
@@ -467,7 +469,7 @@ public class OIDCClientConfiguration extends OIDCConfiguration
     {
         List<String> scopeValues = getProperty(PROP_SCOPE, List.class);
 
-        if (scopeValues == null) {
+        if (CollectionUtils.isEmpty(scopeValues)) {
             return new Scope(OIDCScopeValue.OPENID, OIDCScopeValue.PROFILE, OIDCScopeValue.EMAIL,
                 OIDCScopeValue.ADDRESS, OIDCScopeValue.PHONE);
         }
