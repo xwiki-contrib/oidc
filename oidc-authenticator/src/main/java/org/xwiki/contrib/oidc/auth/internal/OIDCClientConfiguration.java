@@ -58,7 +58,6 @@ import com.nimbusds.oauth2.sdk.auth.ClientAuthenticationMethod;
 import com.nimbusds.oauth2.sdk.auth.Secret;
 import com.nimbusds.oauth2.sdk.http.HTTPRequest;
 import com.nimbusds.oauth2.sdk.id.ClientID;
-import com.nimbusds.oauth2.sdk.id.State;
 import com.nimbusds.oauth2.sdk.token.BearerAccessToken;
 import com.nimbusds.openid.connect.sdk.ClaimsRequest;
 import com.nimbusds.openid.connect.sdk.OIDCScopeValue;
@@ -147,6 +146,11 @@ public class OIDCClientConfiguration extends OIDCConfiguration
      * @since 1.12
      */
     public static final String PROP_USERINFOREFRESHRATE = "oidc.userinforefreshrate";
+
+    /**
+     * @since 1.16
+     */
+    public static final String PROP_SCOPE = "oidc.scope";
 
     public static final String PROP_USERINFOCLAIMS = "oidc.userinfoclaims";
 
@@ -461,8 +465,14 @@ public class OIDCClientConfiguration extends OIDCConfiguration
      */
     public Scope getScope()
     {
-        return new Scope(OIDCScopeValue.OPENID, OIDCScopeValue.PROFILE, OIDCScopeValue.EMAIL, OIDCScopeValue.ADDRESS,
-            OIDCScopeValue.PHONE);
+        List<String> scopeValues = getProperty(PROP_SCOPE, List.class);
+
+        if (scopeValues == null) {
+            return new Scope(OIDCScopeValue.OPENID, OIDCScopeValue.PROFILE, OIDCScopeValue.EMAIL,
+                OIDCScopeValue.ADDRESS, OIDCScopeValue.PHONE);
+        }
+
+        return new Scope(scopeValues.toArray(new String[0]));
     }
 
     /**
