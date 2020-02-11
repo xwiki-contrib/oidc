@@ -24,8 +24,7 @@ import javax.inject.Singleton;
 
 import org.xwiki.component.annotation.Component;
 
-import com.xpn.xwiki.doc.XWikiDocument;
-import com.xpn.xwiki.internal.mandatory.AbstractMandatoryDocumentInitializer;
+import com.xpn.xwiki.doc.AbstractMandatoryClassInitializer;
 import com.xpn.xwiki.objects.classes.BaseClass;
 
 /**
@@ -36,38 +35,26 @@ import com.xpn.xwiki.objects.classes.BaseClass;
 @Component
 @Named(OIDCConsent.REFERENCE_STRING)
 @Singleton
-public class OIDCConsentClassDocumentInitializer extends AbstractMandatoryDocumentInitializer
+public class OIDCConsentClassDocumentInitializer extends AbstractMandatoryClassInitializer
 {
     /**
      * Default constructor.
      */
     public OIDCConsentClassDocumentInitializer()
     {
-        super(OIDCConsent.REFERENCE);
+        super(OIDCConsent.REFERENCE, "XWiki OIDC Consent Class");
     }
 
     @Override
-    public boolean updateDocument(XWikiDocument document)
+    protected void createClass(BaseClass xclass)
     {
-        boolean needsUpdate = false;
-
-        BaseClass bclass = document.getXClass();
-
         // Use custom class to make easier to manipulate consent objects
-        String customClass = OIDCConsent.class.getName();
-        if (!customClass.equals(bclass.getCustomClass())) {
-            bclass.setCustomClass(customClass);
-            needsUpdate = true;
-        }
+        xclass.setCustomClass(OIDCConsent.class.getName());
 
-        needsUpdate |= bclass.addTextField(OIDCConsent.FIELD_CLIENTID, "Client ID", 30);
-        needsUpdate |= bclass.addTextField(OIDCConsent.FIELD_REDIRECTURI, "Redirect URI", 30);
-        needsUpdate |= bclass.addBooleanField(OIDCConsent.FIELD_ALLOW, "Allow/Deny", "allow");
-        needsUpdate |= bclass.addTextAreaField(OIDCConsent.FIELD_CLAIMS, "Claims", 60, 10);
-        needsUpdate |= bclass.addPasswordField(OIDCConsent.FIELD_ACCESSTOKEN, "Access Token", 30);
-
-        needsUpdate |= setClassDocumentFields(document, "XWiki OIDC Consent Class");
-
-        return needsUpdate;
+        xclass.addTextField(OIDCConsent.FIELD_CLIENTID, "Client ID", 30);
+        xclass.addTextField(OIDCConsent.FIELD_REDIRECTURI, "Redirect URI", 30);
+        xclass.addBooleanField(OIDCConsent.FIELD_ALLOW, "Allow/Deny", "allow");
+        xclass.addTextAreaField(OIDCConsent.FIELD_CLAIMS, "Claims", 60, 10);
+        xclass.addPasswordField(OIDCConsent.FIELD_ACCESSTOKEN, "Access Token", 30);
     }
 }

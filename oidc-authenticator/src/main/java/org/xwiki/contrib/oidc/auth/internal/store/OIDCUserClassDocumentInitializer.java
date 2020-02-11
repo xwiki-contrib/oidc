@@ -24,41 +24,28 @@ import javax.inject.Singleton;
 
 import org.xwiki.component.annotation.Component;
 
-import com.xpn.xwiki.doc.XWikiDocument;
-import com.xpn.xwiki.internal.mandatory.AbstractMandatoryDocumentInitializer;
+import com.xpn.xwiki.doc.AbstractMandatoryClassInitializer;
 import com.xpn.xwiki.objects.classes.BaseClass;
 
 @Component
 @Named(OIDCUser.CLASS_FULLNAME)
 @Singleton
-public class OIDCUserClassDocumentInitializer extends AbstractMandatoryDocumentInitializer
+public class OIDCUserClassDocumentInitializer extends AbstractMandatoryClassInitializer
 {
     /**
      * Default constructor.
      */
     public OIDCUserClassDocumentInitializer()
     {
-        super(OIDCUser.CLASS_REFERENCE);
+        super(OIDCUser.CLASS_REFERENCE, "OpenID Connect User Class");
     }
 
     @Override
-    public boolean updateDocument(XWikiDocument document)
+    protected void createClass(BaseClass xclass)
     {
-        boolean needsUpdate = false;
+        xclass.setCustomClass(OIDCUser.class.getName());
 
-        BaseClass bclass = document.getXClass();
-
-        String customClass = OIDCUser.class.getName();
-        if (!customClass.equals(bclass.getCustomClass())) {
-            bclass.setCustomClass(customClass);
-            needsUpdate = true;
-        }
-
-        needsUpdate |= bclass.addTextField(OIDCUser.FIELD_ISSUER, "Issuer", 30);
-        needsUpdate |= bclass.addTextField(OIDCUser.FIELD_SUBJECT, "Subject", 30);
-
-        needsUpdate |= setClassDocumentFields(document, "OpenID Connect User Class");
-
-        return needsUpdate;
+        xclass.addTextField(OIDCUser.FIELD_ISSUER, "Issuer", 30);
+        xclass.addTextField(OIDCUser.FIELD_SUBJECT, "Subject", 30);
     }
 }

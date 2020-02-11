@@ -32,8 +32,6 @@ import org.xwiki.contrib.oidc.auth.internal.OIDCClientConfiguration;
 import org.xwiki.contrib.oidc.auth.internal.OIDCUserManager;
 import org.xwiki.contrib.oidc.auth.internal.endpoint.CallbackOIDCEndpoint;
 import org.xwiki.contrib.oidc.provider.internal.OIDCManager;
-import org.xwiki.model.reference.DocumentReferenceResolver;
-import org.xwiki.model.reference.EntityReferenceSerializer;
 import org.xwiki.properties.ConverterManager;
 
 import com.nimbusds.oauth2.sdk.ResponseType;
@@ -55,22 +53,6 @@ import com.xpn.xwiki.web.XWikiRequest;
 public class OIDCAuthServiceImpl extends XWikiAuthServiceImpl
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(OIDCAuthServiceImpl.class);
-
-    /**
-     * Used to convert a string into a proper Document Name.
-     */
-    private DocumentReferenceResolver<String> currentDocumentReferenceResolver =
-        Utils.getComponent(DocumentReferenceResolver.TYPE_STRING, "current");
-
-    /**
-     * Used to convert a Document Reference to a username to a string. Note that we must be careful not to include the
-     * wiki name as part of the serialized name since user names are saved in the database (for example as the document
-     * author when you create a new document) and we're only supposed to save the wiki part when the user is from
-     * another wiki. This should probably be fixed in the future though but it requires changing existing code that
-     * depend on this behavior.
-     */
-    private EntityReferenceSerializer<String> compactWikiEntityReferenceSerializer =
-        Utils.getComponent(EntityReferenceSerializer.TYPE_STRING, "compactwiki");
 
     private OIDCManager oidc = Utils.getComponent(OIDCManager.class);
 

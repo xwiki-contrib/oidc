@@ -44,9 +44,9 @@ import javax.inject.Singleton;
 
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.io.FilenameUtils;
-import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.RegExUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
-import org.apache.commons.lang3.text.StrSubstitutor;
+import org.apache.commons.text.StringSubstitutor;
 import org.securityfilter.realm.SimplePrincipal;
 import org.slf4j.Logger;
 import org.xwiki.component.annotation.Component;
@@ -305,7 +305,7 @@ public class OIDCUserManager
                 connection.setRequestProperty("User-Agent", this.getClass().getPackage().getImplementationTitle() + '/'
                     + this.getClass().getPackage().getImplementationVersion());
                 try (InputStream content = connection.getInputStream()) {
-                    modifiableDocument.addAttachment(filename, content, xcontext);
+                    modifiableDocument.setAttachment(filename, content, xcontext);
                 }
                 userObject.set("avatar", filename, xcontext);
             } catch (IOException e) {
@@ -327,7 +327,7 @@ public class OIDCUserManager
         // Notify
         this.observation.notify(new OIDCUserUpdating(modifiableDocument.getDocumentReference()), modifiableDocument,
             eventData);
-        
+
         Boolean userUpdated = false;
 
         // Apply the modifications
@@ -594,7 +594,7 @@ public class OIDCUserManager
 
     private String clean(String str)
     {
-        return StringUtils.removePattern(str, "[\\.\\:\\s,@\\^]");
+        return RegExUtils.removePattern(str, "[\\.\\:\\s,@\\^]");
     }
 
     private void putVariable(Map<String, String> map, String key, String value)
@@ -656,7 +656,7 @@ public class OIDCUserManager
     {
         Map<String, String> map = createFormatMap(idToken, userInfo);
 
-        StrSubstitutor substitutor = new StrSubstitutor(map);
+        StringSubstitutor substitutor = new StringSubstitutor(map);
 
         return substitutor.replace(this.configuration.getXWikiUserNameFormater());
     }
@@ -665,7 +665,7 @@ public class OIDCUserManager
     {
         Map<String, String> map = createFormatMap(idToken, userInfo);
 
-        StrSubstitutor substitutor = new StrSubstitutor(map);
+        StringSubstitutor substitutor = new StringSubstitutor(map);
 
         return substitutor.replace(this.configuration.getSubjectdFormater());
     }

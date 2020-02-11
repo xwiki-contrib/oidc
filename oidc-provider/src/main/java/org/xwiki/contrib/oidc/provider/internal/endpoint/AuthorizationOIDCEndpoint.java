@@ -20,6 +20,7 @@
 package org.xwiki.contrib.oidc.provider.internal.endpoint;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import javax.inject.Inject;
@@ -266,7 +267,7 @@ public class AuthorizationOIDCEndpoint implements OIDCEndpoint
 
     private Boolean getConsent(HTTPRequest httpRequest)
     {
-        Map<String, String> parameters = httpRequest.getQueryParameters();
+        Map<String, List<String>> parameters = httpRequest.getQueryParameters();
 
         // The user explicitly refused access to the client
         if (parameters.get("consent_refuse") != null) {
@@ -275,8 +276,8 @@ public class AuthorizationOIDCEndpoint implements OIDCEndpoint
 
         // Check if user explicitly gave consent to the client
         if (parameters.get("consent_accept") != null) {
-            String token = parameters.get("form_token");
-            if (this.csrf.isTokenValid(token)) {
+            List<String> tokens = parameters.get("form_token");
+            if (this.csrf.isTokenValid(tokens.get(0))) {
                 return true;
             } else {
                 // Looks like some client tried to hack consent

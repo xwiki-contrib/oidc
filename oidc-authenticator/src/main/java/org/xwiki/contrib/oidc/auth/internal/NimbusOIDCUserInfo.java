@@ -105,9 +105,16 @@ public class NimbusOIDCUserInfo extends NumbusOIDCClaimsSet<UserInfo> implements
     }
 
     @Override
+    @Deprecated
     public InternetAddress getEmail()
     {
         return this.claims.getEmail();
+    }
+
+    @Override
+    public String getEmailAddress()
+    {
+        return this.claims.getEmailAddress();
     }
 
     @Override

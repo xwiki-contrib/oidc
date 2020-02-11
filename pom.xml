@@ -25,7 +25,7 @@
   <parent>
     <groupId>org.xwiki.contrib</groupId>
     <artifactId>parent-platform</artifactId>
-    <version>8.4-10</version>
+    <version>10.11</version>
   </parent>
 
   <groupId>org.xwiki.contrib.oidc</groupId>
@@ -46,12 +46,12 @@
       <dependency>
         <groupId>com.nimbusds</groupId>
         <artifactId>oauth2-oidc-sdk</artifactId>
-        <version>5.64.2</version>
+        <version>6.23</version>
       </dependency>
       <dependency>
         <groupId>com.nimbusds</groupId>
         <artifactId>nimbus-jose-jwt</artifactId>
-        <version>5.14</version>
+        <version>8.6</version>
       </dependency>
     </dependencies>
   </dependencyManagement>
@@ -83,6 +83,36 @@
         </plugin>
       </plugins>
     </pluginManagement>
+    <plugins>
+      <plugin>
+        <groupId>org.revapi</groupId>
+        <artifactId>revapi-maven-plugin</artifactId>
+        <configuration>
+          <analysisConfiguration><![CDATA[
+            {
+              "revapi": {
+                "ignore" : [
+                  {
+                    "code": "java.class.nonFinalClassInheritsFromNewClass",
+                    "old": "class org.xwiki.model.reference.DocumentReference",
+                    "new": "class org.xwiki.model.reference.DocumentReference",
+                    "superClass": "org.xwiki.model.reference.AbstractLocalizedEntityReference",
+                    "justification": "Not a breakage"
+                  },
+                  {
+                    "code": "java.class.nonFinalClassInheritsFromNewClass",
+                    "old": "class org.xwiki.model.reference.LocalDocumentReference",
+                    "new": "class org.xwiki.model.reference.LocalDocumentReference",
+                    "superClass": "org.xwiki.model.reference.AbstractLocalizedEntityReference",
+                    "justification": "Not a breakage"
+                  }
+                ]
+              }
+            }
+          ]]></analysisConfiguration>
+        </configuration>
+      </plugin>
+    </plugins>
   </build>
 
   <developers>

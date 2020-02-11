@@ -152,7 +152,6 @@ public interface OIDCUserInfo extends OIDCClaimsSet
 
     /**
      * @since 1.3
-     * 
      * @deprecated since 1.10, it's now configurable
      */
     @Deprecated
@@ -262,8 +261,21 @@ public interface OIDCUserInfo extends OIDCClaimsSet
      * Gets the preferred email address. Corresponds to the {@code email} claim.
      *
      * @return The preferred email address, {@code null} if not specified.
+     * @deprecated since 1.17, use {@link #getEmailAddress()} instead
      */
+    @Deprecated
     InternetAddress getEmail();
+
+    /**
+     * Gets the preferred email address. Corresponds to the {@code email} claim.
+     *
+     * @return The preferred email address, {@code null} if not specified.
+     * @since 1.17
+     */
+    default String getEmailAddress()
+    {
+        return getEmail().toString();
+    }
 
     /**
      * Gets the email verification status. Corresponds to the {@code email_verified} claim.

@@ -22,11 +22,9 @@ package org.xwiki.contrib.oidc.provider.internal;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.security.SecureRandom;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.Callable;
 
 import javax.inject.Inject;
 import javax.inject.Named;
@@ -41,7 +39,6 @@ import org.xwiki.contrib.oidc.provider.internal.util.ContentResponse;
 import org.xwiki.instance.InstanceIdManager;
 import org.xwiki.model.reference.DocumentReference;
 import org.xwiki.model.reference.EntityReferenceSerializer;
-import org.xwiki.security.authorization.AuthorExecutor;
 import org.xwiki.template.TemplateManager;
 
 import com.nimbusds.jwt.JWT;
@@ -59,9 +56,7 @@ import com.nimbusds.openid.connect.sdk.ClaimsRequest;
 import com.nimbusds.openid.connect.sdk.ClaimsRequest.Entry;
 import com.nimbusds.openid.connect.sdk.Nonce;
 import com.nimbusds.openid.connect.sdk.claims.IDTokenClaimsSet;
-import com.xpn.xwiki.XWiki;
 import com.xpn.xwiki.XWikiContext;
-import com.xpn.xwiki.user.api.XWikiRightService;
 import com.xpn.xwiki.web.XWikiURLFactory;
 
 /**
@@ -73,9 +68,6 @@ import com.xpn.xwiki.web.XWikiURLFactory;
 @Singleton
 public class OIDCManager
 {
-    private static final DocumentReference SUPERADMIN_REFERENCE =
-        new DocumentReference("xwiki", XWiki.SYSTEM_SPACE, XWikiRightService.SUPERADMIN_USER);
-
     @Inject
     private Provider<XWikiContext> xcontextProvider;
 
@@ -88,10 +80,6 @@ public class OIDCManager
 
     @Inject
     private TemplateManager templates;
-
-    // TODO: remove when requiring a version containing the fix for https://jira.xwiki.org/browse/XWIKI-14960
-    @Inject
-    private AuthorExecutor authorExecutor;
 
     @Inject
     private InstanceIdManager instance;
@@ -223,14 +211,7 @@ public class OIDCManager
      */
     public Response executeTemplate(String templateName) throws Exception
     {
-        String html = this.authorExecutor.call(new Callable<String>()
-        {
-            @Override
-            public String call() throws Exception
-            {
-                return templates.render(templateName);
-            }
-        }, SUPERADMIN_REFERENCE);
+        String html = this.templates.render(templateName);
 
         return new ContentResponse(ContentResponse.CONTENTTYPE_HTML, html, HTTPResponse.SC_OK);
     }

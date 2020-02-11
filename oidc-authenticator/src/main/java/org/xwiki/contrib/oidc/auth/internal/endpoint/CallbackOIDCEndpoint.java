@@ -21,6 +21,7 @@ package org.xwiki.contrib.oidc.auth.internal.endpoint;
 
 import java.net.URI;
 import java.security.Principal;
+import java.util.Objects;
 
 import javax.inject.Inject;
 import javax.inject.Named;
@@ -40,7 +41,6 @@ import org.xwiki.contrib.oidc.provider.internal.OIDCResourceReference;
 import org.xwiki.contrib.oidc.provider.internal.endpoint.OIDCEndpoint;
 import org.xwiki.contrib.oidc.provider.internal.util.RedirectResponse;
 
-import com.google.common.base.Objects;
 import com.nimbusds.oauth2.sdk.AuthorizationCode;
 import com.nimbusds.oauth2.sdk.AuthorizationCodeGrant;
 import com.nimbusds.oauth2.sdk.AuthorizationErrorResponse;
@@ -103,7 +103,7 @@ public class CallbackOIDCEndpoint implements OIDCEndpoint
 
         // Validate state
         State state = authorizationResponse.getState();
-        if (!Objects.equal(state.getValue(), this.configuration.getSessionState())) {
+        if (!Objects.equals(state.getValue(), this.configuration.getSessionState())) {
             this.logger.debug("OIDC callback: Invalid state ([{}])", state);
 
             throw new OIDCException("Invalid state [" + state + "]");

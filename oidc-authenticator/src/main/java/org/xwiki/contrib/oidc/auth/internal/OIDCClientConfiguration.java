@@ -36,7 +36,6 @@ import javax.inject.Singleton;
 import javax.servlet.http.HttpSession;
 
 import org.apache.commons.collections4.CollectionUtils;
-import org.apache.commons.collections4.ListUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.joda.time.LocalDateTime;
 import org.xwiki.component.annotation.Component;
