@@ -25,7 +25,7 @@
   <parent>
     <groupId>org.xwiki.contrib.oidc</groupId>
     <artifactId>oidc</artifactId>
-    <version>1.16.1-SNAPSHOT</version>
+    <version>1.17</version>
   </parent>
 
   <artifactId>oidc-authenticator</artifactId>
