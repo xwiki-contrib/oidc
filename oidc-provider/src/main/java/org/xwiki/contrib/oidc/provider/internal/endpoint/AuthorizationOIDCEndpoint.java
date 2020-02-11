@@ -299,6 +299,6 @@ public class AuthorizationOIDCEndpoint implements OIDCEndpoint
         oidc.put("resolvedClaims", resolvedClaims);
         this.scripts.getScriptContext().setAttribute("oidc", oidc, ScriptContext.ENGINE_SCOPE);
 
-        return this.manager.executeTemplate("oidc/provider/consent.vm", request);
+        return this.manager.executeTemplate("oidc/provider/consent.vm");
     }
 }

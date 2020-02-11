@@ -31,7 +31,9 @@
         ## Repeat input parameters
         #foreach ($entry in $oidc.httprequest.queryParameters.entrySet())
           #if ($entry.key != 'consent_accept' || $entry.key != 'consent_refuse' || $entry.key != 'form_token')
-            <input type="hidden" name="$escapetool.xml($entry.key)" value="$escapetool.xml($entry.value)"/>
+            #foreach ($paramElement in $entry.value)
+              <input type="hidden" name="$escapetool.xml($entry.key)" value="$escapetool.xml($paramElement)"/>
+            #end
           #end
         #end
 

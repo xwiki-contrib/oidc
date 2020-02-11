@@ -216,19 +216,6 @@ public class OIDCManager
         return new ContentResponse(ContentResponse.CONTENTTYPE_HTML, html, HTTPResponse.SC_OK);
     }
 
-    /**
-     * Run a template and generate a HTML content response.
-     * 
-     * @param templateName the name of the template
-     * @param request the input request
-     * @return the HTML content response
-     * @throws Exception when failing to execute the template
-     */
-    public Response executeTemplate(String templateName, AuthorizationRequest request) throws Exception
-    {
-        return executeTemplate(templateName);
-    }
-
     public void executeTemplate(String templateName, HttpServletResponse servletResponse) throws Exception
     {
         Response response = executeTemplate(templateName);
