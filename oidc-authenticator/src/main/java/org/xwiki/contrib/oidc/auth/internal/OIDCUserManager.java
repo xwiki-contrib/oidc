@@ -229,14 +229,17 @@ public class OIDCUserManager
         // Check allowed/forbidden groups
         checkAllowedGroups(userInfo);
 
-        String formattedSubject = formatSubjec(idToken, userInfo);
+        Map<String, String> formatMap = createFormatMap(idToken, userInfo);
+        StringSubstitutor substitutor = new StringSubstitutor(formatMap);
+
+        String formattedSubject = formatSubjec(substitutor);
 
         XWikiDocument userDocument = this.store.searchDocument(idToken.getIssuer().getValue(), formattedSubject);
 
         XWikiDocument modifiableDocument;
         boolean newUser;
         if (userDocument == null) {
-            userDocument = getNewUserDocument(idToken, userInfo);
+            userDocument = getNewUserDocument(substitutor);
 
             newUser = true;
             modifiableDocument = userDocument;
@@ -250,8 +253,8 @@ public class OIDCUserManager
         XWikiContext xcontext = this.xcontextProvider.get();
 
         // Set user fields
-        BaseObject userObject = modifiableDocument
-            .getXObject(xcontext.getWiki().getUserClass(xcontext).getDocumentReference(), true, xcontext);
+        BaseClass userClass = xcontext.getWiki().getUserClass(xcontext);
+        BaseObject userObject = modifiableDocument.getXObject(userClass.getDocumentReference(), true, xcontext);
 
         // Make sure the user is active by default
         userObject.set("active", 1, xcontext);
@@ -315,10 +318,13 @@ public class OIDCUserManager
         }
 
         // XWiki claims
-        updateXWikiClaims(modifiableDocument, userObject.getXClass(xcontext), userObject, userInfo, xcontext);
+        updateXWikiClaims(modifiableDocument, userClass, userObject, userInfo, xcontext);
 
         // Set OIDC fields
         this.store.updateOIDCUser(modifiableDocument, idToken.getIssuer().getValue(), formattedSubject);
+
+        // Configured user mapping
+        updateUserMapping(modifiableDocument, userClass, userObject, xcontext, substitutor);
 
         // Data to send with the event
         OIDCUserEventData eventData =
@@ -328,7 +334,7 @@ public class OIDCUserManager
         this.observation.notify(new OIDCUserUpdating(modifiableDocument.getDocumentReference()), modifiableDocument,
             eventData);
 
-        Boolean userUpdated = false;
+        boolean userUpdated = false;
 
         // Apply the modifications
         if (newUser || userDocument.apply(modifiableDocument)) {
@@ -360,6 +366,22 @@ public class OIDCUserManager
         }
 
         return new SimplePrincipal(userDocument.getPrefixedFullName());
+    }
+
+    private void updateUserMapping(XWikiDocument userDocument, BaseClass userClass, BaseObject userObject,
+        XWikiContext xcontext, StringSubstitutor substitutor)
+    {
+        Map<String, String> mapping = this.configuration.getUserMapping();
+        if (mapping != null) {
+            for (Map.Entry<String, String> entry : mapping.entrySet()) {
+                String xwikiProperty = entry.getKey();
+                String oidcFormat = entry.getValue();
+
+                String oidcValue = substitutor.replace(oidcFormat);
+
+                setValue(userDocument, userClass, userObject, xwikiProperty, oidcValue, xcontext);
+            }
+        }
     }
 
     private boolean updateGroupMembership(UserInfo userInfo, XWikiDocument userDocument, XWikiContext xcontext)
@@ -533,19 +555,25 @@ public class OIDCUserManager
             if (entry.getKey().startsWith(OIDCUserInfo.CLAIMPREFIX_XWIKI_USER)) {
                 String xwikiKey = entry.getKey().substring(OIDCUserInfo.CLAIMPREFIX_XWIKI_USER.length());
 
-                // Try in the user object
-                if (userClass.getField(xwikiKey) != null) {
-                    setValue(userObject, xwikiKey, entry.getValue(), xcontext);
-
-                    continue;
-                }
-
-                // Try in the whole user document
-                BaseObject xobject = userDocument.getFirstObject(xwikiKey);
-                if (xobject != null) {
-                    setValue(xobject, xwikiKey, entry.getValue(), xcontext);
-                }
+                setValue(userDocument, userClass, userObject, xwikiKey, entry.getValue(), xcontext);
             }
+        }
+    }
+
+    private void setValue(XWikiDocument userDocument, BaseClass userClass, BaseObject userObject, String xwikiKey,
+        Object value, XWikiContext xcontext)
+    {
+        // Try in the user object
+        if (userClass.getField(xwikiKey) != null) {
+            setValue(userObject, xwikiKey, value, xcontext);
+
+            return;
+        }
+
+        // Try in the whole user document
+        BaseObject xobject = userDocument.getFirstObject(xwikiKey);
+        if (xobject != null) {
+            setValue(xobject, xwikiKey, value, xcontext);
         }
     }
 
@@ -564,7 +592,7 @@ public class OIDCUserManager
         xobject.set(key, cleanValue, xcontext);
     }
 
-    private XWikiDocument getNewUserDocument(IDTokenClaimsSet idToken, UserInfo userInfo) throws XWikiException
+    private XWikiDocument getNewUserDocument(StringSubstitutor substitutor) throws XWikiException
     {
         XWikiContext xcontext = this.xcontextProvider.get();
 
@@ -572,7 +600,7 @@ public class OIDCUserManager
         SpaceReference spaceReference = new SpaceReference(xcontext.getMainXWiki(), "XWiki");
 
         // Generate default document name
-        String documentName = formatXWikiUserName(idToken, userInfo);
+        String documentName = formatXWikiUserName(substitutor);
 
         // Find not already existing document
         DocumentReference reference = new DocumentReference(documentName, spaceReference);
@@ -614,60 +642,68 @@ public class OIDCUserManager
 
     private Map<String, String> createFormatMap(IDTokenClaimsSet idToken, UserInfo userInfo)
     {
-        Map<String, String> map = new HashMap<>();
+        Map<String, String> formatMap = new HashMap<>();
 
         // User informations
-        putVariable(map, "oidc.user.subject", userInfo.getSubject().getValue());
+        putVariable(formatMap, "oidc.user.subject", userInfo.getSubject().getValue());
         if (userInfo.getPreferredUsername() != null) {
-            putVariable(map, "oidc.user.preferredUsername", userInfo.getPreferredUsername());
+            putVariable(formatMap, "oidc.user.preferredUsername", userInfo.getPreferredUsername());
         } else {
-            putVariable(map, "oidc.user.preferredUsername", userInfo.getSubject().getValue());
+            putVariable(formatMap, "oidc.user.preferredUsername", userInfo.getSubject().getValue());
         }
-        putVariable(map, "oidc.user.mail", userInfo.getEmailAddress() == null ? "" : userInfo.getEmailAddress());
-        putVariable(map, "oidc.user.familyName", userInfo.getFamilyName());
-        putVariable(map, "oidc.user.givenName", userInfo.getGivenName());
+        putVariable(formatMap, "oidc.user.mail", userInfo.getEmailAddress() == null ? "" : userInfo.getEmailAddress());
+        putVariable(formatMap, "oidc.user.familyName", userInfo.getFamilyName());
+        putVariable(formatMap, "oidc.user.givenName", userInfo.getGivenName());
 
         // Provider (only XWiki OIDC providers)
         URL providerURL = this.configuration.getXWikiProvider();
         if (providerURL != null) {
-            putVariable(map, "oidc.provider", providerURL.toString());
-            putVariable(map, "oidc.provider.host", providerURL.getHost());
-            putVariable(map, "oidc.provider.path", providerURL.getPath());
-            putVariable(map, "oidc.provider.protocol", providerURL.getProtocol());
-            putVariable(map, "oidc.provider.port", String.valueOf(providerURL.getPort()));
+            putVariable(formatMap, "oidc.provider", providerURL.toString());
+            putVariable(formatMap, "oidc.provider.host", providerURL.getHost());
+            putVariable(formatMap, "oidc.provider.path", providerURL.getPath());
+            putVariable(formatMap, "oidc.provider.protocol", providerURL.getProtocol());
+            putVariable(formatMap, "oidc.provider.port", String.valueOf(providerURL.getPort()));
         }
 
         // Issuer
-        putVariable(map, "oidc.issuer", idToken.getIssuer().getValue());
+        putVariable(formatMap, "oidc.issuer", idToken.getIssuer().getValue());
         try {
             URI issuerURI = new URI(idToken.getIssuer().getValue());
-            putVariable(map, "oidc.issuer.host", issuerURI.getHost());
-            putVariable(map, "oidc.issuer.path", issuerURI.getPath());
-            putVariable(map, "oidc.issuer.scheme", issuerURI.getScheme());
-            putVariable(map, "oidc.issuer.port", String.valueOf(issuerURI.getPort()));
+            putVariable(formatMap, "oidc.issuer.host", issuerURI.getHost());
+            putVariable(formatMap, "oidc.issuer.path", issuerURI.getPath());
+            putVariable(formatMap, "oidc.issuer.scheme", issuerURI.getScheme());
+            putVariable(formatMap, "oidc.issuer.port", String.valueOf(issuerURI.getPort()));
         } catch (URISyntaxException e) {
             // TODO: log something ?
         }
 
-        return map;
+        // Inject the whole JSON
+        addJSON("oidc.user.", userInfo.toJSONObject(), formatMap);
+
+        return formatMap;
     }
 
-    private String formatXWikiUserName(IDTokenClaimsSet idToken, UserInfo userInfo)
+    private void addJSON(String prefix, Map<String, ?> json, Map<String, String> formatMap)
     {
-        Map<String, String> map = createFormatMap(idToken, userInfo);
+        for (Map.Entry<String, ?> entry : json.entrySet()) {
+            if (entry.getValue() != null) {
+                if (entry.getValue() instanceof Map) {
+                    addJSON(prefix + entry.getKey() + '.', (Map) entry.getValue(), formatMap);
+                } else {
+                    formatMap.put(prefix + entry.getKey(), entry.getValue().toString());
+                }
+            }
+        }
+    }
 
-        StringSubstitutor substitutor = new StringSubstitutor(map);
-
+    private String formatXWikiUserName(StringSubstitutor substitutor)
+    {
         return substitutor.replace(this.configuration.getXWikiUserNameFormater());
     }
 
-    private String formatSubjec(IDTokenClaimsSet idToken, UserInfo userInfo)
+    private String formatSubjec(StringSubstitutor substitutor)
     {
-        Map<String, String> map = createFormatMap(idToken, userInfo);
-
-        StringSubstitutor substitutor = new StringSubstitutor(map);
-
-        return substitutor.replace(this.configuration.getSubjectdFormater());
+        return substitutor.replace(this.configuration.getSubjectFormater());
     }
 
     public void logout()

@@ -25,13 +25,15 @@ import java.security.Principal;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+
+import javax.inject.Named;
 
 import org.apache.commons.collections4.ListUtils;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.xwiki.component.manager.ComponentLookupException;
 import org.xwiki.container.Container;
@@ -46,11 +48,12 @@ import org.xwiki.model.reference.DocumentReference;
 import org.xwiki.properties.ConverterManager;
 import org.xwiki.query.Query;
 import org.xwiki.query.QueryException;
+import org.xwiki.query.QueryManager;
 import org.xwiki.security.authorization.AuthorExecutor;
-import org.xwiki.sheet.SheetBinder;
 import org.xwiki.template.TemplateManager;
 import org.xwiki.test.annotation.ComponentList;
-import org.xwiki.test.mockito.MockitoComponentMockingRule;
+import org.xwiki.test.junit5.mockito.InjectMockComponents;
+import org.xwiki.test.junit5.mockito.MockComponent;
 
 import com.nimbusds.oauth2.sdk.id.Issuer;
 import com.nimbusds.oauth2.sdk.id.Subject;
@@ -61,9 +64,17 @@ import com.xpn.xwiki.XWikiException;
 import com.xpn.xwiki.doc.MandatoryDocumentInitializer;
 import com.xpn.xwiki.doc.XWikiDocument;
 import com.xpn.xwiki.objects.BaseObject;
-import com.xpn.xwiki.test.MockitoOldcoreRule;
+import com.xpn.xwiki.objects.classes.BaseClass;
+import com.xpn.xwiki.test.MockitoOldcore;
+import com.xpn.xwiki.test.junit5.mockito.InjectMockitoOldcore;
+import com.xpn.xwiki.test.junit5.mockito.OldcoreTest;
 import com.xpn.xwiki.test.reference.ReferenceComponentList;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -72,16 +83,44 @@ import static org.mockito.Mockito.when;
  * 
  * @version $Id$
  */
-@ComponentList({ OIDCManager.class, OIDCClientConfiguration.class, OIDCUserStore.class,
-    OIDCUserClassDocumentInitializer.class })
+@OldcoreTest
+@ComponentList({OIDCManager.class, OIDCClientConfiguration.class, OIDCUserStore.class})
 @ReferenceComponentList
 public class OIDCUserManagerTest
 {
-    private MockitoComponentMockingRule<OIDCUserManager> mocker =
-        new MockitoComponentMockingRule<>(OIDCUserManager.class);
+    @MockComponent
+    QueryManager queryManager;
 
-    @Rule
-    public MockitoOldcoreRule oldcore = new MockitoOldcoreRule(this.mocker);
+    @MockComponent
+    InstanceIdManager instanceIdManager;
+
+    @MockComponent
+    TemplateManager templateManager;
+
+    @MockComponent
+    AuthorExecutor authorExecutor;
+
+    @MockComponent
+    Container container;
+
+    @MockComponent
+    ConverterManager converterManager;
+
+    @MockComponent
+    @Named("XWiki.XWikiRights")
+    MandatoryDocumentInitializer rightsInitializer;
+
+    @MockComponent
+    ContextualLocalizationManager contextualLocalizationManager;
+
+    @InjectMockComponents
+    OIDCUserClassDocumentInitializer classInitializer;
+
+    @InjectMockComponents
+    OIDCUserManager manager;
+
+    @InjectMockitoOldcore
+    MockitoOldcore oldcore;
 
     private DocumentReference oidcClassReference;
 
@@ -95,30 +134,16 @@ public class OIDCUserManagerTest
 
     private DocumentReference pgroup2Reference;
 
-    @Before
-    public void before() throws Exception
+    @BeforeEach
+    public void beforeEach() throws Exception
     {
-        this.mocker.registerMockComponent(InstanceIdManager.class);
-        this.mocker.registerMockComponent(TemplateManager.class);
-        this.mocker.registerMockComponent(AuthorExecutor.class);
-        this.mocker.registerMockComponent(Container.class);
-        this.mocker.registerMockComponent(ConverterManager.class);
-        this.mocker.registerMockComponent(MandatoryDocumentInitializer.class, "XWiki.XWikiRights");
-        this.mocker.registerMockComponent(ContextualLocalizationManager.class);
-        this.mocker.registerMockComponent(SheetBinder.class, "document");
-
-        this.oldcore.mockQueryManager();
-        when(this.oldcore.getQueryManager().createQuery(Mockito.anyString(), Mockito.anyString()))
-            .thenReturn(mock(Query.class));
-
-        MandatoryDocumentInitializer initializer =
-            this.mocker.getInstance(MandatoryDocumentInitializer.class, OIDCUser.CLASS_FULLNAME);
+        when(queryManager.createQuery(Mockito.anyString(), Mockito.anyString())).thenReturn(mock(Query.class));
 
         this.oidcClassReference =
             new DocumentReference(OIDCUser.CLASS_REFERENCE, this.oldcore.getXWikiContext().getWikiReference());
         XWikiDocument classDocument =
             this.oldcore.getSpyXWiki().getDocument(this.oidcClassReference, this.oldcore.getXWikiContext());
-        initializer.updateDocument(classDocument);
+        this.classInitializer.updateDocument(classDocument);
         this.oldcore.getSpyXWiki().saveDocument(classDocument, this.oldcore.getXWikiContext());
 
         this.group1Reference = new DocumentReference(this.oldcore.getXWikiContext().getWikiId(), "XWiki", "group1");
@@ -192,31 +217,50 @@ public class OIDCUserManagerTest
         userInfo.setZoneinfo("timezone");
         userInfo.setWebsite(new URI("http://website"));
 
-        Principal principal = this.mocker.getComponentUnderTest().updateUser(idToken, userInfo);
+        Map<String, Object> customClaim = new HashMap<>();
+        customClaim.put("customproperty1", "value");
+        customClaim.put("customproperty2", 42);
+        userInfo.setClaim("custom", customClaim);
 
-        Assert.assertEquals("xwiki:XWiki.issuer-preferredUserName", principal.getName());
+        this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_USER_MAPPING,
+            Arrays.asList("customproperty1=${oidc.user.custom.customproperty1}",
+                "customproperty2=${oidc.user.custom.customproperty2}"));
+
+        // Add custom fields to the class
+        BaseClass userClass = this.oldcore.getSpyXWiki().getUserClass(this.oldcore.getXWikiContext());
+        userClass.addTextField("customproperty1", "customproperty1", 30);
+        userClass.addNumberField("customproperty2", "customproperty2", 30, "integer");
+        XWikiDocument userClassDocument =
+            this.oldcore.getSpyXWiki().getDocument(userClass.getDocumentReference(), this.oldcore.getXWikiContext());
+        userClassDocument.getXClass().apply(userClass, true);
+        this.oldcore.getSpyXWiki().saveDocument(userClassDocument, this.oldcore.getXWikiContext());
+
+        Principal principal = this.manager.updateUser(idToken, userInfo);
+
+        assertEquals("xwiki:XWiki.issuer-preferredUserName", principal.getName());
 
         XWikiDocument userDocument = this.oldcore.getSpyXWiki().getDocument(
             new DocumentReference(this.oldcore.getXWikiContext().getWikiId(), "XWiki", "issuer-preferredUserName"),
             this.oldcore.getXWikiContext());
 
-        Assert.assertFalse(userDocument.isNew());
+        assertFalse(userDocument.isNew());
 
-        BaseObject userObject = userDocument
-            .getXObject(new DocumentReference(this.oldcore.getXWikiContext().getWikiId(), "XWiki", "XWikiUsers"));
+        BaseObject userObject = userDocument.getXObject(userClass.getDocumentReference());
 
-        Assert.assertNotNull(userObject);
-        Assert.assertEquals("address", userObject.getStringValue("address"));
-        Assert.assertEquals("mail@domain.com", userObject.getStringValue("email"));
-        Assert.assertEquals("familyName", userObject.getStringValue("last_name"));
-        Assert.assertEquals("givenName", userObject.getStringValue("first_name"));
-        Assert.assertEquals("phoneNumber", userObject.getStringValue("phone"));
+        assertNotNull(userObject);
+        assertEquals("address", userObject.getStringValue("address"));
+        assertEquals("mail@domain.com", userObject.getStringValue("email"));
+        assertEquals("familyName", userObject.getStringValue("last_name"));
+        assertEquals("givenName", userObject.getStringValue("first_name"));
+        assertEquals("phoneNumber", userObject.getStringValue("phone"));
+        assertEquals("value", userObject.getStringValue("customproperty1"));
+        assertEquals(42, userObject.getIntValue("customproperty2"));
 
         OIDCUser oidcObject = (OIDCUser) userDocument.getXObject(this.oidcClassReference);
 
-        Assert.assertNotNull(oidcObject);
-        Assert.assertEquals("http://issuer", oidcObject.getIssuer());
-        Assert.assertEquals("subject", oidcObject.getSubject());
+        assertNotNull(oidcObject);
+        assertEquals("http://issuer", oidcObject.getIssuer());
+        assertEquals("subject", oidcObject.getSubject());
     }
 
     @Test
@@ -235,29 +279,29 @@ public class OIDCUserManagerTest
 
         userInfo.setClaim(OIDCClientConfiguration.DEFAULT_GROUPSCLAIM, Arrays.asList("pgroup1", "pgroup2"));
 
-        Principal principal = this.mocker.getComponentUnderTest().updateUser(idToken, userInfo);
+        Principal principal = this.manager.updateUser(idToken, userInfo);
 
-        Assert.assertEquals("xwiki:XWiki.issuer-subject", principal.getName());
+        assertEquals("xwiki:XWiki.issuer-subject", principal.getName());
 
         XWikiDocument userDocument = this.oldcore.getSpyXWiki().getDocument(
             new DocumentReference(this.oldcore.getXWikiContext().getWikiId(), "XWiki", "issuer-subject"),
             this.oldcore.getXWikiContext());
 
-        Assert.assertFalse(userDocument.isNew());
+        assertFalse(userDocument.isNew());
 
         BaseObject userObject = userDocument
             .getXObject(new DocumentReference(this.oldcore.getXWikiContext().getWikiId(), "XWiki", "XWikiUsers"));
 
-        Assert.assertNotNull(userObject);
+        assertNotNull(userObject);
 
         OIDCUser oidcObject = (OIDCUser) userDocument.getXObject(this.oidcClassReference);
 
-        Assert.assertNotNull(oidcObject);
-        Assert.assertEquals("http://issuer", oidcObject.getIssuer());
-        Assert.assertEquals("subject", oidcObject.getSubject());
+        assertNotNull(oidcObject);
+        assertEquals("http://issuer", oidcObject.getIssuer());
+        assertEquals("subject", oidcObject.getSubject());
 
-        Assert.assertTrue(groupContains(this.pgroup1Reference, userDocument.getFullName()));
-        Assert.assertTrue(groupContains(this.pgroup2Reference, userDocument.getFullName()));
+        assertTrue(groupContains(this.pgroup1Reference, userDocument.getFullName()));
+        assertTrue(groupContains(this.pgroup2Reference, userDocument.getFullName()));
     }
 
     @Test
@@ -283,34 +327,34 @@ public class OIDCUserManagerTest
             this.oldcore.getXWikiContext())).thenReturn(Arrays.asList("XWiki.existinggroup"));
         addMember(this.existinggroupReference, "XWiki.issuer-subject");
 
-        Assert.assertFalse(groupContains(this.group1Reference, userFullName));
-        Assert.assertFalse(groupContains(this.group2Reference, userFullName));
-        Assert.assertTrue(groupContains(this.existinggroupReference, userFullName));
+        assertFalse(groupContains(this.group1Reference, userFullName));
+        assertFalse(groupContains(this.group2Reference, userFullName));
+        assertTrue(groupContains(this.existinggroupReference, userFullName));
 
-        Principal principal = this.mocker.getComponentUnderTest().updateUser(idToken, userInfo);
+        Principal principal = this.manager.updateUser(idToken, userInfo);
 
-        Assert.assertEquals("xwiki:XWiki.issuer-subject", principal.getName());
+        assertEquals("xwiki:XWiki.issuer-subject", principal.getName());
 
         XWikiDocument userDocument = this.oldcore.getSpyXWiki().getDocument(
             new DocumentReference(this.oldcore.getXWikiContext().getWikiId(), "XWiki", "issuer-subject"),
             this.oldcore.getXWikiContext());
 
-        Assert.assertFalse(userDocument.isNew());
+        assertFalse(userDocument.isNew());
 
         BaseObject userObject = userDocument
             .getXObject(new DocumentReference(this.oldcore.getXWikiContext().getWikiId(), "XWiki", "XWikiUsers"));
 
-        Assert.assertNotNull(userObject);
+        assertNotNull(userObject);
 
         OIDCUser oidcObject = (OIDCUser) userDocument.getXObject(this.oidcClassReference);
 
-        Assert.assertNotNull(oidcObject);
-        Assert.assertEquals("http://issuer", oidcObject.getIssuer());
-        Assert.assertEquals("subject", oidcObject.getSubject());
+        assertNotNull(oidcObject);
+        assertEquals("http://issuer", oidcObject.getIssuer());
+        assertEquals("subject", oidcObject.getSubject());
 
-        Assert.assertTrue(groupContains(this.pgroup1Reference, userDocument.getFullName()));
-        Assert.assertTrue(groupContains(this.pgroup2Reference, userDocument.getFullName()));
-        Assert.assertFalse(groupContains(this.existinggroupReference, userDocument.getFullName()));
+        assertTrue(groupContains(this.pgroup1Reference, userDocument.getFullName()));
+        assertTrue(groupContains(this.pgroup2Reference, userDocument.getFullName()));
+        assertFalse(groupContains(this.existinggroupReference, userDocument.getFullName()));
     }
 
     @Test
@@ -338,34 +382,34 @@ public class OIDCUserManagerTest
             this.oldcore.getXWikiContext())).thenReturn(Arrays.asList("XWiki.existinggroup"));
         addMember(this.existinggroupReference, "XWiki.issuer-subject");
 
-        Assert.assertFalse(groupContains(this.group1Reference, userFullName));
-        Assert.assertFalse(groupContains(this.group2Reference, userFullName));
-        Assert.assertTrue(groupContains(this.existinggroupReference, userFullName));
+        assertFalse(groupContains(this.group1Reference, userFullName));
+        assertFalse(groupContains(this.group2Reference, userFullName));
+        assertTrue(groupContains(this.existinggroupReference, userFullName));
 
-        Principal principal = this.mocker.getComponentUnderTest().updateUser(idToken, userInfo);
+        Principal principal = this.manager.updateUser(idToken, userInfo);
 
-        Assert.assertEquals("xwiki:XWiki.issuer-subject", principal.getName());
+        assertEquals("xwiki:XWiki.issuer-subject", principal.getName());
 
         XWikiDocument userDocument = this.oldcore.getSpyXWiki().getDocument(
             new DocumentReference(this.oldcore.getXWikiContext().getWikiId(), "XWiki", "issuer-subject"),
             this.oldcore.getXWikiContext());
 
-        Assert.assertFalse(userDocument.isNew());
+        assertFalse(userDocument.isNew());
 
         BaseObject userObject = userDocument
             .getXObject(new DocumentReference(this.oldcore.getXWikiContext().getWikiId(), "XWiki", "XWikiUsers"));
 
-        Assert.assertNotNull(userObject);
+        assertNotNull(userObject);
 
         OIDCUser oidcObject = (OIDCUser) userDocument.getXObject(this.oidcClassReference);
 
-        Assert.assertNotNull(oidcObject);
-        Assert.assertEquals("http://issuer", oidcObject.getIssuer());
-        Assert.assertEquals("subject", oidcObject.getSubject());
+        assertNotNull(oidcObject);
+        assertEquals("http://issuer", oidcObject.getIssuer());
+        assertEquals("subject", oidcObject.getSubject());
 
-        Assert.assertTrue(groupContains(this.group1Reference, userDocument.getFullName()));
-        Assert.assertTrue(groupContains(this.group2Reference, userDocument.getFullName()));
-        Assert.assertFalse(groupContains(this.existinggroupReference, userDocument.getFullName()));
+        assertTrue(groupContains(this.group1Reference, userDocument.getFullName()));
+        assertTrue(groupContains(this.group2Reference, userDocument.getFullName()));
+        assertFalse(groupContains(this.existinggroupReference, userDocument.getFullName()));
     }
 
     @Test
@@ -395,32 +439,31 @@ public class OIDCUserManagerTest
         userInfo.setZoneinfo("timezone");
         userInfo.setWebsite(new URI("http://website"));
 
-        Principal principal = this.mocker.getComponentUnderTest().updateUser(idToken, userInfo);
+        Principal principal = this.manager.updateUser(idToken, userInfo);
 
-        Assert.assertEquals("xwiki:XWiki.custom-mail@domain\\.com-MAIL@DOMAIN\\.COM-MAILDOMAINCOM",
-            principal.getName());
+        assertEquals("xwiki:XWiki.custom-mail@domain\\.com-MAIL@DOMAIN\\.COM-MAILDOMAINCOM", principal.getName());
 
         XWikiDocument userDocument =
             this.oldcore.getSpyXWiki().getDocument(new DocumentReference(this.oldcore.getXWikiContext().getWikiId(),
                 "XWiki", "custom-mail@domain.com-MAIL@DOMAIN.COM-MAILDOMAINCOM"), this.oldcore.getXWikiContext());
 
-        Assert.assertFalse(userDocument.isNew());
+        assertFalse(userDocument.isNew());
 
         BaseObject userObject = userDocument
             .getXObject(new DocumentReference(this.oldcore.getXWikiContext().getWikiId(), "XWiki", "XWikiUsers"));
 
-        Assert.assertNotNull(userObject);
-        Assert.assertEquals("address", userObject.getStringValue("address"));
-        Assert.assertEquals("mail@domain.com", userObject.getStringValue("email"));
-        Assert.assertEquals("familyName", userObject.getStringValue("last_name"));
-        Assert.assertEquals("givenName", userObject.getStringValue("first_name"));
-        Assert.assertEquals("phoneNumber", userObject.getStringValue("phone"));
+        assertNotNull(userObject);
+        assertEquals("address", userObject.getStringValue("address"));
+        assertEquals("mail@domain.com", userObject.getStringValue("email"));
+        assertEquals("familyName", userObject.getStringValue("last_name"));
+        assertEquals("givenName", userObject.getStringValue("first_name"));
+        assertEquals("phoneNumber", userObject.getStringValue("phone"));
 
         OIDCUser oidcObject = (OIDCUser) userDocument.getXObject(this.oidcClassReference);
 
-        Assert.assertNotNull(oidcObject);
-        Assert.assertEquals("http://issuer", oidcObject.getIssuer());
-        Assert.assertEquals("custom-mail@domain.com-MAIL@DOMAIN.COM-MAILDOMAINCOM", oidcObject.getSubject());
+        assertNotNull(oidcObject);
+        assertEquals("http://issuer", oidcObject.getIssuer());
+        assertEquals("custom-mail@domain.com-MAIL@DOMAIN.COM-MAILDOMAINCOM", oidcObject.getSubject());
     }
 
     @Test
@@ -442,12 +485,12 @@ public class OIDCUserManagerTest
 
         userInfo.setClaim("groupclaim", Arrays.asList("pgroup1", "pgroup3"));
 
-        Principal principal = this.mocker.getComponentUnderTest().updateUser(idToken, userInfo);
+        Principal principal = this.manager.updateUser(idToken, userInfo);
 
-        Assert.assertNotNull(principal);
+        assertNotNull(principal);
     }
 
-    @Test(expected = OIDCException.class)
+    @Test
     public void updateUserInfoWithNotAllowedGroup()
         throws XWikiException, QueryException, OIDCException, ComponentLookupException
     {
@@ -466,12 +509,10 @@ public class OIDCUserManagerTest
 
         userInfo.setClaim("groupclaim", Arrays.asList("pgroup2", "pgroup3"));
 
-        Principal principal = this.mocker.getComponentUnderTest().updateUser(idToken, userInfo);
-
-        Assert.assertNotNull(principal);
+        assertThrows(OIDCException.class, () -> this.manager.updateUser(idToken, userInfo));
     }
 
-    @Test(expected = OIDCException.class)
+    @Test
     public void updateUserInfoWithForbiddenGroup()
         throws XWikiException, QueryException, OIDCException, ComponentLookupException
     {
@@ -490,9 +531,7 @@ public class OIDCUserManagerTest
 
         userInfo.setClaim("groupclaim", Arrays.asList("pgroup1", "pgroup3"));
 
-        Principal principal = this.mocker.getComponentUnderTest().updateUser(idToken, userInfo);
-
-        Assert.assertNotNull(principal);
+        assertThrows(OIDCException.class, () -> this.manager.updateUser(idToken, userInfo));
     }
 
     @Test
@@ -514,9 +553,9 @@ public class OIDCUserManagerTest
 
         userInfo.setClaim("groupclaim", Arrays.asList("pgroup2", "pgroup3"));
 
-        Principal principal = this.mocker.getComponentUnderTest().updateUser(idToken, userInfo);
+        Principal principal = this.manager.updateUser(idToken, userInfo);
 
-        Assert.assertNotNull(principal);
+        assertNotNull(principal);
     }
 
     @Test
@@ -540,8 +579,8 @@ public class OIDCUserManagerTest
 
         userInfo.setClaim("groupclaim", Arrays.asList("pgroup1", "pgroup3"));
 
-        Principal principal = this.mocker.getComponentUnderTest().updateUser(idToken, userInfo);
+        Principal principal = this.manager.updateUser(idToken, userInfo);
 
-        Assert.assertNotNull(principal);
+        assertNotNull(principal);
     }
 }

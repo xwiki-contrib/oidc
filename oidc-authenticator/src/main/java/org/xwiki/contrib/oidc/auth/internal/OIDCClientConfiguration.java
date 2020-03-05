@@ -24,6 +24,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -79,9 +80,6 @@ public class OIDCClientConfiguration extends OIDCConfiguration
 
         private final Map<String, Set<String>> providerMapping;
 
-        /**
-         * @param size
-         */
         public GroupMapping(int size)
         {
             this.xwikiMapping = new HashMap<>(size);
@@ -97,6 +95,16 @@ public class OIDCClientConfiguration extends OIDCConfiguration
         {
             return this.providerMapping.get(providerGroup);
         }
+
+        public Map<String, Set<String>> getXWikiMapping()
+        {
+            return this.xwikiMapping;
+        }
+
+        public Map<String, Set<String>> getProviderMapping()
+        {
+            return this.providerMapping;
+        }
     }
 
     public static final String PROP_XWIKIPROVIDER = "oidc.xwikiprovider";
@@ -110,6 +118,11 @@ public class OIDCClientConfiguration extends OIDCConfiguration
      * @since 1.11
      */
     public static final String PROP_USER_SUBJECTFORMATER = "oidc.user.subjectFormater";
+
+    /**
+     * @since 1.18
+     */
+    public static final String PROP_USER_MAPPING = "oidc.user.mapping";
 
     /**
      * @since 1.11
@@ -136,12 +149,14 @@ public class OIDCClientConfiguration extends OIDCConfiguration
     /**
      * @since 1.13
      */
-    public static final String PROP_ENDPOINT_TOKEN_AUTH_METHOD = "oidc.endpoint.token.auth_method";
+    public static final String PROP_ENDPOINT_TOKEN_AUTH_METHOD =
+        PROPPREFIX_ENDPOINT + TokenOIDCEndpoint.HINT + ".auth_method";
 
     /**
      * @since 1.13
      */
-    public static final String PROP_ENDPOINT_USERINFO_METHOD = "oidc.endpoint.userinfo.method";
+    public static final String PROP_ENDPOINT_USERINFO_METHOD =
+        PROPPREFIX_ENDPOINT + UserInfoOIDCEndpoint.HINT + ".method";
 
     /**
      * @since 1.12
@@ -258,6 +273,29 @@ public class OIDCClientConfiguration extends OIDCConfiguration
         return null;
     }
 
+    public Map<String, String> getMap(String key)
+    {
+        List<String> list = getProperty(key, List.class);
+
+        Map<String, String> mapping;
+
+        if (list != null && !list.isEmpty()) {
+            mapping = new HashMap<>(list.size());
+
+            for (String listItem : list) {
+                int index = listItem.indexOf('=');
+
+                if (index != -1) {
+                    mapping.put(listItem.substring(0, index), listItem.substring(index + 1));
+                }
+            }
+        } else {
+            mapping = null;
+        }
+
+        return mapping;
+    }
+
     @Override
     protected <T> T getProperty(String key, Class<T> valueClass)
     {
@@ -297,9 +335,9 @@ public class OIDCClientConfiguration extends OIDCConfiguration
     }
 
     /**
-     * @since 1.11
+     * @since 1.18
      */
-    public String getSubjectdFormater()
+    public String getSubjectFormater()
     {
         String userFormatter = getProperty(PROP_USER_SUBJECTFORMATER, String.class);
         if (userFormatter == null) {
@@ -320,6 +358,14 @@ public class OIDCClientConfiguration extends OIDCConfiguration
         }
 
         return userFormatter;
+    }
+
+    /**
+     * @since 1.18
+     */
+    public Map<String, String> getUserMapping()
+    {
+        return getMap(PROP_USER_MAPPING);
     }
 
     public URL getXWikiProvider()
