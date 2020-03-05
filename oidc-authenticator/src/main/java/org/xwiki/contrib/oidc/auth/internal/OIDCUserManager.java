@@ -631,12 +631,17 @@ public class OIDCUserManager
             map.put(key, value);
 
             map.put(key + ".lowerCase", value.toLowerCase());
+            map.put(key + "._lowerCase", value.toLowerCase());
             map.put(key + ".upperCase", value.toUpperCase());
+            map.put(key + "._upperCase", value.toUpperCase());
 
             String cleanValue = clean(value);
             map.put(key + ".clean", cleanValue);
+            map.put(key + "._clean", cleanValue);
             map.put(key + ".clean.lowerCase", cleanValue.toLowerCase());
+            map.put(key + "._clean._lowerCase", cleanValue.toLowerCase());
             map.put(key + ".clean.upperCase", cleanValue.toUpperCase());
+            map.put(key + "._clean._upperCase", cleanValue.toUpperCase());
         }
     }
 
@@ -690,7 +695,7 @@ public class OIDCUserManager
                 if (entry.getValue() instanceof Map) {
                     addJSON(prefix + entry.getKey() + '.', (Map) entry.getValue(), formatMap);
                 } else {
-                    formatMap.put(prefix + entry.getKey(), entry.getValue().toString());
+                    putVariable(formatMap, prefix + entry.getKey(), entry.getValue().toString());
                 }
             }
         }
