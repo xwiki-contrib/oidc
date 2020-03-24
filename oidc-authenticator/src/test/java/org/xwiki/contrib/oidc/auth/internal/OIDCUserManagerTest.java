@@ -224,12 +224,13 @@ public class OIDCUserManagerTest
 
         this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_USER_MAPPING,
             Arrays.asList("customproperty1=${oidc.user.custom.customproperty1}",
-                "customproperty2=${oidc.user.custom.customproperty2}"));
+                "customproperty2=${oidc.user.custom.customproperty2}", "customproperty3=${oidc.user.custom.customproperty3:-}"));
 
         // Add custom fields to the class
         BaseClass userClass = this.oldcore.getSpyXWiki().getUserClass(this.oldcore.getXWikiContext());
         userClass.addTextField("customproperty1", "customproperty1", 30);
         userClass.addNumberField("customproperty2", "customproperty2", 30, "integer");
+        userClass.addTextField("customproperty3", "customproperty3", 30);
         XWikiDocument userClassDocument =
             this.oldcore.getSpyXWiki().getDocument(userClass.getDocumentReference(), this.oldcore.getXWikiContext());
         userClassDocument.getXClass().apply(userClass, true);
@@ -255,6 +256,7 @@ public class OIDCUserManagerTest
         assertEquals("phoneNumber", userObject.getStringValue("phone"));
         assertEquals("value", userObject.getStringValue("customproperty1"));
         assertEquals(42, userObject.getIntValue("customproperty2"));
+        assertEquals("", userObject.getStringValue("customproperty3"));
 
         OIDCUser oidcObject = (OIDCUser) userDocument.getXObject(this.oidcClassReference);
 
