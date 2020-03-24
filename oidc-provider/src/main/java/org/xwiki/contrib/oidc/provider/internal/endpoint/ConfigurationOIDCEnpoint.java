@@ -31,8 +31,8 @@ import org.xwiki.contrib.oidc.provider.internal.OIDCManager;
 import org.xwiki.contrib.oidc.provider.internal.OIDCResourceReference;
 import org.xwiki.contrib.oidc.provider.internal.util.ContentResponse;
 
+import com.nimbusds.common.contenttype.ContentType;
 import com.nimbusds.oauth2.sdk.Response;
-import com.nimbusds.oauth2.sdk.http.CommonContentTypes;
 import com.nimbusds.oauth2.sdk.http.HTTPRequest;
 import com.nimbusds.oauth2.sdk.http.HTTPResponse;
 import com.nimbusds.oauth2.sdk.id.Issuer;
@@ -64,7 +64,7 @@ public class ConfigurationOIDCEnpoint implements OIDCEndpoint
         metadata.setTokenEndpointURI(this.manager.createEndPointURI(TokenOIDCEndpoint.HINT));
         metadata.setUserInfoEndpointURI(this.manager.createEndPointURI(UserInfoOIDCEndpoint.HINT));
 
-        return new ContentResponse(CommonContentTypes.APPLICATION_JSON, metadata.toJSONObject().toString(),
+        return new ContentResponse(ContentType.APPLICATION_JSON, metadata.toJSONObject().toString(),
             HTTPResponse.SC_OK);
     }
 }

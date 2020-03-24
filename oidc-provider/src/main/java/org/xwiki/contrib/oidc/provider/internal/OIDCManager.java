@@ -43,7 +43,6 @@ import org.xwiki.template.TemplateManager;
 
 import com.nimbusds.jwt.JWT;
 import com.nimbusds.jwt.PlainJWT;
-import com.nimbusds.oauth2.sdk.AuthorizationRequest;
 import com.nimbusds.oauth2.sdk.ParseException;
 import com.nimbusds.oauth2.sdk.Response;
 import com.nimbusds.oauth2.sdk.http.HTTPResponse;

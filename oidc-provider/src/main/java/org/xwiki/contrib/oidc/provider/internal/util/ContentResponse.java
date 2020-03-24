@@ -19,9 +19,7 @@
  */
 package org.xwiki.contrib.oidc.provider.internal.util;
 
-import javax.mail.internet.ContentType;
-import javax.mail.internet.ParameterList;
-
+import com.nimbusds.common.contenttype.ContentType;
 import com.nimbusds.oauth2.sdk.Response;
 import com.nimbusds.oauth2.sdk.http.HTTPResponse;
 
@@ -40,12 +38,12 @@ public class ContentResponse implements Response
     /**
      * Mime type for HTML.
      */
-    public static final ContentType CONTENTTYPE_HTML = new ContentType(PRIMARYTYPE_TEXT, "html", new ParameterList());
+    public static final ContentType CONTENTTYPE_HTML = new ContentType(PRIMARYTYPE_TEXT, "html");
 
     /**
      * Mime type for plain text.
      */
-    public static final ContentType CONTENTTYPE_PLAIN = new ContentType(PRIMARYTYPE_TEXT, "plain", new ParameterList());
+    public static final ContentType CONTENTTYPE_PLAIN = new ContentType(PRIMARYTYPE_TEXT, "plain");
 
     private final HTTPResponse httpResponse;
 
@@ -58,7 +56,7 @@ public class ContentResponse implements Response
     {
         this.httpResponse = new HTTPResponse(statusCode);
 
-        this.httpResponse.setContentType(type);
+        this.httpResponse.setEntityContentType(type);
         this.httpResponse.setContent(content);
     }
 
