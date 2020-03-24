@@ -46,12 +46,12 @@
       <dependency>
         <groupId>com.nimbusds</groupId>
         <artifactId>oauth2-oidc-sdk</artifactId>
-        <version>6.23</version>
+        <version>7.3</version>
       </dependency>
       <dependency>
         <groupId>com.nimbusds</groupId>
         <artifactId>nimbus-jose-jwt</artifactId>
-        <version>8.6</version>
+        <version>8.10</version>
       </dependency>
     </dependencies>
   </dependencyManagement>
