@@ -220,17 +220,21 @@ public class OIDCUserManagerTest
         Map<String, Object> customClaim = new HashMap<>();
         customClaim.put("customproperty1", "value");
         customClaim.put("customproperty2", 42);
+        customClaim.put("customproperty3", null);
         userInfo.setClaim("custom", customClaim);
 
         this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_USER_MAPPING,
             Arrays.asList("customproperty1=${oidc.user.custom.customproperty1}",
-                "customproperty2=${oidc.user.custom.customproperty2}", "customproperty3=${oidc.user.custom.customproperty3:-}"));
+                "customproperty2=${oidc.user.custom.customproperty2}",
+                "customproperty3=${oidc.user.custom.customproperty3:-}",
+                "customproperty4=${oidc.user.custom.customproperty4:-}"));
 
         // Add custom fields to the class
         BaseClass userClass = this.oldcore.getSpyXWiki().getUserClass(this.oldcore.getXWikiContext());
         userClass.addTextField("customproperty1", "customproperty1", 30);
         userClass.addNumberField("customproperty2", "customproperty2", 30, "integer");
         userClass.addTextField("customproperty3", "customproperty3", 30);
+        userClass.addTextField("customproperty4", "customproperty4", 30);
         XWikiDocument userClassDocument =
             this.oldcore.getSpyXWiki().getDocument(userClass.getDocumentReference(), this.oldcore.getXWikiContext());
         userClassDocument.getXClass().apply(userClass, true);
@@ -257,6 +261,7 @@ public class OIDCUserManagerTest
         assertEquals("value", userObject.getStringValue("customproperty1"));
         assertEquals(42, userObject.getIntValue("customproperty2"));
         assertEquals("", userObject.getStringValue("customproperty3"));
+        assertEquals("", userObject.getStringValue("customproperty4"));
 
         OIDCUser oidcObject = (OIDCUser) userDocument.getXObject(this.oidcClassReference);
 
