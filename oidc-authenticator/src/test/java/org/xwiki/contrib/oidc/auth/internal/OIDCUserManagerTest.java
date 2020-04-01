@@ -224,8 +224,8 @@ public class OIDCUserManagerTest
         userInfo.setClaim("custom", customClaim);
 
         this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_USER_MAPPING,
-            Arrays.asList("customproperty1=${oidc.user.custom.customproperty1}",
-                "customproperty2=${oidc.user.custom.customproperty2}",
+            Arrays.asList("customproperty1=${oidc.user.custom.customproperty1:-}",
+                "customproperty2=${oidc.user.custom.customproperty2:-}",
                 "customproperty3=${oidc.user.custom.customproperty3:-}",
                 "customproperty4=${oidc.user.custom.customproperty4:-}"));
 
