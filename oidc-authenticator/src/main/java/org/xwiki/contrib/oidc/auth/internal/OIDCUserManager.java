@@ -230,7 +230,9 @@ public class OIDCUserManager
         checkAllowedGroups(userInfo);
 
         Map<String, String> formatMap = createFormatMap(idToken, userInfo);
-        StringSubstitutor substitutor = new StringSubstitutor(formatMap);
+        // Change the default StringSubstitutor behavior to produce an empty String instead of an unresolved pattern by
+        // default
+        StringSubstitutor substitutor = new StringSubstitutor(new OIDCStringLookup(formatMap));
 
         String formattedSubject = formatSubjec(substitutor);
 
