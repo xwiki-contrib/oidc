@@ -227,8 +227,7 @@ public class OIDCUserManagerTest
             Arrays.asList("customproperty1=${oidc.user.custom.customproperty1:-}",
                 "customproperty2=${oidc.user.custom.customproperty2:-}",
                 "customproperty3=${oidc.user.custom.customproperty3:-}",
-                "customproperty4=${oidc.user.custom.customproperty4:-}",
-                "customproperty5=${notexistingpattern}"));
+                "customproperty4=${oidc.user.custom.customproperty4:-}", "customproperty5=${notexistingpattern}"));
 
         // Add custom fields to the class
         BaseClass userClass = this.oldcore.getSpyXWiki().getUserClass(this.oldcore.getXWikiContext());
@@ -576,7 +575,6 @@ public class OIDCUserManagerTest
             Arrays.asList("pgroup1", "pgroup2"));
         this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_GROUPS_FORBIDDEN,
             Arrays.asList("pgroup1", "pgroup2"));
-        this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_GROUPS_CLAIM, "groupclaim");
         this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_USERINFOCLAIMS,
             ListUtils.sum(OIDCClientConfiguration.DEFAULT_USERINFOCLAIMS, Arrays.asList(
                 this.oldcore.getConfigurationSource().<String>getProperty(OIDCClientConfiguration.PROP_GROUPS_CLAIM))));
@@ -587,10 +585,26 @@ public class OIDCUserManagerTest
             new IDTokenClaimsSet(issuer, subject, Collections.emptyList(), new Date(), new Date());
         UserInfo userInfo = new UserInfo(subject);
 
+        this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_GROUPS_CLAIM, "groupclaim");
         userInfo.setClaim("groupclaim", Arrays.asList("pgroup1", "pgroup3"));
 
-        Principal principal = this.manager.updateUser(idToken, userInfo);
+        assertNotNull(this.manager.updateUser(idToken, userInfo));
 
-        assertNotNull(principal);
+        userInfo.setClaim("groupclaim", Arrays.asList("otherpgroup1", "otherpgroup3"));
+
+        assertThrows(OIDCException.class, () -> this.manager.updateUser(idToken, userInfo),
+            "The user is not allowed to authenticate because it's not a member of the following groups: [pgroup1, pgroup2]");
+
+        this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_GROUPS_CLAIM,
+            "custom.customgroupclaim");
+        userInfo.setClaim("custom", Collections.singletonMap("customgroupclaim", Arrays.asList("pgroup1", "pgroup3")));
+
+        assertNotNull(this.manager.updateUser(idToken, userInfo));
+
+        userInfo.setClaim("custom",
+            Collections.singletonMap("customgroupclaim", Arrays.asList("otherpgroup1", "otherpgroup3")));
+
+        assertThrows(OIDCException.class, () -> this.manager.updateUser(idToken, userInfo),
+            "The user is not allowed to authenticate because it's not a member of the following groups: [pgroup1, pgroup2]");
     }
 }

@@ -73,6 +73,7 @@ import com.nimbusds.openid.connect.sdk.UserInfoRequest;
 import com.nimbusds.openid.connect.sdk.UserInfoResponse;
 import com.nimbusds.openid.connect.sdk.UserInfoSuccessResponse;
 import com.nimbusds.openid.connect.sdk.claims.Address;
+import com.nimbusds.openid.connect.sdk.claims.ClaimsSet;
 import com.nimbusds.openid.connect.sdk.claims.IDTokenClaimsSet;
 import com.nimbusds.openid.connect.sdk.claims.UserInfo;
 import com.xpn.xwiki.XWikiContext;
@@ -198,7 +199,7 @@ public class OIDCUserManager
 
     private void checkAllowedGroups(UserInfo userInfo) throws OIDCException
     {
-        List<String> providerGroups = (List<String>) userInfo.getClaim(this.configuration.getGroupClaim());
+        List<String> providerGroups = getClaim(this.configuration.getGroupClaim(), userInfo);
         if (providerGroups != null) {
             // Check allowed groups
             List<String> allowedGroups = this.configuration.getAllowedGroups();
@@ -221,6 +222,45 @@ public class OIDCUserManager
                         + forbiddenGroups);
             }
         }
+    }
+
+    private <T> T getClaim(String claim, ClaimsSet claims)
+    {
+        T value = (T) claims.getClaim(claim);
+
+        // When it's not a proper OIDC claim try to find in a sub element of the JSON
+        if (value == null) {
+            value = (T) getJSONElement(claim, claims.toJSONObject());
+        }
+
+        return value;
+    }
+
+    private <T> T getJSONElement(String pattern, Map<String, ?> json)
+    {
+        int index = pattern.indexOf('.');
+
+        String key;
+        String patternEnd;
+        if (index != -1) {
+            key = pattern.substring(0, index);
+            patternEnd = pattern.length() == (index + 1) ? null : pattern.substring(index + 1);
+        } else {
+            key = pattern;
+            patternEnd = null;
+        }
+
+        Object value = json.get(key);
+
+        if (patternEnd == null) {
+            return (T) value;
+        }
+
+        if (value instanceof Map) {
+            return (T) getJSONElement(patternEnd, (Map) value);
+        }
+
+        return (T) value;
     }
 
     public Principal updateUser(IDTokenClaimsSet idToken, UserInfo userInfo)
@@ -393,7 +433,7 @@ public class OIDCUserManager
 
         this.logger.debug("Getting groups sent by the provider associated with claim [{}]", groupClaim);
 
-        List<String> providerGroups = (List<String>) userInfo.getClaim(groupClaim);
+        List<String> providerGroups = (List<String>) getClaim(groupClaim, userInfo);
         if (providerGroups != null) {
             this.logger.debug("The provider sent the following groups: {}", providerGroups);
 
