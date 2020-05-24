@@ -49,6 +49,7 @@ import org.xwiki.contrib.oidc.OIDCUserInfo;
 import org.xwiki.contrib.oidc.internal.OIDCConfiguration;
 import org.xwiki.contrib.oidc.provider.internal.OIDCManager;
 import org.xwiki.contrib.oidc.provider.internal.endpoint.AuthorizationOIDCEndpoint;
+import org.xwiki.contrib.oidc.provider.internal.endpoint.LogoutOIDCEndpoint;
 import org.xwiki.contrib.oidc.provider.internal.endpoint.TokenOIDCEndpoint;
 import org.xwiki.contrib.oidc.provider.internal.endpoint.UserInfoOIDCEndpoint;
 import org.xwiki.instance.InstanceIdManager;
@@ -136,6 +137,11 @@ public class OIDCClientConfiguration extends OIDCConfiguration
 
     public static final String PROP_ENDPOINT_USERINFO = PROPPREFIX_ENDPOINT + UserInfoOIDCEndpoint.HINT;
 
+    /**
+     * @since 1.21
+     */
+    public static final String PROP_ENDPOINT_LOGOUT = PROPPREFIX_ENDPOINT + LogoutOIDCEndpoint.HINT;
+
     public static final String PROP_CLIENTID = "oidc.clientid";
 
     /**
@@ -156,6 +162,12 @@ public class OIDCClientConfiguration extends OIDCConfiguration
      */
     public static final String PROP_ENDPOINT_USERINFO_METHOD =
         PROPPREFIX_ENDPOINT + UserInfoOIDCEndpoint.HINT + ".method";
+
+    /**
+     * @since 1.21
+     */
+    public static final String PROP_ENDPOINT_LOGOUT_METHOD =
+        PROPPREFIX_ENDPOINT + LogoutOIDCEndpoint.HINT + ".method";
 
     /**
      * @since 1.12
@@ -402,6 +414,15 @@ public class OIDCClientConfiguration extends OIDCConfiguration
         return getEndPoint(UserInfoOIDCEndpoint.HINT);
     }
 
+    /**
+     * @since 1.21
+     */
+    public URI getLogoutOIDCEndpoint() throws URISyntaxException, MalformedURLException
+    {
+        return getEndPoint(LogoutOIDCEndpoint.HINT);
+    }
+
+
     public ClientID getClientID()
     {
         String clientId = getProperty(PROP_CLIENTID, String.class);
@@ -443,6 +464,15 @@ public class OIDCClientConfiguration extends OIDCConfiguration
     {
         return getProperty(PROP_ENDPOINT_USERINFO_METHOD, HTTPRequest.Method.GET);
     }
+
+    /**
+     * @since 1.21
+     */
+    public HTTPRequest.Method getLogoutEndPointMethod()
+    {
+        return getProperty(PROP_ENDPOINT_LOGOUT_METHOD, HTTPRequest.Method.GET);
+    }
+
 
     public String getSessionState()
     {
