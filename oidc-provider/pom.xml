@@ -66,6 +66,10 @@
       <artifactId>oauth2-oidc-sdk</artifactId>
     </dependency>
     <dependency>
+      <groupId>com.nimbusds</groupId>
+      <artifactId>nimbus-jose-jwt</artifactId>
+    </dependency>
+    <dependency>
       <groupId>org.xwiki.platform</groupId>
       <artifactId>xwiki-platform-instance</artifactId>
       <version>${platform.version}</version>
