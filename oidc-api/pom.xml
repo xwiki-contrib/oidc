@@ -25,7 +25,7 @@
   <parent>
     <groupId>org.xwiki.contrib.oidc</groupId>
     <artifactId>oidc</artifactId>
-    <version>1.20.1-SNAPSHOT</version>
+    <version>1.20.1</version>
   </parent>
 
   <artifactId>oidc-api</artifactId>
