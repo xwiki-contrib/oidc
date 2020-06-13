@@ -46,7 +46,7 @@ import com.nimbusds.openid.connect.sdk.op.OIDCProviderMetadata;
  */
 @Component(hints = {"", ".well-known/openid-configuration"})
 @Singleton
-public class ConfigurationOIDCEnpoint implements OIDCEndpoint
+public class ConfigurationOIDCEndpoint implements OIDCEndpoint
 {
     @Inject
     private OIDCManager manager;
