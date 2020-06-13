@@ -117,7 +117,7 @@ public class TokenOIDCEndpoint implements OIDCEndpoint
             // Get rid of the temporary authorization code
             this.store.removeAuthorizationCode(grant.getAuthorizationCode());
 
-            JWT idToken = this.manager.createdIdToken(request.getClientID(), consent.getUserReference(), null,
+            JWT idToken = this.manager.createdIdToken(clientID, consent.getUserReference(), null,
                 consent.getClaims());
             OIDCTokens tokens = new OIDCTokens(idToken, accessToken, null);
 
