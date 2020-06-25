@@ -64,10 +64,12 @@ import org.xwiki.model.reference.SpaceReference;
 import org.xwiki.observation.ObservationManager;
 import org.xwiki.query.QueryException;
 
+import com.nimbusds.jwt.PlainJWT;
 import com.nimbusds.oauth2.sdk.ParseException;
 import com.nimbusds.oauth2.sdk.http.HTTPRequest;
 import com.nimbusds.oauth2.sdk.http.HTTPResponse;
 import com.nimbusds.oauth2.sdk.token.BearerAccessToken;
+import com.nimbusds.openid.connect.sdk.LogoutRequest;
 import com.nimbusds.openid.connect.sdk.UserInfoErrorResponse;
 import com.nimbusds.openid.connect.sdk.UserInfoRequest;
 import com.nimbusds.openid.connect.sdk.UserInfoResponse;
@@ -195,6 +197,46 @@ public class OIDCUserManager
 
         // Update/Create XWiki user
         return updateUser(idToken, userInfo);
+    }
+
+    private int sendLogout()
+    {
+        int ret = 0;
+        URI logoutURI = null;
+
+        try {
+          logoutURI = this.configuration.getLogoutOIDCEndpoint();
+        } catch (Exception e) {
+          // TODO: log something ?
+        }
+
+        if (logoutURI != null)
+        {
+          try {
+            ret = sendLogout(logoutURI, this.configuration.getIdToken());
+          } catch (Exception e) {
+            // TODO: log something ?
+          }
+        } else {
+          this.logger.debug("Don't send OIDC logout request: no OIDC logout URI set");
+        }
+
+        return ret;
+    }
+
+    private int sendLogout(URI logoutEndpoint, IDTokenClaimsSet idToken)
+        throws IOException, ParseException, OIDCException, XWikiException, QueryException
+    {
+      LogoutRequest logoutRequest = new LogoutRequest(logoutEndpoint, new PlainJWT(idToken.toJWTClaimsSet()));
+
+        HTTPRequest logoutHTTP = logoutRequest.toHTTPRequest();
+        logoutHTTP.setHeader("User-Agent", this.getClass().getPackage().getImplementationTitle() + '/'
+            + this.getClass().getPackage().getImplementationVersion());
+        this.logger.debug("OIDC logout request ({}?{})", logoutHTTP.getURL(), logoutHTTP.getQuery());
+        HTTPResponse httpResponse = logoutHTTP.send();
+        this.logger.debug("OIDC logout response ({})", httpResponse.getContent());
+
+        return httpResponse.getStatusCode();
     }
 
     private void checkAllowedGroups(UserInfo userInfo) throws OIDCException
@@ -756,6 +798,9 @@ public class OIDCUserManager
     public void logout()
     {
         XWikiRequest request = this.xcontextProvider.get().getRequest();
+
+        // Send logout request
+        this.sendLogout();
 
         // TODO: remove cookies
 
