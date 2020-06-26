@@ -38,6 +38,7 @@ import javax.servlet.http.HttpSession;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.joda.time.LocalDateTime;
+import org.slf4j.Logger;
 import org.xwiki.component.annotation.Component;
 import org.xwiki.configuration.ConfigurationSource;
 import org.xwiki.container.Container;
@@ -166,8 +167,7 @@ public class OIDCClientConfiguration extends OIDCConfiguration
     /**
      * @since 1.21
      */
-    public static final String PROP_ENDPOINT_LOGOUT_METHOD =
-        PROPPREFIX_ENDPOINT + LogoutOIDCEndpoint.HINT + ".method";
+    public static final String PROP_ENDPOINT_LOGOUT_METHOD = PROPPREFIX_ENDPOINT + LogoutOIDCEndpoint.HINT + ".method";
 
     /**
      * @since 1.12
@@ -229,6 +229,9 @@ public class OIDCClientConfiguration extends OIDCConfiguration
     private ConverterManager converter;
 
     @Inject
+    private Logger logger;
+
+    @Inject
     // TODO: store configuration in custom objects
     private ConfigurationSource configuration;
 
@@ -236,7 +239,11 @@ public class OIDCClientConfiguration extends OIDCConfiguration
     {
         Session session = this.container.getSession();
         if (session instanceof ServletSession) {
-            return ((ServletSession) session).getHttpSession();
+            HttpSession httpSession = ((ServletSession) session).getHttpSession();
+
+            this.logger.debug("Session: {}", httpSession.getId());
+
+            return httpSession;
         }
 
         return null;
@@ -422,7 +429,6 @@ public class OIDCClientConfiguration extends OIDCConfiguration
         return getEndPoint(LogoutOIDCEndpoint.HINT);
     }
 
-
     public ClientID getClientID()
     {
         String clientId = getProperty(PROP_CLIENTID, String.class);
@@ -472,7 +478,6 @@ public class OIDCClientConfiguration extends OIDCConfiguration
     {
         return getProperty(PROP_ENDPOINT_LOGOUT_METHOD, HTTPRequest.Method.GET);
     }
-
 
     public String getSessionState()
     {
