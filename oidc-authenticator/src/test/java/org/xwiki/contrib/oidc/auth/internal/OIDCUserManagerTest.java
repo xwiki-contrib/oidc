@@ -265,7 +265,7 @@ public class OIDCUserManagerTest
         assertEquals("", userObject.getStringValue("customproperty4"));
         assertEquals("", userObject.getStringValue("customproperty5"));
 
-        OIDCUser oidcObject = (OIDCUser) userDocument.getXObject(this.oidcClassReference);
+        OIDCUser oidcObject = new OIDCUser(userDocument.getXObject(this.oidcClassReference));
 
         assertNotNull(oidcObject);
         assertEquals("http://issuer", oidcObject.getIssuer());
@@ -303,7 +303,7 @@ public class OIDCUserManagerTest
 
         assertNotNull(userObject);
 
-        OIDCUser oidcObject = (OIDCUser) userDocument.getXObject(this.oidcClassReference);
+        OIDCUser oidcObject = new OIDCUser(userDocument.getXObject(this.oidcClassReference));
 
         assertNotNull(oidcObject);
         assertEquals("http://issuer", oidcObject.getIssuer());
@@ -355,7 +355,7 @@ public class OIDCUserManagerTest
 
         assertNotNull(userObject);
 
-        OIDCUser oidcObject = (OIDCUser) userDocument.getXObject(this.oidcClassReference);
+        OIDCUser oidcObject = new OIDCUser(userDocument.getXObject(this.oidcClassReference));
 
         assertNotNull(oidcObject);
         assertEquals("http://issuer", oidcObject.getIssuer());
@@ -410,7 +410,7 @@ public class OIDCUserManagerTest
 
         assertNotNull(userObject);
 
-        OIDCUser oidcObject = (OIDCUser) userDocument.getXObject(this.oidcClassReference);
+        OIDCUser oidcObject = new OIDCUser(userDocument.getXObject(this.oidcClassReference));
 
         assertNotNull(oidcObject);
         assertEquals("http://issuer", oidcObject.getIssuer());
@@ -468,7 +468,7 @@ public class OIDCUserManagerTest
         assertEquals("givenName", userObject.getStringValue("first_name"));
         assertEquals("phoneNumber", userObject.getStringValue("phone"));
 
-        OIDCUser oidcObject = (OIDCUser) userDocument.getXObject(this.oidcClassReference);
+        OIDCUser oidcObject = new OIDCUser(userDocument.getXObject(this.oidcClassReference));
 
         assertNotNull(oidcObject);
         assertEquals("http://issuer", oidcObject.getIssuer());

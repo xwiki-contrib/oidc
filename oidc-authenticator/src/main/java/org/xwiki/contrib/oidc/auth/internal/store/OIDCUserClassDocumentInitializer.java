@@ -43,8 +43,6 @@ public class OIDCUserClassDocumentInitializer extends AbstractMandatoryClassInit
     @Override
     protected void createClass(BaseClass xclass)
     {
-        xclass.setCustomClass(OIDCUser.class.getName());
-
         xclass.addTextField(OIDCUser.FIELD_ISSUER, "Issuer", 30);
         xclass.addTextField(OIDCUser.FIELD_SUBJECT, "Subject", 30);
     }

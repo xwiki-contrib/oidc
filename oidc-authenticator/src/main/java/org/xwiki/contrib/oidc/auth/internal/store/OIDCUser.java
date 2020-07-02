@@ -26,7 +26,7 @@ import org.xwiki.model.reference.LocalDocumentReference;
 import com.xpn.xwiki.XWiki;
 import com.xpn.xwiki.objects.BaseObject;
 
-public class OIDCUser extends BaseObject
+public class OIDCUser
 {
     public static final String CLASS_FULLNAME = "XWiki.OIDC.UserClass";
 
@@ -37,23 +37,33 @@ public class OIDCUser extends BaseObject
     public static final LocalDocumentReference CLASS_REFERENCE =
         new LocalDocumentReference(Arrays.asList(XWiki.SYSTEM_SPACE, "OIDC"), "UserClass");
 
+    private final BaseObject xobject;
+
+    /**
+     * @param xobject the actual XWiki object
+     */
+    public OIDCUser(BaseObject xobject)
+    {
+        this.xobject = xobject;
+    }
+
     public String getIssuer()
     {
-        return getStringValue(FIELD_ISSUER);
+        return this.xobject.getStringValue(FIELD_ISSUER);
     }
 
     public void setIssuer(String issuer)
     {
-        setStringValue(FIELD_ISSUER, issuer);
+        this.xobject.setStringValue(FIELD_ISSUER, issuer);
     }
 
     public String getSubject()
     {
-        return getStringValue(FIELD_SUBJECT);
+        return this.xobject.getStringValue(FIELD_SUBJECT);
     }
 
     public void setSubject(String subject)
     {
-        setStringValue(FIELD_SUBJECT, subject);
+        this.xobject.setStringValue(FIELD_SUBJECT, subject);
     }
 }

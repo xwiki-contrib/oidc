@@ -61,7 +61,7 @@ public class OIDCUserStore
     {
         XWikiContext xcontext = this.xcontextProvider.get();
 
-        OIDCUser user = (OIDCUser) userDocument.getXObject(OIDCUser.CLASS_REFERENCE, true, xcontext);
+        OIDCUser user = new OIDCUser(userDocument.getXObject(OIDCUser.CLASS_REFERENCE, true, xcontext));
 
         boolean needUpdate = false;
 
