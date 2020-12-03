@@ -47,6 +47,7 @@ import org.xwiki.container.Session;
 import org.xwiki.container.servlet.ServletSession;
 import org.xwiki.contrib.oidc.OIDCIdToken;
 import org.xwiki.contrib.oidc.OIDCUserInfo;
+import org.xwiki.contrib.oidc.auth.internal.endpoint.CallbackOIDCEndpoint;
 import org.xwiki.contrib.oidc.internal.OIDCConfiguration;
 import org.xwiki.contrib.oidc.provider.internal.OIDCManager;
 import org.xwiki.contrib.oidc.provider.internal.endpoint.AuthorizationOIDCEndpoint;
@@ -142,6 +143,11 @@ public class OIDCClientConfiguration extends OIDCConfiguration
      * @since 1.21
      */
     public static final String PROP_ENDPOINT_LOGOUT = PROPPREFIX_ENDPOINT + LogoutOIDCEndpoint.HINT;
+    
+    /**
+     * @since 1.23
+     */
+    public static final String PROP_REDIRECT_URL = "oidc.redirecturl";
 
     public static final String PROP_CLIENTID = "oidc.clientid";
 
@@ -395,7 +401,7 @@ public class OIDCClientConfiguration extends OIDCConfiguration
     {
         URL endpoint = getProperty(PROPPREFIX_ENDPOINT + hint, URL.class);
 
-        // If no direct endpoint is provider assume it's a XWiki OIDC provider and generate the endpoint from the hint
+        // If no direct endpoint is provided assume it's a XWiki OIDC provider and generate the endpoint from the hint
         if (endpoint == null) {
             URL provider = getXWikiProvider();
             if (provider != null) {
@@ -427,6 +433,24 @@ public class OIDCClientConfiguration extends OIDCConfiguration
     public URI getLogoutOIDCEndpoint() throws URISyntaxException, MalformedURLException
     {
         return getEndPoint(LogoutOIDCEndpoint.HINT);
+    }
+    
+    /**
+     * @since 1.23
+     */
+    public URI getRedirectURI() throws URISyntaxException, MalformedURLException
+    {
+    	URI callbackURI = null;
+    	String redirectURL = getProperty(PROP_REDIRECT_URL, String.class);
+
+        // If the redirect URL is not provided or empty assume the default callback URI
+        if (redirectURL == null || redirectURL.trim().isEmpty()) {
+        	callbackURI = this.manager.createEndPointURI(CallbackOIDCEndpoint.HINT);
+        } else {
+        	callbackURI = new URI(redirectURL);
+        }
+
+        return callbackURI;
     }
 
     public ClientID getClientID()

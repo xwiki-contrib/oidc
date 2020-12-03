@@ -30,7 +30,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xwiki.contrib.oidc.auth.internal.OIDCClientConfiguration;
 import org.xwiki.contrib.oidc.auth.internal.OIDCUserManager;
-import org.xwiki.contrib.oidc.auth.internal.endpoint.CallbackOIDCEndpoint;
 import org.xwiki.contrib.oidc.provider.internal.OIDCManager;
 import org.xwiki.properties.ConverterManager;
 
@@ -143,7 +142,7 @@ public class OIDCAuthServiceImpl extends XWikiAuthServiceImpl
     private void authenticate(XWikiContext context) throws XWikiException, URISyntaxException, IOException
     {
         // Generate callback URL
-        URI callback = this.oidc.createEndPointURI(CallbackOIDCEndpoint.HINT);
+        URI callback = this.configuration.getRedirectURI();
 
         // Remember various stuff in the session so that callback can access it
         XWikiRequest request = context.getRequest();
