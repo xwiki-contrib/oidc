@@ -32,6 +32,7 @@ import javax.inject.Provider;
 import javax.inject.Singleton;
 import javax.servlet.http.HttpServletResponse;
 
+import org.apache.commons.lang3.StringUtils;
 import org.joda.time.LocalDateTime;
 import org.xwiki.component.annotation.Component;
 import org.xwiki.contrib.oidc.OIDCIdToken;
@@ -111,8 +112,10 @@ public class OIDCManager
         StringBuilder base = new StringBuilder();
 
         base.append(xcontext.getURLFactory().getServerURL(xcontext));
-
-        base.append('/');
+ 
+        if (base.charAt(base.length() - 1) != '/') {
+            base.append('/');
+        }
 
         String webAppPath = xcontext.getWiki().getWebAppPath(xcontext);
         if (!webAppPath.equals("/")) {
