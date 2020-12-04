@@ -32,7 +32,6 @@ import javax.inject.Provider;
 import javax.inject.Singleton;
 import javax.servlet.http.HttpServletResponse;
 
-import org.apache.commons.lang3.StringUtils;
 import org.joda.time.LocalDateTime;
 import org.xwiki.component.annotation.Component;
 import org.xwiki.contrib.oidc.OIDCIdToken;
