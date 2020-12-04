@@ -133,7 +133,7 @@ public class CallbackOIDCEndpoint implements OIDCEndpoint
         AuthorizationCode code = successResponse.getAuthorizationCode();
 
         // Generate callback URL
-        URI callback = this.oidc.createEndPointURI(CallbackOIDCEndpoint.HINT);
+        URI callback = this.configuration.getRedirectURI();
 
         // Get access token
         AuthorizationGrant authorizationGrant = new AuthorizationCodeGrant(code, callback);
