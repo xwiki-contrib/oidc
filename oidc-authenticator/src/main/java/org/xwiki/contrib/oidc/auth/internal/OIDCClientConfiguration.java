@@ -569,7 +569,7 @@ public class OIDCClientConfiguration extends OIDCConfiguration
             groups = new GroupMapping(groupsMapping.size());
 
             for (String groupMapping : groupsMapping) {
-                int index = groupMapping.indexOf('=');
+                int index = groupMapping.lastIndexOf('=');
 
                 if (index != -1) {
                     String xwikiGroup = toXWikiGroup(groupMapping.substring(0, index));
