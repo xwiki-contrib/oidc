@@ -22,6 +22,7 @@ package org.xwiki.contrib.oidc.auth.internal;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.net.URL;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -58,8 +59,8 @@ class OIDCClientConfigurationTest
         assertNull(this.configuration.getUserInfoOIDCEndpoint());
 
         URI uri = new URI("/endpoint");
-        when(this.sourceConfiguration.getProperty(OIDCClientConfiguration.PROP_ENDPOINT_USERINFO, URI.class))
-            .thenReturn(uri);
+        when(this.sourceConfiguration.getProperty(OIDCClientConfiguration.PROP_ENDPOINT_USERINFO, String.class))
+            .thenReturn(uri.toString());
 
         Endpoint endpoint = this.configuration.getUserInfoOIDCEndpoint();
 

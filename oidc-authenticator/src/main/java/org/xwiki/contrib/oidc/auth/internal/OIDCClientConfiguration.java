@@ -400,14 +400,18 @@ public class OIDCClientConfiguration extends OIDCConfiguration
 
     private Endpoint getEndPoint(String hint) throws URISyntaxException
     {
-        URI uri = getProperty(PROPPREFIX_ENDPOINT + hint, URI.class);
+        // TODO: use URI directly when upgrading to a version of XWiki providing a URI converter
+        String uriString = getProperty(PROPPREFIX_ENDPOINT + hint, String.class);
 
         // If no direct endpoint is provider assume it's a XWiki OIDC provider and generate the endpoint from the hint
-        if (uri == null) {
+        URI uri = null;
+        if (uriString == null) {
             URI provider = getProperty(PROP_XWIKIPROVIDER, URI.class);
             if (provider != null) {
                 uri = this.manager.createEndPointURI(getXWikiProvider().toString(), hint);
             }
+        } else {
+            uri = new URI(uriString);
         }
 
         // If we still don't have any endpoint URI, return null
