@@ -66,7 +66,7 @@ class OIDCClientConfigurationTest
         assertEquals(uri, endpoint.getURI());
         assertTrue(endpoint.getHeaders().isEmpty());
 
-        List<String> list = Arrays.asList("key1=value11", "key1=value12", "key2=value2", "alone", "=", "");
+        List<String> list = Arrays.asList("key1:value11", "key1:value12", "key2:value2", "alone", ":", "");
 
         when(this.sourceConfiguration.getProperty(OIDCClientConfiguration.PROP_ENDPOINT_USERINFO_HEADERS, List.class))
             .thenReturn(list);

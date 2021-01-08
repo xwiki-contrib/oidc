@@ -421,7 +421,7 @@ public class OIDCClientConfiguration extends OIDCConfiguration
         List<String> entries = getProperty(PROPPREFIX_ENDPOINT + hint + ".headers", List.class);
         if (entries != null) {
             for (String entry : entries) {
-                int index = entry.indexOf('=');
+                int index = entry.indexOf(':');
 
                 if (index > 0 && index < entry.length() - 1) {
                     headers.computeIfAbsent(entry.substring(0, index), key -> new ArrayList<>())
