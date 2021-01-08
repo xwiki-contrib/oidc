@@ -404,11 +404,13 @@ public class OIDCClientConfiguration extends OIDCConfiguration
         String uriString = getProperty(PROPPREFIX_ENDPOINT + hint, String.class);
 
         // If no direct endpoint is provider assume it's a XWiki OIDC provider and generate the endpoint from the hint
-        URI uri = null;
+        URI uri;
         if (uriString == null) {
-            URI provider = getProperty(PROP_XWIKIPROVIDER, URI.class);
-            if (provider != null) {
+            uriString = getProperty(PROP_XWIKIPROVIDER, String.class);
+            if (uriString != null) {
                 uri = this.manager.createEndPointURI(getXWikiProvider().toString(), hint);
+            } else {
+                uri = null;
             }
         } else {
             uri = new URI(uriString);
