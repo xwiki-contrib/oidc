@@ -122,20 +122,15 @@ public class OIDCUserManager
 
     public void updateUserInfoAsync() throws MalformedURLException, URISyntaxException
     {
-        final URI userInfoEndpoint = this.configuration.getUserInfoOIDCEndpoint();
+        final Endpoint userInfoEndpoint = this.configuration.getUserInfoOIDCEndpoint();
         final IDTokenClaimsSet idToken = this.configuration.getIdToken();
         final BearerAccessToken accessToken = this.configuration.getAccessToken();
 
-        this.executor.execute(new ExecutionContextRunnable(new Runnable()
-        {
-            @Override
-            public void run()
-            {
-                try {
-                    updateUserInfo(userInfoEndpoint, idToken, accessToken);
-                } catch (Exception e) {
-                    logger.error("Failed to update user informations", e);
-                }
+        this.executor.execute(new ExecutionContextRunnable(() -> {
+            try {
+                updateUserInfo(userInfoEndpoint, idToken, accessToken);
+            } catch (Exception e) {
+                logger.error("Failed to update user informations", e);
             }
         }, this.componentManager));
     }
@@ -172,17 +167,17 @@ public class OIDCUserManager
         return principal;
     }
 
-    public Principal updateUserInfo(URI userInfoEndpoint, IDTokenClaimsSet idToken, BearerAccessToken accessToken)
+    public Principal updateUserInfo(Endpoint userInfoEndpoint, IDTokenClaimsSet idToken, BearerAccessToken accessToken)
         throws IOException, ParseException, OIDCException, XWikiException, QueryException
     {
         // Get OIDC user info
         this.logger.debug("OIDC user info request ({},{})", userInfoEndpoint, accessToken);
         UserInfoRequest userinfoRequest =
-            new UserInfoRequest(userInfoEndpoint, this.configuration.getUserInfoEndPointMethod(), accessToken);
+            new UserInfoRequest(userInfoEndpoint.getURI(), this.configuration.getUserInfoEndPointMethod(), accessToken);
         HTTPRequest userinfoHTTP = userinfoRequest.toHTTPRequest();
-        userinfoHTTP.setHeader("User-Agent", this.getClass().getPackage().getImplementationTitle() + '/'
-            + this.getClass().getPackage().getImplementationVersion());
-        this.logger.debug("OIDC user info request ({}?{})", userinfoHTTP.getURL(), userinfoHTTP.getQuery());
+        userInfoEndpoint.prepare(userinfoHTTP);
+        this.logger.debug("OIDC user info request ({}?{},{})", userinfoHTTP.getURL(), userinfoHTTP.getQuery(),
+            userinfoHTTP.getHeaderMap());
         HTTPResponse httpResponse = userinfoHTTP.send();
         this.logger.debug("OIDF user info response ({})", httpResponse.getContent());
         UserInfoResponse userinfoResponse = UserInfoResponse.parse(httpResponse);
@@ -202,37 +197,36 @@ public class OIDCUserManager
     private int sendLogout()
     {
         int ret = 0;
-        URI logoutURI = null;
+        Endpoint logoutURI = null;
 
         try {
-          logoutURI = this.configuration.getLogoutOIDCEndpoint();
+            logoutURI = this.configuration.getLogoutOIDCEndpoint();
         } catch (Exception e) {
-          // TODO: log something ?
+            // TODO: log something ?
         }
 
-        if (logoutURI != null)
-        {
-          try {
-            ret = sendLogout(logoutURI, this.configuration.getIdToken());
-          } catch (Exception e) {
-            // TODO: log something ?
-          }
+        if (logoutURI != null) {
+            try {
+                ret = sendLogout(logoutURI, this.configuration.getIdToken());
+            } catch (Exception e) {
+                // TODO: log something ?
+            }
         } else {
-          this.logger.debug("Don't send OIDC logout request: no OIDC logout URI set");
+            this.logger.debug("Don't send OIDC logout request: no OIDC logout URI set");
         }
 
         return ret;
     }
 
-    private int sendLogout(URI logoutEndpoint, IDTokenClaimsSet idToken)
-        throws IOException, ParseException, OIDCException, XWikiException, QueryException
+    private int sendLogout(Endpoint logoutEndpoint, IDTokenClaimsSet idToken) throws IOException, ParseException
     {
-      LogoutRequest logoutRequest = new LogoutRequest(logoutEndpoint, new PlainJWT(idToken.toJWTClaimsSet()));
+        LogoutRequest logoutRequest =
+            new LogoutRequest(logoutEndpoint.getURI(), new PlainJWT(idToken.toJWTClaimsSet()));
 
         HTTPRequest logoutHTTP = logoutRequest.toHTTPRequest();
-        logoutHTTP.setHeader("User-Agent", this.getClass().getPackage().getImplementationTitle() + '/'
-            + this.getClass().getPackage().getImplementationVersion());
-        this.logger.debug("OIDC logout request ({}?{})", logoutHTTP.getURL(), logoutHTTP.getQuery());
+        logoutEndpoint.prepare(logoutHTTP);
+        this.logger.debug("OIDC logout request ({}?{},{})", logoutHTTP.getURL(), logoutHTTP.getQuery(),
+            logoutHTTP.getHeaderMap());
         HTTPResponse httpResponse = logoutHTTP.send();
         this.logger.debug("OIDC logout response ({})", httpResponse.getContent());
 

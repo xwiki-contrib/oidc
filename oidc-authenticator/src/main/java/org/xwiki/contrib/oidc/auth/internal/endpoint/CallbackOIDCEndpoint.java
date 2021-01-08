@@ -33,6 +33,7 @@ import org.slf4j.Logger;
 import org.xwiki.component.annotation.Component;
 import org.xwiki.container.Container;
 import org.xwiki.container.servlet.ServletSession;
+import org.xwiki.contrib.oidc.auth.internal.Endpoint;
 import org.xwiki.contrib.oidc.auth.internal.OIDCClientConfiguration;
 import org.xwiki.contrib.oidc.auth.internal.OIDCUserManager;
 import org.xwiki.contrib.oidc.provider.internal.OIDCException;
@@ -140,6 +141,7 @@ public class CallbackOIDCEndpoint implements OIDCEndpoint
 
         TokenRequest tokeRequest;
         Secret secret = this.configuration.getSecret();
+        Endpoint tokenEndpoint = this.configuration.getTokenOIDCEndpoint();
         if (secret != null) {
             this.logger.debug("OIDC callback: adding secret ({} {})", this.configuration.getClientID(),
                 secret.getValue());
@@ -150,18 +152,17 @@ public class CallbackOIDCEndpoint implements OIDCEndpoint
             } else {
                 clientSecret = new ClientSecretBasic(this.configuration.getClientID(), secret);
             }
-            tokeRequest = new TokenRequest(this.configuration.getTokenOIDCEndpoint(), clientSecret, authorizationGrant);
+            tokeRequest = new TokenRequest(tokenEndpoint.getURI(), clientSecret, authorizationGrant);
         } else {
-            tokeRequest = new TokenRequest(this.configuration.getTokenOIDCEndpoint(), this.configuration.getClientID(),
-                authorizationGrant);
+            tokeRequest =
+                new TokenRequest(tokenEndpoint.getURI(), this.configuration.getClientID(), authorizationGrant);
         }
 
         HTTPRequest tokenHTTP = tokeRequest.toHTTPRequest();
-        tokenHTTP.setHeader("User-Agent", this.getClass().getPackage().getImplementationTitle() + '/'
-            + this.getClass().getPackage().getImplementationVersion());
+        tokenEndpoint.prepare(httpRequest);
 
-        this.logger.debug("OIDC Token request ({}?{},{})", tokenHTTP.getURL(), tokenHTTP.getQuery(),
-            tokenHTTP.getAuthorization());
+        this.logger.debug("OIDC Token request ({}?{},{},{})", tokenHTTP.getURL(), tokenHTTP.getQuery(),
+            tokenHTTP.getAuthorization(), tokenHTTP.getHeaderMap());
 
         HTTPResponse httpResponse = tokenHTTP.send();
         this.logger.debug("OIDC Token response ({})", httpResponse.getContent());

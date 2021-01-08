@@ -86,7 +86,7 @@ import static org.mockito.Mockito.when;
 @OldcoreTest
 @ComponentList({OIDCManager.class, OIDCClientConfiguration.class, OIDCUserStore.class})
 @ReferenceComponentList
-public class OIDCUserManagerTest
+class OIDCUserManagerTest
 {
     @MockComponent
     QueryManager queryManager;
@@ -196,7 +196,7 @@ public class OIDCUserManagerTest
     // Tests
 
     @Test
-    public void updateUserInfo()
+    void updateUserInfo()
         throws XWikiException, QueryException, OIDCException, ComponentLookupException, URISyntaxException
     {
         Issuer issuer = new Issuer("http://issuer");
@@ -273,7 +273,7 @@ public class OIDCUserManagerTest
     }
 
     @Test
-    public void updateUserInfoWithGroupSyncWithDefaultGroupsClaim()
+    void updateUserInfoWithGroupSyncWithDefaultGroupsClaim()
         throws XWikiException, QueryException, OIDCException, ComponentLookupException
     {
         Issuer issuer = new Issuer("http://issuer");
@@ -314,7 +314,7 @@ public class OIDCUserManagerTest
     }
 
     @Test
-    public void updateUserInfoWithGroupSyncWithoutMapping()
+    void updateUserInfoWithGroupSyncWithoutMapping()
         throws XWikiException, QueryException, OIDCException, ComponentLookupException
     {
         this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_GROUPS_CLAIM, "groupclaim");
@@ -367,7 +367,7 @@ public class OIDCUserManagerTest
     }
 
     @Test
-    public void updateUserInfoWithGroupSyncWithMapping()
+    void updateUserInfoWithGroupSyncWithMapping()
         throws XWikiException, QueryException, OIDCException, ComponentLookupException
     {
         this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_GROUPS_MAPPING,
@@ -422,7 +422,7 @@ public class OIDCUserManagerTest
     }
 
     @Test
-    public void updateUserInfoWithCustomNameAndIdPattern()
+    void updateUserInfoWithCustomNameAndIdPattern()
         throws XWikiException, QueryException, OIDCException, ComponentLookupException, URISyntaxException
     {
         this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_USER_NAMEFORMATER,
@@ -476,7 +476,7 @@ public class OIDCUserManagerTest
     }
 
     @Test
-    public void updateUserInfoWithAllowedGroup()
+    void updateUserInfoWithAllowedGroup()
         throws XWikiException, QueryException, OIDCException, ComponentLookupException
     {
         this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_GROUPS_ALLOWED,
@@ -500,7 +500,7 @@ public class OIDCUserManagerTest
     }
 
     @Test
-    public void updateUserInfoWithNotAllowedGroup()
+    void updateUserInfoWithNotAllowedGroup()
         throws XWikiException, QueryException, OIDCException, ComponentLookupException
     {
         this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_GROUPS_ALLOWED,
@@ -522,7 +522,7 @@ public class OIDCUserManagerTest
     }
 
     @Test
-    public void updateUserInfoWithForbiddenGroup()
+    void updateUserInfoWithForbiddenGroup()
         throws XWikiException, QueryException, OIDCException, ComponentLookupException
     {
         this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_GROUPS_FORBIDDEN,
@@ -544,7 +544,7 @@ public class OIDCUserManagerTest
     }
 
     @Test
-    public void updateUserInfoWithNotForbiddenGroup()
+    void updateUserInfoWithNotForbiddenGroup()
         throws XWikiException, QueryException, OIDCException, ComponentLookupException
     {
         this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_GROUPS_FORBIDDEN,
@@ -568,7 +568,7 @@ public class OIDCUserManagerTest
     }
 
     @Test
-    public void updateUserInfoWithAllowedAndForbiddenGroup()
+    void updateUserInfoWithAllowedAndForbiddenGroup()
         throws XWikiException, QueryException, OIDCException, ComponentLookupException
     {
         this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_GROUPS_ALLOWED,

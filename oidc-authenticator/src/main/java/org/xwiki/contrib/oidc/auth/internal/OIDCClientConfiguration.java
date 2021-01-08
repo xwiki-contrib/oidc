@@ -19,14 +19,15 @@
  */
 package org.xwiki.contrib.oidc.auth.internal;
 
-import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -163,6 +164,12 @@ public class OIDCClientConfiguration extends OIDCConfiguration
      */
     public static final String PROP_ENDPOINT_USERINFO_METHOD =
         PROPPREFIX_ENDPOINT + UserInfoOIDCEndpoint.HINT + ".method";
+
+    /**
+     * @since 1.22
+     */
+    public static final String PROP_ENDPOINT_USERINFO_HEADERS =
+        PROPPREFIX_ENDPOINT + UserInfoOIDCEndpoint.HINT + ".headers";
 
     /**
      * @since 1.21
@@ -391,32 +398,52 @@ public class OIDCClientConfiguration extends OIDCConfiguration
         return getProperty(PROP_XWIKIPROVIDER, URL.class);
     }
 
-    private URI getEndPoint(String hint) throws URISyntaxException, MalformedURLException
+    private Endpoint getEndPoint(String hint) throws URISyntaxException
     {
-        URL endpoint = getProperty(PROPPREFIX_ENDPOINT + hint, URL.class);
+        URI uri = getProperty(PROPPREFIX_ENDPOINT + hint, URI.class);
 
         // If no direct endpoint is provider assume it's a XWiki OIDC provider and generate the endpoint from the hint
-        if (endpoint == null) {
-            URL provider = getXWikiProvider();
+        if (uri == null) {
+            URI provider = getProperty(PROP_XWIKIPROVIDER, URI.class);
             if (provider != null) {
-                endpoint = this.manager.createEndPointURI(getXWikiProvider().toURI().toString(), hint).toURL();
+                uri = this.manager.createEndPointURI(getXWikiProvider().toString(), hint);
             }
         }
 
-        return endpoint == null ? null : endpoint.toURI();
+        // If we still don't have any endpoint URI, return null
+        if (uri == null) {
+            return null;
+        }
+
+        // Find custom headers
+        Map<String, List<String>> headers = new LinkedHashMap<>();
+
+        List<String> entries = getProperty(PROPPREFIX_ENDPOINT + hint + ".headers", List.class);
+        if (entries != null) {
+            for (String entry : entries) {
+                int index = entry.indexOf('=');
+
+                if (index > 0 && index < entry.length() - 1) {
+                    headers.computeIfAbsent(entry.substring(0, index), key -> new ArrayList<>())
+                        .add(entry.substring(index + 1));
+                }
+            }
+        }
+
+        return new Endpoint(uri, headers);
     }
 
-    public URI getAuthorizationOIDCEndpoint() throws URISyntaxException, MalformedURLException
+    public Endpoint getAuthorizationOIDCEndpoint() throws URISyntaxException
     {
         return getEndPoint(AuthorizationOIDCEndpoint.HINT);
     }
 
-    public URI getTokenOIDCEndpoint() throws URISyntaxException, MalformedURLException
+    public Endpoint getTokenOIDCEndpoint() throws URISyntaxException
     {
         return getEndPoint(TokenOIDCEndpoint.HINT);
     }
 
-    public URI getUserInfoOIDCEndpoint() throws URISyntaxException, MalformedURLException
+    public Endpoint getUserInfoOIDCEndpoint() throws URISyntaxException
     {
         return getEndPoint(UserInfoOIDCEndpoint.HINT);
     }
@@ -424,7 +451,7 @@ public class OIDCClientConfiguration extends OIDCConfiguration
     /**
      * @since 1.21
      */
-    public URI getLogoutOIDCEndpoint() throws URISyntaxException, MalformedURLException
+    public Endpoint getLogoutOIDCEndpoint() throws URISyntaxException
     {
         return getEndPoint(LogoutOIDCEndpoint.HINT);
     }

@@ -28,6 +28,7 @@ import java.net.URL;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.xwiki.contrib.oidc.auth.internal.Endpoint;
 import org.xwiki.contrib.oidc.auth.internal.OIDCClientConfiguration;
 import org.xwiki.contrib.oidc.auth.internal.OIDCUserManager;
 import org.xwiki.contrib.oidc.auth.internal.endpoint.CallbackOIDCEndpoint;
@@ -128,7 +129,7 @@ public class OIDCAuthServiceImpl extends XWikiAuthServiceImpl
     private void showLoginOIDC(XWikiContext context) throws Exception
     {
         // Check endpoints
-        URI endpoint = this.configuration.getAuthorizationOIDCEndpoint();
+        Endpoint endpoint = this.configuration.getAuthorizationOIDCEndpoint();
 
         // If no endpoint can be found, ask for it
         if (endpoint == null) {
@@ -167,7 +168,7 @@ public class OIDCAuthServiceImpl extends XWikiAuthServiceImpl
         ResponseType responseType = ResponseType.getDefault();
         AuthenticationRequest.Builder requestBuilder = new AuthenticationRequest.Builder(responseType,
             this.configuration.getScope(), this.configuration.getClientID(), callback);
-        requestBuilder.endpointURI(this.configuration.getAuthorizationOIDCEndpoint());
+        requestBuilder.endpointURI(this.configuration.getAuthorizationOIDCEndpoint().getURI());
 
         // Claims
         requestBuilder.claims(this.configuration.getClaimsRequest());
