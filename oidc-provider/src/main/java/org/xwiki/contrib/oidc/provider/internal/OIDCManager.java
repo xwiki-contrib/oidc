@@ -35,6 +35,7 @@ import javax.servlet.http.HttpServletResponse;
 import org.joda.time.LocalDateTime;
 import org.xwiki.component.annotation.Component;
 import org.xwiki.contrib.oidc.OIDCIdToken;
+import org.xwiki.contrib.oidc.provider.internal.OIDCProviderConfiguration.SubFormat;
 import org.xwiki.contrib.oidc.provider.internal.util.ContentResponse;
 import org.xwiki.instance.InstanceIdManager;
 import org.xwiki.model.reference.DocumentReference;
@@ -83,6 +84,9 @@ public class OIDCManager
     @Inject
     private InstanceIdManager instance;
 
+    @Inject
+    private OIDCProviderConfiguration configuration;
+
     /**
      * @return the issuer
      * @throws MalformedURLException when failing to create the issuer
@@ -111,7 +115,7 @@ public class OIDCManager
         StringBuilder base = new StringBuilder();
 
         base.append(xcontext.getURLFactory().getServerURL(xcontext));
- 
+
         if (base.charAt(base.length() - 1) != '/') {
             base.append('/');
         }
@@ -199,8 +203,8 @@ public class OIDCManager
      */
     public Subject getSubject(DocumentReference userReference)
     {
-        // TODO: optimize a bit to not always return full reference
-        return new Subject(this.referenceSerializer.serialize(userReference));
+        return new Subject(this.configuration.getSubMode() == SubFormat.LOCAL ? userReference.getName()
+            : this.referenceSerializer.serialize(userReference));
     }
 
     /**

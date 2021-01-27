@@ -45,10 +45,45 @@ public class OIDCProviderConfiguration extends OIDCConfiguration
     public static final String PROP_AUTHENTICATOR = PREFIX_PROP + "authenticator";
 
     /**
+     * The name of the property containing the format of the sub to return in the user info endpoint.
+     * 
+     * @since 1.23
+     */
+    public static final String PROP_SUBFORMAT = PREFIX_PROP + "subFormat";
+
+    /**
+     * The format of the sub to return in the user info endpoint.
+     *
+     * @version $Id$
+     * @since 1.23
+     */
+    public enum SubFormat
+    {
+        /**
+         * The full reference (to a void conflict in a multiwiki setup).
+         */
+        FULL,
+
+        /**
+         * The local reference (without the "XWiki" space) for a single wiki setup.
+         */
+        LOCAL
+    }
+
+    /**
      * @return the authenticator to fallback to
      */
     public String getAuthenticator()
     {
         return getProperty(PROP_AUTHENTICATOR, null);
+    }
+
+    /**
+     * @return the format of the sub to return in the user info endpoint
+     * @since 1.23
+     */
+    public SubFormat getSubMode()
+    {
+        return getProperty(PROP_AUTHENTICATOR, SubFormat.FULL);
     }
 }
