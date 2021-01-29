@@ -194,6 +194,7 @@ public class OIDCManager
         }
 
         // Convert to JWT
+        // TODO: add support for signed JWT
         return new PlainJWT(idTokenClaimSet.toJWTClaimsSet());
     }
 

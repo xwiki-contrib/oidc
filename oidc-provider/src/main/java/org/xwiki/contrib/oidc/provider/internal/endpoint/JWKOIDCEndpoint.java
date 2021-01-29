@@ -24,11 +24,13 @@ import javax.inject.Singleton;
 
 import org.xwiki.component.annotation.Component;
 import org.xwiki.contrib.oidc.provider.internal.OIDCResourceReference;
+import org.xwiki.contrib.oidc.provider.internal.util.ContentResponse;
 
+import com.nimbusds.common.contenttype.ContentType;
+import com.nimbusds.jose.jwk.JWKSet;
 import com.nimbusds.oauth2.sdk.Response;
 import com.nimbusds.oauth2.sdk.http.HTTPRequest;
-import com.nimbusds.oauth2.sdk.token.AccessToken;
-import com.nimbusds.openid.connect.sdk.UserInfoRequest;
+import com.nimbusds.oauth2.sdk.http.HTTPResponse;
 
 /**
  * Provider JWK set endpoint for OpenID Connect.
@@ -38,7 +40,6 @@ import com.nimbusds.openid.connect.sdk.UserInfoRequest;
 @Component
 @Named(JWKOIDCEndpoint.HINT)
 @Singleton
-// TODO
 public class JWKOIDCEndpoint implements OIDCEndpoint
 {
     /**
@@ -49,13 +50,10 @@ public class JWKOIDCEndpoint implements OIDCEndpoint
     @Override
     public Response handle(HTTPRequest httpRequest, OIDCResourceReference reference) throws Exception
     {
-        // Parse the request
-        UserInfoRequest request = UserInfoRequest.parse(httpRequest);
+        JWKSet jwk = new JWKSet();
 
-        // Get the token associated to the user
-        AccessToken accessToken = request.getAccessToken();
+        // TODO: add support for JWKs, returning an empty list in the meantime since this endpoint is mandatory
 
-        // UserInfoSuccessResponse
-        return null;
+        return new ContentResponse(ContentType.APPLICATION_JSON, jwk.toJSONObject().toString(), HTTPResponse.SC_OK);
     }
 }
