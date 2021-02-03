@@ -42,6 +42,8 @@ import org.xwiki.contrib.oidc.auth.internal.store.OIDCUserClassDocumentInitializ
 import org.xwiki.contrib.oidc.auth.internal.store.OIDCUserStore;
 import org.xwiki.contrib.oidc.provider.internal.OIDCException;
 import org.xwiki.contrib.oidc.provider.internal.OIDCManager;
+import org.xwiki.contrib.oidc.provider.internal.OIDCProviderConfiguration;
+import org.xwiki.environment.Environment;
 import org.xwiki.instance.InstanceIdManager;
 import org.xwiki.localization.ContextualLocalizationManager;
 import org.xwiki.model.reference.DocumentReference;
@@ -84,7 +86,7 @@ import static org.mockito.Mockito.when;
  * @version $Id$
  */
 @OldcoreTest
-@ComponentList({OIDCManager.class, OIDCClientConfiguration.class, OIDCUserStore.class})
+@ComponentList({OIDCManager.class, OIDCClientConfiguration.class, OIDCUserStore.class, OIDCProviderConfiguration.class})
 @ReferenceComponentList
 class OIDCUserManagerTest
 {
@@ -96,6 +98,9 @@ class OIDCUserManagerTest
 
     @MockComponent
     TemplateManager templateManager;
+
+    @MockComponent
+    Environment environment;
 
     @MockComponent
     AuthorExecutor authorExecutor;
@@ -476,8 +481,7 @@ class OIDCUserManagerTest
     }
 
     @Test
-    void updateUserInfoWithAllowedGroup()
-        throws XWikiException, QueryException, OIDCException, ComponentLookupException
+    void updateUserInfoWithAllowedGroup() throws XWikiException, QueryException, OIDCException, ComponentLookupException
     {
         this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_GROUPS_ALLOWED,
             Arrays.asList("pgroup1", "pgroup2"));

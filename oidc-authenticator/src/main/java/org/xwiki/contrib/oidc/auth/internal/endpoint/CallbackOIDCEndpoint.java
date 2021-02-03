@@ -182,6 +182,8 @@ public class CallbackOIDCEndpoint implements OIDCEndpoint
 
         OIDCTokenResponse tokenResponse = OIDCTokenResponse.parse(httpResponse);
 
+        // TODO: validate the signature of the id token
+
         IDTokenClaimsSet idToken = new IDTokenClaimsSet(tokenResponse.getOIDCTokens().getIDToken().getJWTClaimsSet());
         BearerAccessToken accessToken = tokenResponse.getTokens().getBearerAccessToken();
 

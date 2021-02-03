@@ -19,10 +19,12 @@
  */
 package org.xwiki.contrib.oidc.provider.internal.endpoint;
 
+import javax.inject.Inject;
 import javax.inject.Named;
 import javax.inject.Singleton;
 
 import org.xwiki.component.annotation.Component;
+import org.xwiki.contrib.oidc.provider.internal.OIDCManager;
 import org.xwiki.contrib.oidc.provider.internal.OIDCResourceReference;
 import org.xwiki.contrib.oidc.provider.internal.util.ContentResponse;
 
@@ -47,12 +49,16 @@ public class JWKOIDCEndpoint implements OIDCEndpoint
      */
     public static final String HINT = "jwk";
 
+    @Inject
+    private OIDCManager manager;
+
     @Override
     public Response handle(HTTPRequest httpRequest, OIDCResourceReference reference) throws Exception
     {
-        JWKSet jwk = new JWKSet();
-
-        // TODO: add support for JWKs, returning an empty list in the meantime since this endpoint is mandatory
+        JWKSet jwk = this.manager.getJWKSet();
+        if (jwk == null) {
+            jwk = new JWKSet();
+        }
 
         return new ContentResponse(ContentType.APPLICATION_JSON, jwk.toJSONObject().toString(), HTTPResponse.SC_OK);
     }

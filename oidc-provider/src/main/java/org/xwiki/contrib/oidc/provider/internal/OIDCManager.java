@@ -19,9 +19,12 @@
  */
 package org.xwiki.contrib.oidc.provider.internal;
 
+import java.io.File;
+import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -32,18 +35,35 @@ import javax.inject.Provider;
 import javax.inject.Singleton;
 import javax.servlet.http.HttpServletResponse;
 
+import org.apache.commons.io.FileUtils;
+import org.apache.commons.lang.RandomStringUtils;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.joda.time.LocalDateTime;
+import org.slf4j.Logger;
 import org.xwiki.component.annotation.Component;
+import org.xwiki.component.phase.Initializable;
+import org.xwiki.component.phase.InitializationException;
 import org.xwiki.contrib.oidc.OIDCIdToken;
 import org.xwiki.contrib.oidc.provider.internal.OIDCProviderConfiguration.SubFormat;
 import org.xwiki.contrib.oidc.provider.internal.util.ContentResponse;
+import org.xwiki.environment.Environment;
 import org.xwiki.instance.InstanceIdManager;
 import org.xwiki.model.reference.DocumentReference;
 import org.xwiki.model.reference.EntityReferenceSerializer;
 import org.xwiki.template.TemplateManager;
 
+import com.nimbusds.jose.JOSEException;
+import com.nimbusds.jose.JWSAlgorithm;
+import com.nimbusds.jose.JWSHeader;
+import com.nimbusds.jose.crypto.RSASSASigner;
+import com.nimbusds.jose.jwk.JWK;
+import com.nimbusds.jose.jwk.JWKSet;
+import com.nimbusds.jose.jwk.KeyUse;
+import com.nimbusds.jose.jwk.RSAKey;
+import com.nimbusds.jose.jwk.gen.RSAKeyGenerator;
 import com.nimbusds.jwt.JWT;
 import com.nimbusds.jwt.PlainJWT;
+import com.nimbusds.jwt.SignedJWT;
 import com.nimbusds.oauth2.sdk.ParseException;
 import com.nimbusds.oauth2.sdk.Response;
 import com.nimbusds.oauth2.sdk.http.HTTPResponse;
@@ -66,7 +86,7 @@ import com.xpn.xwiki.web.XWikiURLFactory;
  */
 @Component(roles = OIDCManager.class)
 @Singleton
-public class OIDCManager
+public class OIDCManager implements Initializable
 {
     @Inject
     private Provider<XWikiContext> xcontextProvider;
@@ -86,6 +106,90 @@ public class OIDCManager
 
     @Inject
     private OIDCProviderConfiguration configuration;
+
+    @Inject
+    private Environment environment;
+
+    @Inject
+    private Logger logger;
+
+    private RSASSASigner signer;
+
+    private JWKSet jwkSet;
+
+    private RSAKey rsaKey;
+
+    @Override
+    public void initialize() throws InitializationException
+    {
+        File permdir = this.environment.getPermanentDirectory();
+
+        if (permdir != null) {
+            File jwkSetFile = new File(permdir, "oidc/jwkSet.json");
+
+            if (jwkSetFile.exists()) {
+                try {
+                    loadKeyPair(jwkSetFile);
+                } catch (Exception e) {
+                    this.logger.warn("Failed to load key pair, generating a new one: {}",
+                        ExceptionUtils.getRootCauseMessage(e));
+                }
+            }
+
+            if (this.rsaKey == null) {
+                try {
+                    generateKeyPair(jwkSetFile);
+                } catch (Exception e) {
+                    this.logger.warn("Failed to generate a RSA key, tokens won't be signed: {}",
+                        ExceptionUtils.getRootCauseMessage(e));
+                }
+            }
+
+            if (this.rsaKey != null) {
+                try {
+                    this.signer = new RSASSASigner(this.rsaKey);
+                } catch (JOSEException e) {
+                    this.logger.warn("Failed to generate a signer, tokens won't be signed: {}",
+                        ExceptionUtils.getRootCauseMessage(e));
+                }
+            }
+        }
+    }
+
+    private void loadKeyPair(File jwkSetFile) throws IOException, java.text.ParseException
+    {
+        this.jwkSet = JWKSet.load(jwkSetFile);
+
+        for (JWK key : this.jwkSet.getKeys()) {
+            if (key instanceof RSAKey) {
+                this.rsaKey = (RSAKey) key;
+            }
+        }
+    }
+
+    private void generateKeyPair(File jwkSetFile) throws JOSEException
+    {
+        this.rsaKey = new RSAKeyGenerator(2048).keyID(RandomStringUtils.randomAlphanumeric(4)).keyUse(KeyUse.SIGNATURE)
+            .generate();
+        this.jwkSet = new JWKSet(this.rsaKey);
+
+        String json = this.jwkSet.toJSONObject(false).toJSONString();
+        try {
+            FileUtils.write(jwkSetFile, json, StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            this.logger.warn("Failed to save JWK set, it will be lost at next restart: {}",
+                ExceptionUtils.getRootCauseMessage(e));
+        }
+    }
+
+    /**
+     * @return the JWKSet
+     * @since 1.24
+     */
+    public JWKSet getJWKSet()
+    {
+        return this.jwkSet;
+    }
 
     /**
      * @return the issuer
@@ -194,7 +298,20 @@ public class OIDCManager
         }
 
         // Convert to JWT
-        // TODO: add support for signed JWT
+        if (this.signer != null) {
+            SignedJWT signedJWT = new SignedJWT(new JWSHeader(JWSAlgorithm.RS256), idTokenClaimSet.toJWTClaimsSet());
+
+            try {
+                signedJWT.sign(this.signer);
+
+                return signedJWT;
+            } catch (JOSEException e) {
+                this.logger.warn("Failed to sign the id token, returning a plain id token: {}",
+                    ExceptionUtils.getRootCauseMessage(e));
+            }
+        }
+
+        // Fallback on plain JWT in case of problem
         return new PlainJWT(idTokenClaimSet.toJWTClaimsSet());
     }
 
