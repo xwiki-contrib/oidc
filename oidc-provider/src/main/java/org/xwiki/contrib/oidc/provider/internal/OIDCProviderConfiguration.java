@@ -84,6 +84,6 @@ public class OIDCProviderConfiguration extends OIDCConfiguration
      */
     public SubFormat getSubMode()
     {
-        return getProperty(PROP_AUTHENTICATOR, SubFormat.FULL);
+        return getProperty(PROP_SUBFORMAT, SubFormat.FULL);
     }
 }
