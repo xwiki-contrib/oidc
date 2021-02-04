@@ -60,6 +60,7 @@ public class JWKOIDCEndpoint implements OIDCEndpoint
             jwk = new JWKSet();
         }
 
-        return new ContentResponse(ContentType.APPLICATION_JSON, jwk.toJSONObject().toString(), HTTPResponse.SC_OK);
+        return new ContentResponse(ContentType.APPLICATION_JSON, jwk.toPublicJWKSet().toJSONObject().toString(),
+            HTTPResponse.SC_OK);
     }
 }

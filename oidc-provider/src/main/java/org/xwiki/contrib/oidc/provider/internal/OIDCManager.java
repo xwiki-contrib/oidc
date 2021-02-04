@@ -119,6 +119,8 @@ public class OIDCManager implements Initializable
 
     private RSAKey rsaKey;
 
+    private JWSHeader header;
+
     @Override
     public void initialize() throws InitializationException
     {
@@ -129,7 +131,7 @@ public class OIDCManager implements Initializable
 
             if (jwkSetFile.exists()) {
                 try {
-                    loadKeyPair(jwkSetFile);
+                    loadKeys(jwkSetFile);
                 } catch (Exception e) {
                     this.logger.warn("Failed to load key pair, generating a new one: {}",
                         ExceptionUtils.getRootCauseMessage(e));
@@ -138,7 +140,7 @@ public class OIDCManager implements Initializable
 
             if (this.rsaKey == null) {
                 try {
-                    generateKeyPair(jwkSetFile);
+                    generateKeys(jwkSetFile);
                 } catch (Exception e) {
                     this.logger.warn("Failed to generate a RSA key, tokens won't be signed: {}",
                         ExceptionUtils.getRootCauseMessage(e));
@@ -148,6 +150,10 @@ public class OIDCManager implements Initializable
             if (this.rsaKey != null) {
                 try {
                     this.signer = new RSASSASigner(this.rsaKey);
+                    this.header =
+                        new JWSHeader(JWSAlgorithm.RS256, null, null, null, null, this.rsaKey, this.rsaKey.getX509CertURL(),
+                            this.rsaKey.getX509CertThumbprint(), this.rsaKey.getX509CertSHA256Thumbprint(),
+                            this.rsaKey.getX509CertChain(), this.rsaKey.getKeyID(), true, null, null);
                 } catch (JOSEException e) {
                     this.logger.warn("Failed to generate a signer, tokens won't be signed: {}",
                         ExceptionUtils.getRootCauseMessage(e));
@@ -156,7 +162,7 @@ public class OIDCManager implements Initializable
         }
     }
 
-    private void loadKeyPair(File jwkSetFile) throws IOException, java.text.ParseException
+    private void loadKeys(File jwkSetFile) throws IOException, java.text.ParseException
     {
         this.jwkSet = JWKSet.load(jwkSetFile);
 
@@ -167,7 +173,7 @@ public class OIDCManager implements Initializable
         }
     }
 
-    private void generateKeyPair(File jwkSetFile) throws JOSEException
+    private void generateKeys(File jwkSetFile) throws JOSEException
     {
         this.rsaKey = new RSAKeyGenerator(2048).keyID(RandomStringUtils.randomAlphanumeric(4)).keyUse(KeyUse.SIGNATURE)
             .generate();
@@ -299,7 +305,7 @@ public class OIDCManager implements Initializable
 
         // Convert to JWT
         if (this.signer != null) {
-            SignedJWT signedJWT = new SignedJWT(new JWSHeader(JWSAlgorithm.RS256), idTokenClaimSet.toJWTClaimsSet());
+            SignedJWT signedJWT = new SignedJWT(this.header, idTokenClaimSet.toJWTClaimsSet());
 
             try {
                 signedJWT.sign(this.signer);
