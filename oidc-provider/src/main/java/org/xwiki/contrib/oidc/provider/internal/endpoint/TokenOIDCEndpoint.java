@@ -43,6 +43,7 @@ import com.nimbusds.oauth2.sdk.TokenRequest;
 import com.nimbusds.oauth2.sdk.auth.ClientAuthentication;
 import com.nimbusds.oauth2.sdk.http.HTTPRequest;
 import com.nimbusds.oauth2.sdk.id.ClientID;
+import com.nimbusds.openid.connect.sdk.Nonce;
 import com.nimbusds.openid.connect.sdk.OIDCTokenResponse;
 import com.nimbusds.openid.connect.sdk.token.OIDCTokens;
 
@@ -114,11 +115,13 @@ public class TokenOIDCEndpoint implements OIDCEndpoint
             consent.setAccessToken(accessToken);
             this.store.saveConsent(consent, "Store new OIDC access token");
 
-            // Get rid of the temporary authorization code
+            // Get the stored nonce
+            Nonce nonce = this.store.getNonce(grant.getAuthorizationCode());
+
+            // Get rid of the temporary authorization code and associated metadata
             this.store.removeAuthorizationCode(grant.getAuthorizationCode());
 
-            JWT idToken = this.manager.createdIdToken(clientID, consent.getUserReference(), null,
-                consent.getClaims());
+            JWT idToken = this.manager.createdIdToken(clientID, consent.getUserReference(), nonce, consent.getClaims());
             OIDCTokens tokens = new OIDCTokens(idToken, accessToken, null);
 
             return new OIDCTokenResponse(tokens);

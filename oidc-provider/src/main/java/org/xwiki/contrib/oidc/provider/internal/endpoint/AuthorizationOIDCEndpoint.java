@@ -52,6 +52,7 @@ import com.nimbusds.openid.connect.sdk.AuthenticationErrorResponse;
 import com.nimbusds.openid.connect.sdk.AuthenticationRequest;
 import com.nimbusds.openid.connect.sdk.AuthenticationSuccessResponse;
 import com.nimbusds.openid.connect.sdk.ClaimsRequest;
+import com.nimbusds.openid.connect.sdk.Nonce;
 import com.nimbusds.openid.connect.sdk.OIDCError;
 import com.nimbusds.openid.connect.sdk.OIDCScopeValue;
 import com.nimbusds.openid.connect.sdk.Prompt;
@@ -113,8 +114,6 @@ public class AuthorizationOIDCEndpoint implements OIDCEndpoint
 
         XWikiContext xcontext = this.xcontextProvider.get();
 
-        JWT idToken = null;
-        AuthorizationCode authorizationCode = null;
         XWikiBearerAccessToken accessToken = null;
 
         ///////////////////////////////////////////////////////
@@ -205,7 +204,11 @@ public class AuthorizationOIDCEndpoint implements OIDCEndpoint
             this.logger.debug("OIDC: New consent: [{}]", consent);
         }
 
+        Nonce nonce = request instanceof AuthenticationRequest ? ((AuthenticationRequest) request).getNonce() : null;
+
         // Generate authorization code or tokens depending on the response type
+        JWT idToken = null;
+        AuthorizationCode authorizationCode = null;
         if (request.getResponseType().impliesCodeFlow()) {
             authorizationCode = new AuthorizationCode();
         } else if (request.getResponseType().impliesImplicitFlow()) {
@@ -216,15 +219,15 @@ public class AuthorizationOIDCEndpoint implements OIDCEndpoint
                 this.store.saveConsent(consent, "Store new OIDC access token");
             }
             if (request instanceof AuthenticationRequest) {
-                idToken = this.manager.createdIdToken(clientID, consent.getUserReference(),
-                    ((AuthenticationRequest) request).getNonce(), ((AuthenticationRequest) request).getClaims());
+                idToken = this.manager.createdIdToken(clientID, consent.getUserReference(), nonce,
+                    ((AuthenticationRequest) request).getClaims());
             }
         }
 
         this.logger.debug("Remember authorization code [{}]", authorizationCode);
 
         // Remember authorization code
-        this.store.setAuthorizationCode(authorizationCode, consent.getDocumentReference());
+        this.store.setAuthorizationCode(authorizationCode, consent.getDocumentReference(), nonce);
 
         // Create response
         if (request.getResponseType().impliesCodeFlow()) {

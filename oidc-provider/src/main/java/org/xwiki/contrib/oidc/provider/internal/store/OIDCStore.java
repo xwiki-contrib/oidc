@@ -41,6 +41,7 @@ import org.xwiki.model.reference.EntityReferenceResolver;
 
 import com.nimbusds.oauth2.sdk.AuthorizationCode;
 import com.nimbusds.oauth2.sdk.id.ClientID;
+import com.nimbusds.openid.connect.sdk.Nonce;
 import com.xpn.xwiki.XWikiContext;
 import com.xpn.xwiki.XWikiException;
 import com.xpn.xwiki.doc.XWikiDocument;
@@ -64,7 +65,20 @@ public class OIDCStore
     @Inject
     private Logger logger;
 
-    private Map<AuthorizationCode, DocumentReference> authorizationMap = new ConcurrentHashMap<>();
+    private Map<AuthorizationCode, AuthorizationSession> sessionMap = new ConcurrentHashMap<>();
+
+    private class AuthorizationSession
+    {
+        final DocumentReference userReference;
+
+        final Nonce nonce;
+
+        AuthorizationSession(DocumentReference userReference, Nonce nonce)
+        {
+            this.userReference = userReference;
+            this.nonce = nonce;
+        }
+    }
 
     public OIDCConsent getConsent(DocumentReference userReference, ClientID clientID, URI redirectURI)
         throws XWikiException
@@ -202,16 +216,31 @@ public class OIDCStore
 
     public DocumentReference getUserReference(AuthorizationCode code)
     {
-        return this.authorizationMap.get(code);
+        AuthorizationSession session = this.sessionMap.get(code);
+
+        return session != null ? session.userReference : null;
     }
 
-    public void setAuthorizationCode(AuthorizationCode code, DocumentReference userReference)
+    /**
+     * @since 1.24
+     */
+    public Nonce getNonce(AuthorizationCode code)
     {
-        this.authorizationMap.put(code, userReference);
+        AuthorizationSession session = this.sessionMap.get(code);
+
+        return session != null ? session.nonce : null;
+    }
+
+    /**
+     * @since 1.24
+     */
+    public void setAuthorizationCode(AuthorizationCode code, DocumentReference userReference, Nonce nonce)
+    {
+        this.sessionMap.put(code, new AuthorizationSession(userReference, nonce));
     }
 
     public void removeAuthorizationCode(AuthorizationCode code)
     {
-        this.authorizationMap.remove(code);
+        this.sessionMap.remove(code);
     }
 }
