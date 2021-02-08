@@ -37,7 +37,7 @@ import org.xwiki.url.ExtendedURL;
 import org.xwiki.url.internal.AbstractResourceReferenceResolver;
 
 /**
- * Transform OIDC URL into a typed Resource Reference. The URL format handled is {@code http://server/context/oidc/.
+ * Transform OIDC URL into a typed Resource Reference. The URL format handled is {@code http://server/context/oidc/}.
  *
  * @version $Id: 13c8dc5a2e116735d4362e7650c9dc85b0da9b1b $
  * @since 7.1M1

@@ -21,6 +21,7 @@ package org.xwiki.contrib.oidc.auth.internal;
 
 import java.net.URI;
 
+import javax.mail.internet.AddressException;
 import javax.mail.internet.InternetAddress;
 
 import org.xwiki.contrib.oidc.OIDCAddress;
@@ -108,7 +109,11 @@ public class NimbusOIDCUserInfo extends NumbusOIDCClaimsSet<UserInfo> implements
     @Deprecated
     public InternetAddress getEmail()
     {
-        return this.claims.getEmail();
+        try {
+            return new InternetAddress(this.claims.getEmailAddress());
+        } catch (AddressException e) {
+            throw new RuntimeException("Failed to parse the email address", e);
+        }
     }
 
     @Override

@@ -21,7 +21,6 @@ package org.xwiki.contrib.oidc.auth.internal;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
@@ -120,7 +119,7 @@ public class OIDCUserManager
 
     private static final String XWIKI_GROUP_PREFIX = "XWiki.";
 
-    public void updateUserInfoAsync() throws MalformedURLException, URISyntaxException
+    public void updateUserInfoAsync() throws URISyntaxException
     {
         final Endpoint userInfoEndpoint = this.configuration.getUserInfoOIDCEndpoint();
         final IDTokenClaimsSet idToken = this.configuration.getIdToken();

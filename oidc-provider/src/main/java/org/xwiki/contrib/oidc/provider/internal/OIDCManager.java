@@ -179,7 +179,7 @@ public class OIDCManager implements Initializable
             .generate();
         this.jwkSet = new JWKSet(this.rsaKey);
 
-        String json = this.jwkSet.toJSONObject(false).toJSONString();
+        String json = this.jwkSet.toString(false);
         try {
             FileUtils.write(jwkSetFile, json, StandardCharsets.UTF_8);
         } catch (IOException e) {
