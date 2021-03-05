@@ -125,6 +125,10 @@ public class CallbackOIDCEndpoint implements OIDCEndpoint
                 // Redirect to original request
                 return new RedirectResponse(new URI(authorizationResponse.getState().getValue()));
             }
+
+            // Unknown error
+            throw new OIDCException("Unexpected error [" + errorResponse.getErrorObject().getCode() + "] : "
+                + errorResponse.getErrorObject().getDescription());
         }
 
         // Cast to success response
