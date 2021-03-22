@@ -72,9 +72,9 @@ import com.nimbusds.oauth2.sdk.id.Audience;
 import com.nimbusds.oauth2.sdk.id.ClientID;
 import com.nimbusds.oauth2.sdk.id.Issuer;
 import com.nimbusds.oauth2.sdk.id.Subject;
-import com.nimbusds.openid.connect.sdk.ClaimsRequest;
-import com.nimbusds.openid.connect.sdk.ClaimsRequest.Entry;
 import com.nimbusds.openid.connect.sdk.Nonce;
+import com.nimbusds.openid.connect.sdk.claims.ClaimsSetRequest;
+import com.nimbusds.openid.connect.sdk.claims.ClaimsSetRequest.Entry;
 import com.nimbusds.openid.connect.sdk.claims.IDTokenClaimsSet;
 import com.xpn.xwiki.XWikiContext;
 import com.xpn.xwiki.web.XWikiURLFactory;
@@ -150,10 +150,10 @@ public class OIDCManager implements Initializable
             if (this.rsaKey != null) {
                 try {
                     this.signer = new RSASSASigner(this.rsaKey);
-                    this.header =
-                        new JWSHeader(JWSAlgorithm.RS256, null, null, null, null, this.rsaKey, this.rsaKey.getX509CertURL(),
-                            this.rsaKey.getX509CertThumbprint(), this.rsaKey.getX509CertSHA256Thumbprint(),
-                            this.rsaKey.getX509CertChain(), this.rsaKey.getKeyID(), true, null, null);
+                    this.header = new JWSHeader(JWSAlgorithm.RS256, null, null, null, null, this.rsaKey,
+                        this.rsaKey.getX509CertURL(), this.rsaKey.getX509CertThumbprint(),
+                        this.rsaKey.getX509CertSHA256Thumbprint(), this.rsaKey.getX509CertChain(),
+                        this.rsaKey.getKeyID(), true, null, null);
                 } catch (JOSEException e) {
                     this.logger.warn("Failed to generate a signer, tokens won't be signed: {}",
                         ExceptionUtils.getRootCauseMessage(e));
@@ -273,7 +273,7 @@ public class OIDCManager implements Initializable
      * @throws MalformedURLException when failing to get issuer
      * @since 1.3
      */
-    public JWT createdIdToken(ClientID clientID, DocumentReference userReference, Nonce nonce, ClaimsRequest claims)
+    public JWT createdIdToken(ClientID clientID, DocumentReference userReference, Nonce nonce, ClaimsSetRequest claims)
         throws ParseException, MalformedURLException
     {
         Issuer issuer = getIssuer();
@@ -291,7 +291,7 @@ public class OIDCManager implements Initializable
 
         // Add custom claims
         if (claims != null) {
-            for (Entry claim : claims.getIDTokenClaims()) {
+            for (Entry claim : claims.getEntries()) {
                 switch (claim.getClaimName()) {
                     case OIDCIdToken.CLAIM_XWIKI_INSTANCE_ID:
                         idTokenClaimSet.setClaim(OIDCIdToken.CLAIM_XWIKI_INSTANCE_ID, this.instance.getInstanceId());

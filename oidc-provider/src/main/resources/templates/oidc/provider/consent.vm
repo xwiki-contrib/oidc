@@ -43,10 +43,10 @@
         ## Id Token claims
         ## TODO: allow the user to select/unselect individual claims
         <p>$escapetool.xml($services.localization.render('oidc.template.consent.clais.idtoken'))</p>
-        #set($idTokenClaims = $oidc.resolvedClaims.getIDTokenClaims())
-        #if (!$idTokenClaims.isEmpty())
+        #set($idTokenClaims = $oidc.resolvedClaims.getIDTokenClaimsRequest())
+        #if (!$idTokenClaims.entries.isEmpty())
           <ul>
-            #foreach($claim in $idTokenClaims)
+            #foreach($claim in $idTokenClaims.entries)
               ## TODO: find nice icon for each (known) claim
               <li>$claim.claimName</li>
             #end
@@ -56,10 +56,10 @@
         ## User info claims
         ## TODO: allow the user to select/unselect individual claims
         <p>$escapetool.xml($services.localization.render('oidc.template.consent.clais.userinfo'))</p>
-        #set($userInfoClaims = $oidc.resolvedClaims.getUserInfoClaims())
-        #if (!$userInfoClaims.isEmpty())
+        #set($userInfoClaims = $oidc.resolvedClaims.getUserInfoClaimsRequest())
+        #if (!$userInfoClaims.entries.isEmpty())
           <ul>
-            #foreach($claim in $userInfoClaims)
+            #foreach($claim in $userInfoClaims.entries)
               ## TODO: find nice icon for each (known) claim
               <li>$claim.claimName</li>
             #end

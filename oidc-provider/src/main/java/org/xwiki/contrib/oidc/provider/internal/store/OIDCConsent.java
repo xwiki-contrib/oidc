@@ -29,7 +29,7 @@ import org.xwiki.model.reference.LocalDocumentReference;
 
 import com.nimbusds.oauth2.sdk.ParseException;
 import com.nimbusds.oauth2.sdk.id.ClientID;
-import com.nimbusds.openid.connect.sdk.ClaimsRequest;
+import com.nimbusds.openid.connect.sdk.claims.ClaimsSetRequest;
 import com.xpn.xwiki.XWiki;
 import com.xpn.xwiki.objects.BaseObject;
 
@@ -59,7 +59,7 @@ public class OIDCConsent extends BaseObject
 
     public static final String FIELD_ALLOW = "allow";
 
-    private ClaimsRequest claims;
+    private ClaimsSetRequest claims;
 
     public ClientID getClientID()
     {
@@ -128,25 +128,25 @@ public class OIDCConsent extends BaseObject
     }
 
     /**
-     * @since 1.2
+     * @since 1.25
      */
-    public ClaimsRequest getClaims() throws ParseException
+    public ClaimsSetRequest getClaims() throws ParseException
     {
         if (this.claims == null) {
             String claimsString = getLargeStringValue(FIELD_CLAIMS);
 
             if (StringUtils.isNotEmpty(claimsString)) {
-                this.claims = ClaimsRequest.parse(claimsString);
+                this.claims = ClaimsSetRequest.parse(claimsString);
             }
         }
 
-        return claims;
+        return this.claims;
     }
 
     /**
-     * @since 1.2
+     * @since 1.25
      */
-    public void setClaims(ClaimsRequest claims)
+    public void setClaims(ClaimsSetRequest claims)
     {
         this.claims = claims;
 

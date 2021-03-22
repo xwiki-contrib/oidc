@@ -47,12 +47,12 @@ import org.xwiki.model.reference.WikiReference;
 import com.nimbusds.oauth2.sdk.Response;
 import com.nimbusds.oauth2.sdk.http.HTTPRequest;
 import com.nimbusds.oauth2.sdk.token.BearerTokenError;
-import com.nimbusds.openid.connect.sdk.ClaimsRequest;
-import com.nimbusds.openid.connect.sdk.ClaimsRequest.Entry;
 import com.nimbusds.openid.connect.sdk.UserInfoErrorResponse;
 import com.nimbusds.openid.connect.sdk.UserInfoRequest;
 import com.nimbusds.openid.connect.sdk.UserInfoSuccessResponse;
 import com.nimbusds.openid.connect.sdk.claims.Address;
+import com.nimbusds.openid.connect.sdk.claims.ClaimsSetRequest;
+import com.nimbusds.openid.connect.sdk.claims.ClaimsSetRequest.Entry;
 import com.nimbusds.openid.connect.sdk.claims.UserInfo;
 import com.xpn.xwiki.XWikiContext;
 import com.xpn.xwiki.XWikiException;
@@ -112,7 +112,7 @@ public class UserInfoOIDCEndpoint implements OIDCEndpoint
             return new UserInfoErrorResponse(BearerTokenError.INVALID_TOKEN);
         }
 
-        ClaimsRequest claims = consent.getClaims();
+        ClaimsSetRequest claims = consent.getClaims();
 
         this.logger.debug("OIDC provider: found consent:");
         this.logger.debug("OIDC provider:   reference: {}", consent.getReference());
@@ -130,7 +130,7 @@ public class UserInfoOIDCEndpoint implements OIDCEndpoint
         XWikiDocument userDocument = userObject.getOwnerDocument();
 
         if (claims != null) {
-            for (Entry claim : claims.getUserInfoClaims()) {
+            for (Entry claim : claims.getEntries()) {
                 setClaim(userInfo, claim, userReference, userDocument, userObject, xcontext);
             }
         } else {

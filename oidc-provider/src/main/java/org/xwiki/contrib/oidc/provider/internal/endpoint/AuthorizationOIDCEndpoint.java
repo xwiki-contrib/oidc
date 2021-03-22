@@ -51,8 +51,8 @@ import com.nimbusds.oauth2.sdk.id.ClientID;
 import com.nimbusds.openid.connect.sdk.AuthenticationErrorResponse;
 import com.nimbusds.openid.connect.sdk.AuthenticationRequest;
 import com.nimbusds.openid.connect.sdk.AuthenticationSuccessResponse;
-import com.nimbusds.openid.connect.sdk.ClaimsRequest;
 import com.nimbusds.openid.connect.sdk.Nonce;
+import com.nimbusds.openid.connect.sdk.OIDCClaimsRequest;
 import com.nimbusds.openid.connect.sdk.OIDCError;
 import com.nimbusds.openid.connect.sdk.OIDCScopeValue;
 import com.nimbusds.openid.connect.sdk.Prompt;
@@ -167,10 +167,10 @@ public class AuthorizationOIDCEndpoint implements OIDCEndpoint
             }
 
             // Resolve claims
-            ClaimsRequest resolvedClaims = null;
+            OIDCClaimsRequest resolvedClaims = null;
             if (request instanceof AuthenticationRequest) {
-                resolvedClaims = ClaimsRequest.resolve(request.getResponseType(), request.getScope());
-                resolvedClaims.add(((AuthenticationRequest) request).getClaims());
+                resolvedClaims = OIDCClaimsRequest.resolve(request.getResponseType(), request.getScope());
+                resolvedClaims.add(((AuthenticationRequest) request).getOIDCClaims());
             }
 
             // Ask user for consent
@@ -189,7 +189,9 @@ public class AuthorizationOIDCEndpoint implements OIDCEndpoint
             consent.setRedirectURI(request.getRedirectionURI());
 
             // Convert scope into individual claims
-            consent.setClaims(resolvedClaims);
+            if (resolvedClaims != null) {
+                consent.setClaims(resolvedClaims.getUserInfoClaimsRequest());
+            }
 
             // Set access token if needed
             if (request.getResponseType().impliesImplicitFlow()) {
@@ -220,7 +222,7 @@ public class AuthorizationOIDCEndpoint implements OIDCEndpoint
             }
             if (request instanceof AuthenticationRequest) {
                 idToken = this.manager.createdIdToken(clientID, consent.getUserReference(), nonce,
-                    ((AuthenticationRequest) request).getClaims());
+                    ((AuthenticationRequest) request).getOIDCClaims().getIDTokenClaimsRequest());
             }
         }
 
@@ -292,7 +294,7 @@ public class AuthorizationOIDCEndpoint implements OIDCEndpoint
         return null;
     }
 
-    private Response askConsent(AuthorizationRequest request, HTTPRequest httpRequest, ClaimsRequest resolvedClaims)
+    private Response askConsent(AuthorizationRequest request, HTTPRequest httpRequest, OIDCClaimsRequest resolvedClaims)
         throws Exception
     {
         // Set various information in the script context
