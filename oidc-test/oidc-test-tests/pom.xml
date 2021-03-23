@@ -35,6 +35,7 @@
     <!-- Functional tests are allowed to output content to the console -->
     <xwiki.surefire.captureconsole.skip>true</xwiki.surefire.captureconsole.skip>
 
+    <xwikiDbHbmCommonExtraMappings>instance.hbm.xml</xwikiDbHbmCommonExtraMappings>
     <xwikiCfgSuperadminPassword>pass</xwikiCfgSuperadminPassword>
 
     <xwiki.instance.directory>${project.build.directory}/xwiki</xwiki.instance.directory>
@@ -72,6 +73,13 @@
         <groupId>org.xwiki.platform</groupId>
         <artifactId>xwiki-platform-tool-packager-plugin</artifactId>
         <version>${platform.version}</version>
+        <dependencies>
+          <dependency>
+            <groupId>org.xwiki.platform</groupId>
+            <artifactId>xwiki-platform-instance</artifactId>
+            <version>${platform.version}</version>
+          </dependency>
+        </dependencies>
         <configuration>
           <hibernateConfig>${project.build.directory}/maven-shared-archive-resources/hibernate.cfg.xml</hibernateConfig>
         </configuration>
