@@ -48,7 +48,7 @@
       <dependency>
         <groupId>com.nimbusds</groupId>
         <artifactId>oauth2-oidc-sdk</artifactId>
-        <version>9.2.3</version>
+        <version>9.3</version>
       </dependency>
       <dependency>
         <groupId>com.nimbusds</groupId>
@@ -61,6 +61,7 @@
   <modules>
     <module>oidc-api</module>
     <module>oidc-provider</module>
+    <module>oidc-authenticator-object</module>
     <module>oidc-authenticator</module>
   </modules>
 

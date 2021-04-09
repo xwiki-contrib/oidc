@@ -53,7 +53,7 @@ import org.xwiki.component.manager.ComponentManager;
 import org.xwiki.context.concurrent.ExecutionContextRunnable;
 import org.xwiki.contrib.oidc.OIDCUserInfo;
 import org.xwiki.contrib.oidc.auth.internal.OIDCClientConfiguration.GroupMapping;
-import org.xwiki.contrib.oidc.auth.internal.store.OIDCUserStore;
+import org.xwiki.contrib.oidc.auth.store.OIDCUserStore;
 import org.xwiki.contrib.oidc.event.OIDCUserEventData;
 import org.xwiki.contrib.oidc.event.OIDCUserUpdated;
 import org.xwiki.contrib.oidc.event.OIDCUserUpdating;

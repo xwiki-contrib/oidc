@@ -28,6 +28,8 @@ import javax.inject.Singleton;
 
 import org.apache.commons.lang3.StringUtils;
 import org.xwiki.component.annotation.Component;
+import org.xwiki.contrib.oidc.auth.store.OIDCUser;
+import org.xwiki.contrib.oidc.auth.store.OIDCUserStore;
 import org.xwiki.model.reference.DocumentReference;
 import org.xwiki.model.reference.DocumentReferenceResolver;
 import org.xwiki.query.Query;
@@ -43,9 +45,9 @@ import com.xpn.xwiki.doc.XWikiDocument;
  * 
  * @version $Id: c68c46c340eb3dd4988644e71d45541e9c1f25eb $
  */
-@Component(roles = OIDCUserStore.class)
+@Component
 @Singleton
-public class OIDCUserStore
+public class DefaultOIDCUserStore implements OIDCUserStore
 {
     @Inject
     private QueryManager queries;
@@ -57,6 +59,7 @@ public class OIDCUserStore
     @Named("current")
     private DocumentReferenceResolver<String> resolver;
 
+    @Override
     public boolean updateOIDCUser(XWikiDocument userDocument, String issuer, String subject)
     {
         XWikiContext xcontext = this.xcontextProvider.get();
@@ -78,6 +81,7 @@ public class OIDCUserStore
         return needUpdate;
     }
 
+    @Override
     public XWikiDocument searchDocument(String issuer, String subject) throws XWikiException, QueryException
     {
         Query query = this.queries.createQuery("from doc.object(" + OIDCUser.CLASS_FULLNAME

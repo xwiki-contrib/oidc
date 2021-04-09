@@ -37,9 +37,9 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.xwiki.component.manager.ComponentLookupException;
 import org.xwiki.container.Container;
-import org.xwiki.contrib.oidc.auth.internal.store.OIDCUser;
+import org.xwiki.contrib.oidc.auth.internal.store.DefaultOIDCUserStore;
 import org.xwiki.contrib.oidc.auth.internal.store.OIDCUserClassDocumentInitializer;
-import org.xwiki.contrib.oidc.auth.internal.store.OIDCUserStore;
+import org.xwiki.contrib.oidc.auth.store.OIDCUser;
 import org.xwiki.contrib.oidc.provider.internal.OIDCException;
 import org.xwiki.contrib.oidc.provider.internal.OIDCManager;
 import org.xwiki.contrib.oidc.provider.internal.OIDCProviderConfiguration;
@@ -86,7 +86,8 @@ import static org.mockito.Mockito.when;
  * @version $Id$
  */
 @OldcoreTest
-@ComponentList({OIDCManager.class, OIDCClientConfiguration.class, OIDCUserStore.class, OIDCProviderConfiguration.class})
+@ComponentList({OIDCManager.class, OIDCClientConfiguration.class, DefaultOIDCUserStore.class,
+    OIDCProviderConfiguration.class})
 @ReferenceComponentList
 class OIDCUserManagerTest
 {
