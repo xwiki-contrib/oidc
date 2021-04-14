@@ -1,2 +1,2 @@
 org.xwiki.contrib.oidc.auth.internal.store.DefaultOIDCUserStore
-org.xwiki.contrib.oidc.auth.internal.store.OIDCUserClassDocumentInitializer.java
+org.xwiki.contrib.oidc.auth.internal.store.OIDCUserClassDocumentInitializer
