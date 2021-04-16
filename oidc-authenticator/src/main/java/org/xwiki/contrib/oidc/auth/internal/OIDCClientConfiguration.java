@@ -63,7 +63,7 @@ import com.nimbusds.oauth2.sdk.auth.Secret;
 import com.nimbusds.oauth2.sdk.http.HTTPRequest;
 import com.nimbusds.oauth2.sdk.id.ClientID;
 import com.nimbusds.oauth2.sdk.token.BearerAccessToken;
-import com.nimbusds.openid.connect.sdk.ClaimsRequest;
+import com.nimbusds.openid.connect.sdk.OIDCClaimsRequest;
 import com.nimbusds.openid.connect.sdk.OIDCScopeValue;
 import com.nimbusds.openid.connect.sdk.claims.IDTokenClaimsSet;
 
@@ -114,7 +114,7 @@ public class OIDCClientConfiguration extends OIDCConfiguration
     public static final String PROP_USER_NAMEFORMATER = "oidc.user.nameFormater";
 
     public static final String DEFAULT_USER_NAMEFORMATER =
-        "${oidc.issuer.host.clean}-${oidc.user.preferredUsername.clean}";
+        "${oidc.issuer.host._clean}-${oidc.user.preferredUsername._clean}";
 
     /**
      * @since 1.11
@@ -524,17 +524,17 @@ public class OIDCClientConfiguration extends OIDCConfiguration
     /**
      * @since 1.2
      */
-    public ClaimsRequest getClaimsRequest()
+    public OIDCClaimsRequest getClaimsRequest()
     {
         // TODO: allow passing the complete JSON as configuration
-        ClaimsRequest claimsRequest = new ClaimsRequest();
+        OIDCClaimsRequest claimsRequest = new OIDCClaimsRequest();
 
         // ID Token claims
         List<String> idtokenclaims = getIDTokenClaims();
         if (idtokenclaims != null && !idtokenclaims.isEmpty()) {
             // ID Token claims
             for (String claim : idtokenclaims) {
-                claimsRequest.addIDTokenClaim(claim);
+                claimsRequest.getIDTokenClaimsRequest().add(claim);
             }
         }
 
@@ -542,7 +542,7 @@ public class OIDCClientConfiguration extends OIDCConfiguration
         List<String> userinfoclaims = getUserInfoClaims();
         if (userinfoclaims != null && !userinfoclaims.isEmpty()) {
             for (String claim : userinfoclaims) {
-                claimsRequest.addUserInfoClaim(claim);
+                claimsRequest.getUserInfoClaimsRequest().add(claim);
             }
         }
 

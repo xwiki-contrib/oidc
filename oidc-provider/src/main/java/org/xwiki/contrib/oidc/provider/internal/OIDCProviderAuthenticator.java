@@ -66,7 +66,7 @@ public class OIDCProviderAuthenticator
                 OIDCConsent consent = this.oidcStore.getConsent(xwikiAccessToken);
 
                 if (consent != null) {
-                    return new XWikiUser(this.serializer.serialize(consent.getUserReference()));
+                    return new XWikiUser(consent.getUserReference());
                 }
             }
         }
