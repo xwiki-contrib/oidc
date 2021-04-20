@@ -65,6 +65,7 @@ import com.nimbusds.oauth2.sdk.id.ClientID;
 import com.nimbusds.oauth2.sdk.token.BearerAccessToken;
 import com.nimbusds.openid.connect.sdk.OIDCClaimsRequest;
 import com.nimbusds.openid.connect.sdk.OIDCScopeValue;
+import com.nimbusds.openid.connect.sdk.claims.ClaimsSetRequest;
 import com.nimbusds.openid.connect.sdk.claims.IDTokenClaimsSet;
 
 /**
@@ -532,18 +533,25 @@ public class OIDCClientConfiguration extends OIDCConfiguration
         // ID Token claims
         List<String> idtokenclaims = getIDTokenClaims();
         if (idtokenclaims != null && !idtokenclaims.isEmpty()) {
-            // ID Token claims
+            ClaimsSetRequest idtokenclaimsRequest = new ClaimsSetRequest();
+
             for (String claim : idtokenclaims) {
-                claimsRequest.getIDTokenClaimsRequest().add(claim);
+                idtokenclaimsRequest.add(claim);
             }
+
+            claimsRequest.withIDTokenClaimsRequest(idtokenclaimsRequest);
         }
 
         // UserInfo claims
         List<String> userinfoclaims = getUserInfoClaims();
         if (userinfoclaims != null && !userinfoclaims.isEmpty()) {
+            ClaimsSetRequest userinfoclaimsRequest = new ClaimsSetRequest();
+
             for (String claim : userinfoclaims) {
-                claimsRequest.getUserInfoClaimsRequest().add(claim);
+                userinfoclaimsRequest.add(claim);
             }
+
+            claimsRequest.withUserInfoClaimsRequest(userinfoclaimsRequest);
         }
 
         return claimsRequest;
