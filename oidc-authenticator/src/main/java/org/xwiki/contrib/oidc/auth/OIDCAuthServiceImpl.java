@@ -28,6 +28,8 @@ import java.net.URL;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.xwiki.context.Execution;
+import org.xwiki.context.ExecutionContext;
 import org.xwiki.contrib.oidc.auth.internal.Endpoint;
 import org.xwiki.contrib.oidc.auth.internal.OIDCClientConfiguration;
 import org.xwiki.contrib.oidc.auth.internal.OIDCUserManager;
@@ -177,7 +179,24 @@ public class OIDCAuthServiceImpl extends XWikiAuthServiceImpl
         requestBuilder.state(state);
 
         // Redirect the user to the provider
+        // Bypass the allowed domain protection introduced XWiki 13.3, since the URL is coming from configuration
+        // already
+        ExecutionContext executionContext = getExecutionContext();
+        if (executionContext != null) {
+            executionContext.setProperty("bypassDomainSecurityCheck", true);
+        }
         context.getResponse().sendRedirect(requestBuilder.build().toURI().toString());
+    }
+
+    private ExecutionContext getExecutionContext()
+    {
+        Execution execution = Utils.getComponent(Execution.class);
+
+        if (execution != null) {
+            return execution.getContext();
+        }
+
+        return null;
     }
 
     private void maybeStoreRequestParameterInSession(XWikiRequest request, String key)
