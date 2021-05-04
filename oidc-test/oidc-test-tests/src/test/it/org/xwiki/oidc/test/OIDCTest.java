@@ -56,12 +56,6 @@ public class OIDCTest extends AbstractTest
             // Note that this requires a running XWiki instance.
             getUtil().recacheSecretToken();
         }
-
-        // Workaround a bug in 8.4
-        // TODO: remove when moving to 9.11
-        if (getUtil().getCurrentExecutor() == null) {
-            getUtil().setExecutors(Arrays.asList(new XWikiExecutor(0), new XWikiExecutor(1)));
-        }
     }
 
     private void logout()
