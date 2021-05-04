@@ -20,14 +20,20 @@
 package org.xwiki.contrib.oidc.auth;
 
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.lang.reflect.Type;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.net.URLEncoder;
 
+import javax.script.ScriptContext;
+
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.xwiki.container.servlet.filters.SavedRequestManager;
 import org.xwiki.context.Execution;
 import org.xwiki.context.ExecutionContext;
 import org.xwiki.contrib.oidc.auth.internal.Endpoint;
@@ -36,6 +42,7 @@ import org.xwiki.contrib.oidc.auth.internal.OIDCUserManager;
 import org.xwiki.contrib.oidc.auth.internal.endpoint.CallbackOIDCEndpoint;
 import org.xwiki.contrib.oidc.provider.internal.OIDCManager;
 import org.xwiki.properties.ConverterManager;
+import org.xwiki.script.ScriptContextManager;
 
 import com.nimbusds.oauth2.sdk.ResponseType;
 import com.nimbusds.oauth2.sdk.id.State;
@@ -57,6 +64,8 @@ public class OIDCAuthServiceImpl extends XWikiAuthServiceImpl
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(OIDCAuthServiceImpl.class);
 
+    private static final String OIDC_SRID = "oidc.srid";
+
     private OIDCManager oidc = Utils.getComponent(OIDCManager.class);
 
     private OIDCClientConfiguration configuration = Utils.getComponent(OIDCClientConfiguration.class);
@@ -66,6 +75,8 @@ public class OIDCAuthServiceImpl extends XWikiAuthServiceImpl
     private ConverterManager converter = Utils.getComponent(ConverterManager.class);
 
     private OIDCUserManager users = Utils.getComponent(OIDCUserManager.class);
+
+    private ScriptContextManager scriptContextManager = Utils.getComponent(ScriptContextManager.class);
 
     @Override
     public XWikiUser checkAuth(XWikiContext context) throws XWikiException
@@ -103,8 +114,7 @@ public class OIDCAuthServiceImpl extends XWikiAuthServiceImpl
 
         if (this.configuration.getAccessToken() != null) {
             // Make sure the session is free from anything related to a previously authenticated user (i.e. in case we
-            // are
-            // just after a logout)
+            // are just after a logout)
             // FIXME: probably cleaner provide a custom com.xpn.xwiki.user.impl.xwiki.XWikiAuthenticator extending
             // MyFormAuthenticator
             this.users.logout();
@@ -133,17 +143,80 @@ public class OIDCAuthServiceImpl extends XWikiAuthServiceImpl
         // Check endpoints
         Endpoint endpoint = this.configuration.getAuthorizationOIDCEndpoint();
 
+        // Save the request to not loose sent content
+        String savedRequestId = handleSavedRequest(context);
+
         // If no endpoint can be found, ask for it
         if (endpoint == null) {
+            // Give the srid to the template to remember it
+            this.scriptContextManager.getCurrentScriptContext().setAttribute("srid", savedRequestId,
+                ScriptContext.GLOBAL_SCOPE);
+
             this.manager.executeTemplate("oidc/client/provider.vm", context.getResponse());
+
             context.setFinished(true);
+
             return;
         }
 
-        authenticate(context);
+        authenticate(savedRequestId, context);
+    }
+
+    private String getSavedRequestIdentifier(XWikiRequest request)
+    {
+        String savedRequestId = request.getParameter(SavedRequestManager.getSavedRequestIdentifier());
+        if (savedRequestId == null) {
+            savedRequestId = request.getParameter(OIDC_SRID);
+        }
+
+        return savedRequestId;
+    }
+
+    private String handleSavedRequest(XWikiContext xcontext)
+    {
+        XWikiRequest request = xcontext.getRequest();
+        String savedRequestId = getSavedRequestIdentifier(request);
+        if (StringUtils.isEmpty(savedRequestId)) {
+            // Save the request to not loose sent content
+            savedRequestId = SavedRequestManager.saveRequest(request);
+        }
+
+        return savedRequestId;
     }
 
     private void authenticate(XWikiContext context) throws XWikiException, URISyntaxException, IOException
+    {
+        // Save the request to not loose sent content
+        String savedRequestId = handleSavedRequest(context);
+
+        authenticate(savedRequestId, context);
+    }
+
+    private String createSuccessRedirectURI(String savedRequestId, XWikiContext context)
+        throws XWikiException, UnsupportedEncodingException
+    {
+        String redirectBack = XWiki.getRequestURL(context.getRequest()).toExternalForm();
+
+        // Append the SRID to the redirect URL
+        if (StringUtils.isNotBlank(savedRequestId)) {
+            StringBuilder builder = new StringBuilder(redirectBack);
+            if (redirectBack.indexOf('?') != -1) {
+                builder.append('&');
+            } else {
+                builder.append('?');
+            }
+            builder.append(SavedRequestManager.getSavedRequestIdentifier());
+            builder.append('=');
+            builder.append(URLEncoder.encode(savedRequestId, "UTF8"));
+
+            redirectBack = builder.toString();
+        }
+
+        return redirectBack;
+    }
+
+    private void authenticate(String savedRequestId, XWikiContext context)
+        throws XWikiException, URISyntaxException, IOException
     {
         // Generate callback URL
         URI callback = this.oidc.createEndPointURI(CallbackOIDCEndpoint.HINT);
@@ -155,9 +228,8 @@ public class OIDCAuthServiceImpl extends XWikiAuthServiceImpl
         State state = new State();
         request.getSession().setAttribute(OIDCClientConfiguration.PROP_STATE, state.getValue());
 
-        // Remember the current URL
-        request.getSession().setAttribute(OIDCClientConfiguration.PROP_INITIAL_REQUEST,
-            XWiki.getRequestURL(context.getRequest()).toURI());
+        // Remember the initial request URL
+        this.configuration.setSuccessRedirectURI(URI.create(createSuccessRedirectURI(savedRequestId, context)));
 
         maybeStoreRequestParameterURLInSession(request, OIDCClientConfiguration.PROP_XWIKIPROVIDER);
         maybeStoreRequestParameterInSession(request, OIDCClientConfiguration.PROP_USER_NAMEFORMATER);
@@ -185,6 +257,8 @@ public class OIDCAuthServiceImpl extends XWikiAuthServiceImpl
         if (executionContext != null) {
             executionContext.setProperty("bypassDomainSecurityCheck", true);
         }
+
+        // Redirect to the provider
         context.getResponse().sendRedirect(requestBuilder.build().toURI().toString());
     }
 
@@ -230,7 +304,6 @@ public class OIDCAuthServiceImpl extends XWikiAuthServiceImpl
     public void showLogin(XWikiContext context) throws XWikiException
     {
         if (!this.configuration.isSkipped()) {
-            // TODO: allow skipping OIDC (for example in the provider page)
             try {
                 showLoginOIDC(context);
             } catch (Exception e) {

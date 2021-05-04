@@ -1,3 +1,9 @@
+#if(!$srid)
+  #set($srid = $request.srid)
+#end
+#if(!$srid)
+  #set($srid = $request.get('oidc.srid'))
+#end
  <!DOCTYPE html>
  <html>
   <head>
@@ -36,6 +42,11 @@
           <input type="hidden" name="$escapetool.xml($entry.key)" value="$escapetool.xml($entry.value)"/>
         #end
 
+        ## Remember the srid
+        #if ($srid)
+          <input type="hidden" name="oidc.srid" value="$escapetool.xml($srid)"/>
+        #end
+
         ## TODO: allow giving the endpoints
 
         <input type="submit" class="button" value="$escapetool.xml($services.localization.render('oidc.template.provider.submit'))"/>
@@ -45,6 +56,9 @@
 
       <form>
         <input type="hidden" name="oidc.skipped" value="true"/>
+        #if ($srid)
+          <input type="hidden" name="srid" value="$escapetool.xml($srid)"/>
+        #end
 
         <input type="submit" class="button" value="$escapetool.xml($services.localization.render('oidc.template.provider.skip.submit'))"/>
       </form>
