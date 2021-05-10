@@ -672,7 +672,8 @@ public class OIDCClientConfiguration extends OIDCConfiguration
     
     public boolean isGroupCommaDelimited()
     {
-        return getProperty(PROP_GROUPS_ISCOMMADELIMITED, Boolean.class);
+    	Boolean isCommaDelimited = getProperty(PROP_GROUPS_ISCOMMADELIMITED, Boolean.class);
+        return (isCommaDelimited!=null)?isCommaDelimited:false;
     }
     
     // Session only
