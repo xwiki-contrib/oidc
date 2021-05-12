@@ -214,7 +214,7 @@ public class OIDCClientConfiguration extends OIDCConfiguration
 
     public static final String PROP_GROUPS_PREFIX = "oidc.groups.prefix";
     
-    public static final String PROP_GROUPS_ISCOMMADELIMITED = "oidc.groups.isCommaDelimited";
+    public static final String PROP_GROUPS_SEPARATOR = "oidc.groups.separator";
     
     public static final String PROP_INITIAL_REQUEST = "xwiki.initialRequest";
 
@@ -670,10 +670,9 @@ public class OIDCClientConfiguration extends OIDCConfiguration
         return groupPrefix != null && !groupPrefix.isEmpty() ? groupPrefix : null;
     }
     
-    public boolean isGroupCommaDelimited()
+    public String getGroupSeparator()
     {
-    	Boolean isCommaDelimited = getProperty(PROP_GROUPS_ISCOMMADELIMITED, Boolean.class);
-        return (isCommaDelimited!=null)?isCommaDelimited:false;
+        return getProperty(PROP_GROUPS_SEPARATOR, String.class);
     }
     
     // Session only
