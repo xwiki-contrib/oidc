@@ -237,19 +237,19 @@ public class OIDCUserManager
 
     private void checkAllowedGroups(UserInfo userInfo) throws OIDCException
     {
-    	List<String> providerGroups = null;
+        List<String> providerGroups = null;
         Object providerGroupsObj = getClaim(this.configuration.getGroupClaim(), userInfo);
-        if (this.configuration.isGroupCommaDelimited()) {        
-        	providerGroups = Arrays.asList(StringUtils.split(providerGroupsObj.toString(), ","));
+        if (this.configuration.getGroupSeparator()!=null) {
+            providerGroups = Arrays.asList(StringUtils.split(providerGroupsObj.toString(), this.configuration.getGroupSeparator()));
         } else {
-        	providerGroups = (List<String>)providerGroupsObj;
+            providerGroups = (List<String>)providerGroupsObj;
         }
         String groupPrefix = this.configuration.getGroupPrefix();
         if (!StringUtils.isEmpty(groupPrefix)) {
-        	providerGroups = providerGroups.stream()
-        			.filter(item -> item.startsWith(groupPrefix))
-        			.map(item -> StringUtils.replace(item, groupPrefix, ""))
-        			.collect(Collectors.toList());
+            providerGroups = providerGroups.stream()
+                    .filter(item -> item.startsWith(groupPrefix))
+                    .map(item -> StringUtils.replace(item, groupPrefix, ""))
+                    .collect(Collectors.toList());
         }
         
         if (providerGroups != null) {
@@ -485,19 +485,19 @@ public class OIDCUserManager
 
         this.logger.debug("Getting groups sent by the provider associated with claim [{}]", groupClaim);
 
-    	List<String> providerGroups = null;
+        List<String> providerGroups = null;
         Object providerGroupsObj = getClaim(this.configuration.getGroupClaim(), userInfo);
-        if (this.configuration.isGroupCommaDelimited()) {
-        	providerGroups = Arrays.asList(StringUtils.split(providerGroupsObj.toString(), ","));
+        if (this.configuration.getGroupSeparator()!=null) {
+            providerGroups = Arrays.asList(StringUtils.split(providerGroupsObj.toString(), this.configuration.getGroupSeparator()));
         } else {
-        	providerGroups = (List<String>)providerGroupsObj;
+            providerGroups = (List<String>)providerGroupsObj;
         }
         String groupPrefix = this.configuration.getGroupPrefix();
         if (!StringUtils.isEmpty(groupPrefix)) {
-        	providerGroups = providerGroups.stream()
-        			.filter(item -> item.startsWith(groupPrefix))
-        			.map(item -> StringUtils.replace(item, groupPrefix, ""))
-        			.collect(Collectors.toList());
+            providerGroups = providerGroups.stream()
+                    .filter(item -> item.startsWith(groupPrefix))
+                    .map(item -> StringUtils.replace(item, groupPrefix, ""))
+                    .collect(Collectors.toList());
         }
         
         if (providerGroups != null) {
