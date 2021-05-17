@@ -26,6 +26,7 @@ import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLConnection;
 import java.security.Principal;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Date;
 import java.util.HashMap;
@@ -36,6 +37,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
+import java.util.stream.Collectors;
 
 import javax.inject.Inject;
 import javax.inject.Provider;
@@ -44,6 +46,7 @@ import javax.inject.Singleton;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang3.RegExUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.commons.text.StringSubstitutor;
 import org.securityfilter.realm.SimplePrincipal;
@@ -234,7 +237,21 @@ public class OIDCUserManager
 
     private void checkAllowedGroups(UserInfo userInfo) throws OIDCException
     {
-        List<String> providerGroups = getClaim(this.configuration.getGroupClaim(), userInfo);
+        List<String> providerGroups = null;
+        Object providerGroupsObj = getClaim(this.configuration.getGroupClaim(), userInfo);
+        if (this.configuration.getGroupSeparator()!=null) {
+            providerGroups = Arrays.asList(StringUtils.split(providerGroupsObj.toString(), this.configuration.getGroupSeparator()));
+        } else {
+            providerGroups = (List<String>)providerGroupsObj;
+        }
+        String groupPrefix = this.configuration.getGroupPrefix();
+        if (!StringUtils.isEmpty(groupPrefix)) {
+            providerGroups = providerGroups.stream()
+                    .filter(item -> item.startsWith(groupPrefix))
+                    .map(item -> StringUtils.replace(item, groupPrefix, ""))
+                    .collect(Collectors.toList());
+        }
+        
         if (providerGroups != null) {
             // Check allowed groups
             List<String> allowedGroups = this.configuration.getAllowedGroups();
@@ -468,7 +485,21 @@ public class OIDCUserManager
 
         this.logger.debug("Getting groups sent by the provider associated with claim [{}]", groupClaim);
 
-        List<String> providerGroups = (List<String>) getClaim(groupClaim, userInfo);
+        List<String> providerGroups = null;
+        Object providerGroupsObj = getClaim(this.configuration.getGroupClaim(), userInfo);
+        if (this.configuration.getGroupSeparator()!=null) {
+            providerGroups = Arrays.asList(StringUtils.split(providerGroupsObj.toString(), this.configuration.getGroupSeparator()));
+        } else {
+            providerGroups = (List<String>)providerGroupsObj;
+        }
+        String groupPrefix = this.configuration.getGroupPrefix();
+        if (!StringUtils.isEmpty(groupPrefix)) {
+            providerGroups = providerGroups.stream()
+                    .filter(item -> item.startsWith(groupPrefix))
+                    .map(item -> StringUtils.replace(item, groupPrefix, ""))
+                    .collect(Collectors.toList());
+        }
+        
         if (providerGroups != null) {
             this.logger.debug("The provider sent the following groups: {}", providerGroups);
 

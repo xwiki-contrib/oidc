@@ -212,6 +212,10 @@ public class OIDCClientConfiguration extends OIDCConfiguration
      */
     public static final String PROP_GROUPS_FORBIDDEN = "oidc.groups.forbidden";
 
+    public static final String PROP_GROUPS_PREFIX = "oidc.groups.prefix";
+    
+    public static final String PROP_GROUPS_SEPARATOR = "oidc.groups.separator";
+    
     public static final String PROP_INITIAL_REQUEST = "xwiki.initialRequest";
 
     public static final String PROP_STATE = "oidc.state";
@@ -660,6 +664,17 @@ public class OIDCClientConfiguration extends OIDCConfiguration
         return groups != null && !groups.isEmpty() ? groups : null;
     }
 
+    public String getGroupPrefix()
+    {
+        String groupPrefix = getProperty(PROP_GROUPS_PREFIX, String.class);
+        return groupPrefix != null && !groupPrefix.isEmpty() ? groupPrefix : null;
+    }
+    
+    public String getGroupSeparator()
+    {
+        return getProperty(PROP_GROUPS_SEPARATOR, String.class);
+    }
+    
     // Session only
 
     /**
