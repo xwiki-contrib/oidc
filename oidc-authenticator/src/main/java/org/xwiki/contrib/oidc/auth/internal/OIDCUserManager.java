@@ -204,7 +204,10 @@ public class OIDCUserManager
         try {
             logoutURI = this.configuration.getLogoutOIDCEndpoint();
         } catch (Exception e) {
-            this.logger.error("No OIDC logout URI set", e);
+            /**
+             * if no logout URI is set (which is not a problem at all) then this method will simply return null
+             * and not throw an exception
+             */
         }
 
         if (logoutURI != null) {
