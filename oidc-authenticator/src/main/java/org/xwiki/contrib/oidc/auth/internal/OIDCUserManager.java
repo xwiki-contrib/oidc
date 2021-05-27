@@ -181,7 +181,7 @@ public class OIDCUserManager
         this.logger.debug("OIDC user info request ({}?{},{})", userinfoHTTP.getURL(), userinfoHTTP.getQuery(),
             userinfoHTTP.getHeaderMap());
         HTTPResponse httpResponse = userinfoHTTP.send();
-        this.logger.debug("OIDF user info response ({})", httpResponse.getContent());
+        this.logger.debug("OIDC user info response ({})", httpResponse.getContent());
         UserInfoResponse userinfoResponse = UserInfoResponse.parse(httpResponse);
 
         if (!userinfoResponse.indicatesSuccess()) {
@@ -204,14 +204,14 @@ public class OIDCUserManager
         try {
             logoutURI = this.configuration.getLogoutOIDCEndpoint();
         } catch (Exception e) {
-            // TODO: log something ?
+            this.logger.error("No OIDC logout URI set", e);
         }
 
         if (logoutURI != null) {
             try {
                 ret = sendLogout(logoutURI, this.configuration.getIdToken());
             } catch (Exception e) {
-                // TODO: log something ?
+                this.logger.error("Failed to logout", e);
             }
         } else {
             this.logger.debug("Don't send OIDC logout request: no OIDC logout URI set");
