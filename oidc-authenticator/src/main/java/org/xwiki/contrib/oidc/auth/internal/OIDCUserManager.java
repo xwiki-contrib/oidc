@@ -181,7 +181,7 @@ public class OIDCUserManager
         this.logger.debug("OIDC user info request ({}?{},{})", userinfoHTTP.getURL(), userinfoHTTP.getQuery(),
             userinfoHTTP.getHeaderMap());
         HTTPResponse httpResponse = userinfoHTTP.send();
-        this.logger.debug("OIDF user info response ({})", httpResponse.getContent());
+        this.logger.debug("OIDC user info response ({})", httpResponse.getContent());
         UserInfoResponse userinfoResponse = UserInfoResponse.parse(httpResponse);
 
         if (!userinfoResponse.indicatesSuccess()) {
