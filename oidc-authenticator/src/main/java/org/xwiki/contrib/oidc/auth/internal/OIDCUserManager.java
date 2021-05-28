@@ -204,7 +204,7 @@ public class OIDCUserManager
         try {
             logoutURI = this.configuration.getLogoutOIDCEndpoint();
         } catch (Exception e) {
-            // TODO: log something ?
+            this.logger.error("The String could not be parsed as a URI reference", e);
         }
 
         if (logoutURI != null) {
