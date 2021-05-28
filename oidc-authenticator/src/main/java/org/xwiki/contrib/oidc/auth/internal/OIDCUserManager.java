@@ -211,7 +211,7 @@ public class OIDCUserManager
             try {
                 ret = sendLogout(logoutURI, this.configuration.getIdToken());
             } catch (Exception e) {
-                this.logger.error("Failed to send logout", e);
+                this.logger.error("Failed to send logout request", e);
             }
         } else {
             this.logger.debug("Don't send OIDC logout request: no OIDC logout URI set");
