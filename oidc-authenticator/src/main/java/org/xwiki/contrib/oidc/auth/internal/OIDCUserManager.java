@@ -204,7 +204,7 @@ public class OIDCUserManager
         try {
             logoutURI = this.configuration.getLogoutOIDCEndpoint();
         } catch (Exception e) {
-            this.logger.error("The String could not be parsed as a URI reference", e);
+            this.logger.error("Failed to generate the logout endpoint URI", e);
         }
 
         if (logoutURI != null) {
