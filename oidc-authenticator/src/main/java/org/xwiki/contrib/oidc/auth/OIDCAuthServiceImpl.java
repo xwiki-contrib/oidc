@@ -47,13 +47,13 @@ import org.xwiki.script.ScriptContextManager;
 import com.nimbusds.oauth2.sdk.ResponseType;
 import com.nimbusds.oauth2.sdk.id.State;
 import com.nimbusds.openid.connect.sdk.AuthenticationRequest;
-import com.xpn.xwiki.XWiki;
 import com.xpn.xwiki.XWikiContext;
 import com.xpn.xwiki.XWikiException;
 import com.xpn.xwiki.user.api.XWikiUser;
 import com.xpn.xwiki.user.impl.xwiki.XWikiAuthServiceImpl;
 import com.xpn.xwiki.web.Utils;
 import com.xpn.xwiki.web.XWikiRequest;
+import org.xwiki.container.servlet.HttpServletUtils;
 
 /**
  * Authenticate user trough an OpenID Connect provider.
@@ -195,7 +195,7 @@ public class OIDCAuthServiceImpl extends XWikiAuthServiceImpl
     private String createSuccessRedirectURI(String savedRequestId, XWikiContext context)
         throws XWikiException, UnsupportedEncodingException
     {
-        String redirectBack = XWiki.getRequestURL(context.getRequest()).toExternalForm();
+        String redirectBack = HttpServletUtils.getSourceURL(context.getRequest()).toExternalForm();
 
         // Append the SRID to the redirect URL
         if (StringUtils.isNotBlank(savedRequestId)) {
