@@ -33,6 +33,7 @@ import javax.script.ScriptContext;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.xwiki.container.servlet.HttpServletUtils;
 import org.xwiki.container.servlet.filters.SavedRequestManager;
 import org.xwiki.context.Execution;
 import org.xwiki.context.ExecutionContext;
@@ -53,7 +54,6 @@ import com.xpn.xwiki.user.api.XWikiUser;
 import com.xpn.xwiki.user.impl.xwiki.XWikiAuthServiceImpl;
 import com.xpn.xwiki.web.Utils;
 import com.xpn.xwiki.web.XWikiRequest;
-import org.xwiki.container.servlet.HttpServletUtils;
 
 /**
  * Authenticate user trough an OpenID Connect provider.
@@ -184,7 +184,7 @@ public class OIDCAuthServiceImpl extends XWikiAuthServiceImpl
         return savedRequestId;
     }
 
-    private void authenticate(XWikiContext context) throws XWikiException, URISyntaxException, IOException
+    private void authenticate(XWikiContext context) throws URISyntaxException, IOException
     {
         // Save the request to not loose sent content
         String savedRequestId = handleSavedRequest(context);
@@ -193,7 +193,7 @@ public class OIDCAuthServiceImpl extends XWikiAuthServiceImpl
     }
 
     private String createSuccessRedirectURI(String savedRequestId, XWikiContext context)
-        throws XWikiException, UnsupportedEncodingException
+        throws UnsupportedEncodingException
     {
         String redirectBack = HttpServletUtils.getSourceURL(context.getRequest()).toExternalForm();
 
@@ -215,8 +215,7 @@ public class OIDCAuthServiceImpl extends XWikiAuthServiceImpl
         return redirectBack;
     }
 
-    private void authenticate(String savedRequestId, XWikiContext context)
-        throws XWikiException, URISyntaxException, IOException
+    private void authenticate(String savedRequestId, XWikiContext context) throws URISyntaxException, IOException
     {
         // Generate callback URL
         URI callback = this.oidc.createEndPointURI(CallbackOIDCEndpoint.HINT);
