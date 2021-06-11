@@ -21,17 +21,15 @@ package org.xwiki.contrib.oidc.provider.internal;
 
 import java.util.List;
 
-import org.xwiki.model.reference.WikiReference;
+import org.xwiki.resource.AbstractResourceReference;
 import org.xwiki.resource.ResourceType;
-import org.xwiki.resource.entity.EntityResourceAction;
-import org.xwiki.resource.entity.EntityResourceReference;
 
 /**
  * Dummy type for OpenID Connect entry point.
  *
  * @version $Id: 97638fe25bc709cd9296ea452b5d13077aab014b $
  */
-public class OIDCResourceReference extends EntityResourceReference
+public class OIDCResourceReference extends AbstractResourceReference
 {
     /**
      * Represents a OpenID Connect Resource Type.
@@ -50,12 +48,9 @@ public class OIDCResourceReference extends EntityResourceReference
      * @param path the path starting with the endpoint
      * @param endpoint the target endpoint
      * @param pathSegments the rest of the path
-     * @param wiki the wiki being requested
      */
-    public OIDCResourceReference(String path, String endpoint, List<String> pathSegments, WikiReference wiki)
+    public OIDCResourceReference(String path, String endpoint, List<String> pathSegments)
     {
-        super(wiki, EntityResourceAction.fromString(""));
-
         setType(TYPE);
 
         this.path = path;

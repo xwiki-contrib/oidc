@@ -29,7 +29,6 @@ import javax.inject.Named;
 import javax.inject.Singleton;
 
 import org.xwiki.component.annotation.Component;
-import org.xwiki.model.reference.WikiReference;
 import org.xwiki.resource.CreateResourceReferenceException;
 import org.xwiki.resource.ResourceType;
 import org.xwiki.resource.UnsupportedResourceReferenceException;
@@ -76,10 +75,7 @@ public class OIDCResourceReferenceResolver extends AbstractResourceReferenceReso
             }
         }
 
-        // TODO: extract the wiki from the URL
-        WikiReference wikiReference = new WikiReference("xwiki");
-
-        OIDCResourceReference reference = new OIDCResourceReference(path, endpoint, pathSegments, wikiReference);
+        OIDCResourceReference reference = new OIDCResourceReference(path, endpoint, pathSegments);
 
         copyParameters(extendedURL, reference);
 
