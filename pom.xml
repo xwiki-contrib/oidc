@@ -44,16 +44,15 @@
 
   <dependencyManagement>
     <dependencies>
-      <!-- Need XWiki 10.2+ to upgrade -->
       <dependency>
         <groupId>com.nimbusds</groupId>
         <artifactId>oauth2-oidc-sdk</artifactId>
-        <version>9.8</version>
+        <version>9.22</version>
       </dependency>
       <dependency>
         <groupId>com.nimbusds</groupId>
         <artifactId>nimbus-jose-jwt</artifactId>
-        <version>9.9.3</version>
+        <version>9.15.2</version>
       </dependency>
       <!-- Json-smart 2.4+ requires Java 11 -->
       <dependency>
