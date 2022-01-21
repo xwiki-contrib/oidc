@@ -31,7 +31,7 @@
   <groupId>org.xwiki.contrib.oidc</groupId>
   <artifactId>oidc</artifactId>
   <name>OpenID Connect</name>
-  <version>1.28.1-SNAPSHOT</version>
+  <version>1.29</version>
   <packaging>pom</packaging>
   <description>Various tools to manipulate OpenID Connect protocol in XWiki</description>
 
@@ -106,6 +106,6 @@
     <connection>scm:git:git://github.com/xwiki-contrib/oidc.git</connection>
     <developerConnection>scm:git:git@github.com:xwiki-contrib/oidc.git</developerConnection>
     <url>https://github.com/xwiki-contrib/oidc/tree/master</url>
-    <tag>HEAD</tag>
+    <tag>oidc-1.29</tag>
   </scm>
 </project>
