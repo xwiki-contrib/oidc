@@ -31,9 +31,11 @@ import com.nimbusds.oauth2.sdk.ParseException;
 import com.nimbusds.oauth2.sdk.id.ClientID;
 import com.nimbusds.openid.connect.sdk.claims.ClaimsSetRequest;
 import com.xpn.xwiki.XWiki;
+import com.xpn.xwiki.doc.XWikiDocument;
 import com.xpn.xwiki.objects.BaseObject;
+import com.xpn.xwiki.objects.BaseObjectReference;
 
-public class OIDCConsent extends BaseObject
+public class OIDCConsent
 {
     /**
      * The reference of the class as String.
@@ -61,21 +63,55 @@ public class OIDCConsent extends BaseObject
 
     private ClaimsSetRequest claims;
 
+    private final BaseObject xobject;
+
+    /**
+     * @param xobject the actual XWiki object
+     */
+    public OIDCConsent(BaseObject xobject)
+    {
+        this.xobject = xobject;
+    }
+
+    /**
+     * @return the owner document of this element.
+     */
+    public XWikiDocument getOwnerDocument()
+    {
+        return this.xobject.getOwnerDocument();
+    }
+
+    /**
+     * @return the reference of the ower document
+     */
+    public DocumentReference getDocumentReference()
+    {
+        return this.xobject.getDocumentReference();
+    }
+
+    /**
+     * @return the reference of the object
+     */
+    public BaseObjectReference getReference()
+    {
+        return this.xobject.getReference();
+    }
+
     public ClientID getClientID()
     {
-        String str = getStringValue(FIELD_CLIENTID);
+        String str = this.xobject.getStringValue(FIELD_CLIENTID);
 
         return StringUtils.isNotEmpty(str) ? new ClientID(str) : null;
     }
 
     public void setClientID(ClientID clientID)
     {
-        setStringValue(FIELD_CLIENTID, clientID.getValue());
+        this.xobject.setStringValue(FIELD_CLIENTID, clientID.getValue());
     }
 
     public URI getRedirectURI()
     {
-        String str = getStringValue(FIELD_REDIRECTURI);
+        String str = this.xobject.getStringValue(FIELD_REDIRECTURI);
 
         if (StringUtils.isNotEmpty(str)) {
             try {
@@ -91,12 +127,12 @@ public class OIDCConsent extends BaseObject
 
     public void setRedirectURI(URI uri)
     {
-        setStringValue(FIELD_REDIRECTURI, uri.toString());
+        this.xobject.setStringValue(FIELD_REDIRECTURI, uri.toString());
     }
 
     public String getAccessToken()
     {
-        String str = getStringValue(FIELD_ACCESSTOKEN);
+        String str = this.xobject.getStringValue(FIELD_ACCESSTOKEN);
 
         return StringUtils.isNotEmpty(str) ? str : null;
     }
@@ -104,27 +140,27 @@ public class OIDCConsent extends BaseObject
     public void setAccessToken(XWikiBearerAccessToken accessToken)
     {
         if (accessToken == null) {
-            removeField(FIELD_ACCESSTOKEN);
+            this.xobject.removeField(FIELD_ACCESSTOKEN);
         } else {
-            setStringValue(FIELD_ACCESSTOKEN, accessToken.getRandom());
+            this.xobject.setStringValue(FIELD_ACCESSTOKEN, accessToken.getRandom());
         }
     }
 
     public boolean isAllowed()
     {
-        int allow = getIntValue(FIELD_ALLOW, 1);
+        int allow = this.xobject.getIntValue(FIELD_ALLOW, 1);
 
         return allow == 1;
     }
 
     public void setAllowed(boolean allowed)
     {
-        setIntValue(FIELD_ALLOW, allowed ? 1 : 0);
+        this.xobject.setIntValue(FIELD_ALLOW, allowed ? 1 : 0);
     }
 
     public DocumentReference getUserReference()
     {
-        return getDocumentReference();
+        return this.xobject.getDocumentReference();
     }
 
     /**
@@ -133,7 +169,7 @@ public class OIDCConsent extends BaseObject
     public ClaimsSetRequest getClaims() throws ParseException
     {
         if (this.claims == null) {
-            String claimsString = getLargeStringValue(FIELD_CLAIMS);
+            String claimsString = this.xobject.getLargeStringValue(FIELD_CLAIMS);
 
             if (StringUtils.isNotEmpty(claimsString)) {
                 this.claims = ClaimsSetRequest.parse(claimsString);
@@ -151,9 +187,9 @@ public class OIDCConsent extends BaseObject
         this.claims = claims;
 
         if (claims != null) {
-            setLargeStringValue(FIELD_CLAIMS, claims.toString());
+            this.xobject.setLargeStringValue(FIELD_CLAIMS, claims.toString());
         } else {
-            removeField(FIELD_CLAIMS);
+            this.xobject.removeField(FIELD_CLAIMS);
         }
     }
 }

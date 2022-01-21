@@ -183,7 +183,7 @@ public class AuthorizationOIDCEndpoint implements OIDCEndpoint
             }
 
             // Create new consent
-            consent = (OIDCConsent) this.store.getUserDocument().newXObject(OIDCConsent.REFERENCE, xcontext);
+            consent = new OIDCConsent(this.store.getUserDocument().newXObject(OIDCConsent.REFERENCE, xcontext));
 
             consent.setClientID(clientID);
             consent.setRedirectURI(request.getRedirectionURI());

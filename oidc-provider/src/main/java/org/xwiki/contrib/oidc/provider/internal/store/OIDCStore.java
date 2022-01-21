@@ -109,10 +109,10 @@ public class OIDCStore
         XWikiDocument consentDocument = xcontext.getWiki().getDocument(reference, xcontext);
 
         // Get the consent
-        OIDCConsent consent = (OIDCConsent) consentDocument.getXObject(reference);
+        OIDCConsent consent = new OIDCConsent(consentDocument.getXObject(reference));
 
         // Compare token values
-        final String stored = consent.getStringValue(OIDCConsent.FIELD_ACCESSTOKEN);
+        final String stored = consent.getAccessToken();
         if (new PasswordClass().getEquivalentPassword(stored, xwikiAccessToken.getRandom()).equals(stored)) {
             return consent;
         }
@@ -165,7 +165,7 @@ public class OIDCStore
 
                     if (clientIDString.equals(consent.getStringValue(OIDCConsent.FIELD_CLIENTID))
                         && redirectURIString.equals(consent.getStringValue(OIDCConsent.FIELD_REDIRECTURI))) {
-                        return (OIDCConsent) consent;
+                        return new OIDCConsent(consent);
                     }
                 }
             }

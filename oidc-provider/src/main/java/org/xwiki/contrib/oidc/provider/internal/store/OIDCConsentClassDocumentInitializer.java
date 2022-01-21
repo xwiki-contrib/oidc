@@ -48,9 +48,6 @@ public class OIDCConsentClassDocumentInitializer extends AbstractMandatoryClassI
     @Override
     protected void createClass(BaseClass xclass)
     {
-        // Use custom class to make easier to manipulate consent objects
-        xclass.setCustomClass(OIDCConsent.class.getName());
-
         xclass.addTextField(OIDCConsent.FIELD_CLIENTID, "Client ID", 30);
         xclass.addTextField(OIDCConsent.FIELD_REDIRECTURI, "Redirect URI", 30);
         xclass.addBooleanField(OIDCConsent.FIELD_ALLOW, "Allow/Deny", "allow");
