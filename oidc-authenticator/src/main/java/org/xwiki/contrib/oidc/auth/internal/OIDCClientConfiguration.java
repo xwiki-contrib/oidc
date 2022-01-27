@@ -37,11 +37,11 @@ import javax.inject.Singleton;
 import javax.servlet.http.HttpSession;
 
 import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.collections4.SetUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.joda.time.LocalDateTime;
 import org.slf4j.Logger;
 import org.xwiki.component.annotation.Component;
-import org.xwiki.configuration.ConfigurationSource;
 import org.xwiki.container.Container;
 import org.xwiki.container.Request;
 import org.xwiki.container.Session;
@@ -234,6 +234,8 @@ public class OIDCClientConfiguration extends OIDCConfiguration
 
     private static final String XWIKI_GROUP_PREFIX = "XWiki.";
 
+    private static final Set<String> SAFE_PROPERTIES = SetUtils.hashSet(PROP_SKIPPED);
+
     @Inject
     private InstanceIdManager instance;
 
@@ -248,10 +250,6 @@ public class OIDCClientConfiguration extends OIDCConfiguration
 
     @Inject
     private Logger logger;
-
-    @Inject
-    // TODO: store configuration in custom objects
-    private ConfigurationSource configuration;
 
     private HttpSession getHttpSession()
     {
@@ -335,10 +333,12 @@ public class OIDCClientConfiguration extends OIDCConfiguration
     @Override
     protected <T> T getProperty(String key, Class<T> valueClass)
     {
-        // Get property from request
-        String requestValue = getRequestParameter(key);
-        if (requestValue != null) {
-            return this.converter.convert(valueClass, requestValue);
+        if (SAFE_PROPERTIES.contains(key)) {
+            // Get property from request
+            String requestValue = getRequestParameter(key);
+            if (requestValue != null) {
+                return this.converter.convert(valueClass, requestValue);
+            }
         }
 
         // Get property from session
@@ -354,10 +354,12 @@ public class OIDCClientConfiguration extends OIDCConfiguration
     @Override
     protected <T> T getProperty(String key, T def)
     {
-        // Get property from request
-        String requestValue = getRequestParameter(key);
-        if (requestValue != null) {
-            return this.converter.convert(def.getClass(), requestValue);
+        if (SAFE_PROPERTIES.contains(key)) {
+            // Get property from request
+            String requestValue = getRequestParameter(key);
+            if (requestValue != null) {
+                return this.converter.convert(def.getClass(), requestValue);
+            }
         }
 
         // Get property from session
@@ -426,9 +428,19 @@ public class OIDCClientConfiguration extends OIDCConfiguration
             uri = new URI(uriString);
         }
 
-        // If we still don't have any endpoint URI, return null
+        // If we still don't have any endpoint URI, try the request
         if (uri == null) {
-            return null;
+            uriString = getRequestParameter(PROPPREFIX_ENDPOINT + hint);
+            if (uriString == null) {
+                String provider = getRequestParameter(PROP_XWIKIPROVIDER);
+                if (provider == null) {
+                    return null;
+                }
+
+                uri = this.manager.createEndPointURI(provider, hint);
+            } else {
+                uri = new URI(uriString);
+            }
         }
 
         // Find custom headers
