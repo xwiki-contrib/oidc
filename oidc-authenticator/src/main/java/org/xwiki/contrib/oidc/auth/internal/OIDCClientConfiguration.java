@@ -33,7 +33,9 @@ import java.util.Map;
 import java.util.Set;
 
 import javax.inject.Inject;
+import javax.inject.Provider;
 import javax.inject.Singleton;
+import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpSession;
 
 import org.apache.commons.collections4.CollectionUtils;
@@ -48,6 +50,7 @@ import org.xwiki.container.Session;
 import org.xwiki.container.servlet.ServletSession;
 import org.xwiki.contrib.oidc.OIDCIdToken;
 import org.xwiki.contrib.oidc.OIDCUserInfo;
+import org.xwiki.contrib.oidc.auth.store.OIDCClientConfigurationStore;
 import org.xwiki.contrib.oidc.internal.OIDCConfiguration;
 import org.xwiki.contrib.oidc.provider.internal.OIDCManager;
 import org.xwiki.contrib.oidc.provider.internal.endpoint.AuthorizationOIDCEndpoint;
@@ -56,6 +59,7 @@ import org.xwiki.contrib.oidc.provider.internal.endpoint.TokenOIDCEndpoint;
 import org.xwiki.contrib.oidc.provider.internal.endpoint.UserInfoOIDCEndpoint;
 import org.xwiki.instance.InstanceIdManager;
 import org.xwiki.properties.ConverterManager;
+import org.xwiki.query.QueryException;
 
 import com.nimbusds.oauth2.sdk.Scope;
 import com.nimbusds.oauth2.sdk.auth.ClientAuthenticationMethod;
@@ -67,6 +71,9 @@ import com.nimbusds.openid.connect.sdk.OIDCClaimsRequest;
 import com.nimbusds.openid.connect.sdk.OIDCScopeValue;
 import com.nimbusds.openid.connect.sdk.claims.ClaimsSetRequest;
 import com.nimbusds.openid.connect.sdk.claims.IDTokenClaimsSet;
+import com.xpn.xwiki.XWikiContext;
+import com.xpn.xwiki.XWikiException;
+import com.xpn.xwiki.web.XWikiServletRequest;
 
 /**
  * Various OpenID Connect authenticator configurations.
@@ -236,6 +243,32 @@ public class OIDCClientConfiguration extends OIDCConfiguration
 
     private static final Set<String> SAFE_PROPERTIES = SetUtils.hashSet(PROP_SKIPPED);
 
+    /**
+     * The name of the property in which the name of the OIDC configuration should be stored.
+     * @since 1.30
+     */
+    public static final String CLIENT_CONFIGURATION_COOKIE_PROPERTY = OIDCConfiguration.PREFIX_PROP
+        + "clientConfigurationCookie";
+
+    /**
+     * The default name of the cookie in which the OIDC client configuration is defined.
+     * @since 1.30
+     */
+    public static final String DEFAULT_OIDC_CONFIGURATION_COOKIE = "oidcProvider";
+
+    /**
+     * The name of the property which stores the name of the default OIDC client configuration.
+     * @since 1.30
+     */
+    public static final String DEFAULT_CLIENT_CONFIGURATION_PROPERTY = OIDCConfiguration.PREFIX_PROP
+        + "defaultClientConfiguration";
+
+    /**
+     * Default client configuration to use when no configuration is defined.
+     * @since 1.30
+     */
+    public static final String DEFAULT_CLIENT_CONFIGURATION = "default";
+
     @Inject
     private InstanceIdManager instance;
 
@@ -250,6 +283,12 @@ public class OIDCClientConfiguration extends OIDCConfiguration
 
     @Inject
     private Logger logger;
+
+    @Inject
+    private Provider<XWikiContext> contextProvider;
+
+    @Inject
+    private OIDCClientConfigurationStore oidcClientConfigurationStore;
 
     private HttpSession getHttpSession()
     {
@@ -347,6 +386,12 @@ public class OIDCClientConfiguration extends OIDCConfiguration
             return sessionValue;
         }
 
+        // Get the property form the wiki configuration
+        org.xwiki.contrib.oidc.auth.store.OIDCClientConfiguration wikiClientConfiguration = getWikiClientConfiguration();
+        if (wikiClientConfiguration != null) {
+            return getWikiConfigurationAttribute(wikiClientConfiguration, key);
+        }
+
         // Get property from configuration
         return this.configuration.getProperty(key, valueClass);
     }
@@ -366,6 +411,12 @@ public class OIDCClientConfiguration extends OIDCConfiguration
         T sessionValue = getSessionAttribute(key);
         if (sessionValue != null) {
             return sessionValue;
+        }
+
+        // Get the property form the wiki configuration
+        org.xwiki.contrib.oidc.auth.store.OIDCClientConfiguration wikiClientConfiguration = getWikiClientConfiguration();
+        if (wikiClientConfiguration != null) {
+            return getWikiConfigurationAttribute(wikiClientConfiguration, key);
         }
 
         // Get property from configuration
@@ -790,5 +841,126 @@ public class OIDCClientConfiguration extends OIDCConfiguration
         String groupClaim = getGroupClaim();
 
         return getUserInfoClaims().contains(groupClaim);
+    }
+
+    /**
+     * @return the OIDC provider specified by the client for the authentication.
+     */
+    private String getOIDCProviderName()
+    {
+        String cookieName = configuration.getProperty(CLIENT_CONFIGURATION_COOKIE_PROPERTY,
+            DEFAULT_OIDC_CONFIGURATION_COOKIE);
+
+        String fallbackProviderName = configuration.getProperty(DEFAULT_CLIENT_CONFIGURATION_PROPERTY,
+            DEFAULT_CLIENT_CONFIGURATION);
+
+        // Check if a cookie exists, indicating which configuration to use
+        XWikiContext context = contextProvider.get();
+        if (context.getRequest() instanceof XWikiServletRequest) {
+            XWikiServletRequest request = (XWikiServletRequest) context.getRequest();
+
+            Cookie cookie = request.getCookie(cookieName);
+            if (cookie != null) {
+                // We need to save the chosen provider in the session, so that it's easier to get it when we don't
+                // have access to the request.
+                setSessionAttribute(DEFAULT_CLIENT_CONFIGURATION_PROPERTY, cookie.getValue());
+
+                return cookie.getValue();
+            }
+        }
+
+        // Check if the session has a key indicating which configuration to use
+        String sessionProviderName = getSessionAttribute(DEFAULT_CLIENT_CONFIGURATION_PROPERTY);
+        if (sessionProviderName != null) {
+            return sessionProviderName;
+        }
+
+        return fallbackProviderName;
+    }
+
+    private org.xwiki.contrib.oidc.auth.store.OIDCClientConfiguration getWikiClientConfiguration()
+    {
+        String configName = getOIDCProviderName();
+
+        try {
+            return oidcClientConfigurationStore.getOIDCClientConfiguration(configName);
+        } catch (XWikiException | QueryException e) {
+            logger.error("Failed to load the wiki OIDC client configuration with name [%s]", configName, e);
+        }
+
+        return null;
+    }
+
+    /**
+     * Bridge to allow the conversion to the wiki client configuration.
+     *
+     * @param clientConfiguration the client configuration to use
+     * @param key the key to look for
+     * @param <T> the return type
+     * @return the configuration. Null if the configuration key is invalid
+     */
+    private <T> T getWikiConfigurationAttribute(
+        org.xwiki.contrib.oidc.auth.store.OIDCClientConfiguration clientConfiguration,
+        String key)
+    {
+        T returnValue = null;
+        switch (key) {
+            case PROP_GROUPS_CLAIM:
+                returnValue = (T) clientConfiguration.getGroupClaim();
+                break;
+            case PROP_USER_SUBJECTFORMATER:
+                returnValue = (T) clientConfiguration.getUserSubjectFormatter();
+                break;
+            case PROP_USER_NAMEFORMATER:
+                returnValue = (T) clientConfiguration.getUserNameFormatter();
+                break;
+            case PROP_USER_MAPPING:
+                returnValue = (T) clientConfiguration.getUserMapping();
+                break;
+            case PROP_XWIKIPROVIDER:
+                returnValue = (T) clientConfiguration.getXWikiProvider();
+                break;
+            case PROP_ENDPOINT_AUTHORIZATION:
+                returnValue = (T) clientConfiguration.getAuthorizationEndpoint();
+                break;
+            case PROP_ENDPOINT_TOKEN:
+                returnValue = (T) clientConfiguration.getTokenEndpoint();
+                break;
+            case PROP_ENDPOINT_USERINFO:
+                returnValue = (T) clientConfiguration.getUserInfoEndpoint();
+                break;
+            case PROP_ENDPOINT_LOGOUT:
+                returnValue = (T) clientConfiguration.getLogoutEndpoint();
+                break;
+            case PROP_CLIENTID:
+                returnValue = (T) clientConfiguration.getClientId();
+                break;
+            case PROP_SECRET:
+                returnValue = (T) clientConfiguration.getClientSecret();
+                break;
+            case PROP_ENDPOINT_TOKEN_AUTH_METHOD:
+                returnValue = (T) clientConfiguration.getTokenEndpointMethod();
+                break;
+            case PROP_ENDPOINT_USERINFO_METHOD:
+                returnValue = (T) clientConfiguration.getUserInfoEndpointMethod();
+                break;
+            case PROP_ENDPOINT_LOGOUT_METHOD:
+                returnValue = (T) clientConfiguration.getLogoutEndpointMethod();
+                break;
+            case PROP_SKIPPED:
+                returnValue = (T) (Boolean) clientConfiguration.isSkipped();
+                break;
+            case PROP_SCOPE:
+                returnValue = (T) clientConfiguration.getScope();
+                break;
+            case PROP_IDTOKENCLAIMS:
+                returnValue = (T) clientConfiguration.getIdTokenClaims();
+                break;
+            case PROP_USERINFOCLAIMS:
+                returnValue = (T) clientConfiguration.getUserInfoClaims();
+                break;
+        }
+
+        return returnValue;
     }
 }
