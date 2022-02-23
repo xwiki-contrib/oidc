@@ -923,7 +923,7 @@ public class OIDCClientConfiguration extends OIDCConfiguration
                 returnValue = clientConfiguration.getUserNameFormatter();
                 break;
             case PROP_USER_MAPPING:
-                returnValue = Arrays.asList(clientConfiguration.getUserMapping().toArray());
+                returnValue = clientConfiguration.getUserMapping();
                 break;
             case PROP_XWIKIPROVIDER:
                 returnValue = clientConfiguration.getXWikiProvider();
@@ -959,7 +959,7 @@ public class OIDCClientConfiguration extends OIDCConfiguration
                 returnValue = clientConfiguration.isSkipped();
                 break;
             case PROP_SCOPE:
-                returnValue = Arrays.asList(clientConfiguration.getScope().toArray());
+                returnValue = clientConfiguration.getScope();
                 break;
             case PROP_IDTOKENCLAIMS:
                 returnValue = Arrays.asList(clientConfiguration.getIdTokenClaims().toArray());
