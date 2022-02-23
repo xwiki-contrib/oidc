@@ -60,7 +60,8 @@ public class DefaultOIDCClientConfigurationStore implements OIDCClientConfigurat
     @Override
     public XWikiDocument getOIDCClientConfigurationDocument(String name) throws XWikiException, QueryException
     {
-        Query query = queryManager.createQuery("select obj.name from BaseObject obj, StringProperty configName"
+        Query query = queryManager.createQuery(
+            "select obj.name from BaseObject obj, StringProperty configName "
             + "where obj.className = :className and obj.id = configName.id.id "
             + "and configName.id.name = :configFieldName and configName.value = :config", Query.HQL)
             .bindValue("className", OIDCClientConfiguration.CLASS_FULLNAME)

@@ -410,48 +410,48 @@ public class OIDCClientConfiguration
     /**
      * @return the scope
      */
-    public String getScope()
+    public List<String> getScope()
     {
-        return this.xobject.getStringValue(FIELD_SCOPE);
+        return this.xobject.getListValue(FIELD_SCOPE);
     }
 
     /**
      * @param scope the scope
      */
-    public void setScope(String scope)
+    public void setScope(List<String> scope)
     {
-        this.xobject.setStringValue(FIELD_SCOPE, scope);
+        this.xobject.setStringListValue(FIELD_SCOPE, scope);
     }
 
     /**
      * @return the id token claims
      */
-    public String getIdTokenClaims()
+    public List<String> getIdTokenClaims()
     {
-        return this.xobject.getStringValue(FIELD_CLAIMS_ID_TOKEN);
+        return this.xobject.getListValue(FIELD_CLAIMS_ID_TOKEN);
     }
 
     /**
      * @param idTokenClaims the id token claims
      */
-    public void setIdTokenClaims(String idTokenClaims)
+    public void setIdTokenClaims(List<String> idTokenClaims)
     {
-        this.xobject.setStringValue(FIELD_CLAIMS_ID_TOKEN, idTokenClaims);
+        this.xobject.setStringListValue(FIELD_CLAIMS_ID_TOKEN, idTokenClaims);
     }
 
     /**
      * @return the user info claims
      */
-    public String getUserInfoClaims()
+    public List<String> getUserInfoClaims()
     {
-        return this.xobject.getStringValue(FIELD_CLAIMS_USER_INFO);
+        return this.xobject.getListValue(FIELD_CLAIMS_USER_INFO);
     }
 
     /**
      * @param userInfoClaims the user info claims
      */
-    public void setUserInfoClaims(String userInfoClaims)
+    public void setUserInfoClaims(List<String> userInfoClaims)
     {
-        this.xobject.setStringValue(FIELD_CLAIMS_USER_INFO, userInfoClaims);
+        this.xobject.setStringListValue(FIELD_CLAIMS_USER_INFO, userInfoClaims);
     }
 }

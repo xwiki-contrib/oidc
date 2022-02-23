@@ -40,6 +40,10 @@ import com.xpn.xwiki.objects.classes.BaseClass;
 @Singleton
 public class OIDCClientConfigurationClassDocumentInitializer extends AbstractMandatoryClassInitializer
 {
+    private static final String INPUT = "input";
+
+    private static final String SEPARATORS = "|,";
+
     /**
      * Builds a new {@link OIDCClientConfigurationClassDocumentInitializer}.
      */
@@ -58,7 +62,7 @@ public class OIDCClientConfigurationClassDocumentInitializer extends AbstractMan
         xclass.addTextField(OIDCClientConfiguration.FIELD_FORMATTER_USER_NAME,
             "XWiki username formatter", 255);
         xclass.addStaticListField(OIDCClientConfiguration.FIELD_USER_MAPPING, "User mapping", 5, true, false,
-            StringUtils.EMPTY, "input", "|,");
+            StringUtils.EMPTY, INPUT, SEPARATORS);
         xclass.addTextField(OIDCClientConfiguration.FIELD_XWIKI_PROVIDER, "XWiki provider", 255);
         xclass.addTextField(OIDCClientConfiguration.FIELD_ENDPOINT_AUTHORIZATION,
             "Authorization OIDC endpoint", 255);
@@ -77,9 +81,12 @@ public class OIDCClientConfigurationClassDocumentInitializer extends AbstractMan
         xclass.addTextField(OIDCClientConfiguration.FIELD_ENDPOINT_LOGOUT_METHOD,
             "Logout endpoint method", 255);
         xclass.addBooleanField(OIDCClientConfiguration.FIELD_SKIPPED, "Is authentication skipped ?", "select");
-        xclass.addTextField(OIDCClientConfiguration.FIELD_SCOPE, "Scope", 255);
-        xclass.addTextField(OIDCClientConfiguration.FIELD_CLAIMS_ID_TOKEN, "ID Token Claims", 255);
-        xclass.addTextField(OIDCClientConfiguration.FIELD_CLAIMS_USER_INFO, "User info Claims", 255);
+        xclass.addStaticListField(OIDCClientConfiguration.FIELD_SCOPE, "Scope", 5, true, false,
+            StringUtils.EMPTY, INPUT, SEPARATORS);
+        xclass.addStaticListField(OIDCClientConfiguration.FIELD_CLAIMS_ID_TOKEN, "ID Token Claims", 5, true, false,
+            StringUtils.EMPTY, INPUT, SEPARATORS);
+        xclass.addStaticListField(OIDCClientConfiguration.FIELD_CLAIMS_USER_INFO, "User info Claims", 5, true, false,
+            StringUtils.EMPTY, INPUT, SEPARATORS);
 
     }
 }

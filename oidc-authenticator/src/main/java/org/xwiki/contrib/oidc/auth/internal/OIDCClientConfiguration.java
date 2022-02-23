@@ -19,6 +19,7 @@
  */
 package org.xwiki.contrib.oidc.auth.internal;
 
+import java.lang.reflect.Type;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
@@ -389,7 +390,10 @@ public class OIDCClientConfiguration extends OIDCConfiguration
         // Get the property form the wiki configuration
         org.xwiki.contrib.oidc.auth.store.OIDCClientConfiguration wikiClientConfiguration = getWikiClientConfiguration();
         if (wikiClientConfiguration != null) {
-            return getWikiConfigurationAttribute(wikiClientConfiguration, key);
+            T wikiValue = getWikiConfigurationAttribute(wikiClientConfiguration, key, valueClass);
+            if (wikiValue != null) {
+                return wikiValue;
+            }
         }
 
         // Get property from configuration
@@ -416,7 +420,10 @@ public class OIDCClientConfiguration extends OIDCConfiguration
         // Get the property form the wiki configuration
         org.xwiki.contrib.oidc.auth.store.OIDCClientConfiguration wikiClientConfiguration = getWikiClientConfiguration();
         if (wikiClientConfiguration != null) {
-            return getWikiConfigurationAttribute(wikiClientConfiguration, key);
+            T wikiValue = getWikiConfigurationAttribute(wikiClientConfiguration, key, def.getClass());
+            if (wikiValue != null) {
+                return wikiValue;
+            }
         }
 
         // Get property from configuration
@@ -896,71 +903,76 @@ public class OIDCClientConfiguration extends OIDCConfiguration
      *
      * @param clientConfiguration the client configuration to use
      * @param key the key to look for
-     * @param <T> the return type
+     * @param returnType the return type
      * @return the configuration. Null if the configuration key is invalid
      */
     private <T> T getWikiConfigurationAttribute(
         org.xwiki.contrib.oidc.auth.store.OIDCClientConfiguration clientConfiguration,
-        String key)
+        String key,
+        Type returnType)
     {
-        T returnValue = null;
+        Object returnValue = null;
         switch (key) {
             case PROP_GROUPS_CLAIM:
-                returnValue = (T) clientConfiguration.getGroupClaim();
+                returnValue = clientConfiguration.getGroupClaim();
                 break;
             case PROP_USER_SUBJECTFORMATER:
-                returnValue = (T) clientConfiguration.getUserSubjectFormatter();
+                returnValue = clientConfiguration.getUserSubjectFormatter();
                 break;
             case PROP_USER_NAMEFORMATER:
-                returnValue = (T) clientConfiguration.getUserNameFormatter();
+                returnValue = clientConfiguration.getUserNameFormatter();
                 break;
             case PROP_USER_MAPPING:
-                returnValue = (T) clientConfiguration.getUserMapping();
+                returnValue = Arrays.asList(clientConfiguration.getUserMapping().toArray());
                 break;
             case PROP_XWIKIPROVIDER:
-                returnValue = (T) clientConfiguration.getXWikiProvider();
+                returnValue = clientConfiguration.getXWikiProvider();
                 break;
             case PROP_ENDPOINT_AUTHORIZATION:
-                returnValue = (T) clientConfiguration.getAuthorizationEndpoint();
+                returnValue = clientConfiguration.getAuthorizationEndpoint();
                 break;
             case PROP_ENDPOINT_TOKEN:
-                returnValue = (T) clientConfiguration.getTokenEndpoint();
+                returnValue = clientConfiguration.getTokenEndpoint();
                 break;
             case PROP_ENDPOINT_USERINFO:
-                returnValue = (T) clientConfiguration.getUserInfoEndpoint();
+                returnValue = clientConfiguration.getUserInfoEndpoint();
                 break;
             case PROP_ENDPOINT_LOGOUT:
-                returnValue = (T) clientConfiguration.getLogoutEndpoint();
+                returnValue = clientConfiguration.getLogoutEndpoint();
                 break;
             case PROP_CLIENTID:
-                returnValue = (T) clientConfiguration.getClientId();
+                returnValue = clientConfiguration.getClientId();
                 break;
             case PROP_SECRET:
-                returnValue = (T) clientConfiguration.getClientSecret();
+                returnValue = clientConfiguration.getClientSecret();
                 break;
             case PROP_ENDPOINT_TOKEN_AUTH_METHOD:
-                returnValue = (T) clientConfiguration.getTokenEndpointMethod();
+                returnValue = clientConfiguration.getTokenEndpointMethod();
                 break;
             case PROP_ENDPOINT_USERINFO_METHOD:
-                returnValue = (T) clientConfiguration.getUserInfoEndpointMethod();
+                returnValue = clientConfiguration.getUserInfoEndpointMethod();
                 break;
             case PROP_ENDPOINT_LOGOUT_METHOD:
-                returnValue = (T) clientConfiguration.getLogoutEndpointMethod();
+                returnValue = clientConfiguration.getLogoutEndpointMethod();
                 break;
             case PROP_SKIPPED:
-                returnValue = (T) (Boolean) clientConfiguration.isSkipped();
+                returnValue = clientConfiguration.isSkipped();
                 break;
             case PROP_SCOPE:
-                returnValue = (T) clientConfiguration.getScope();
+                returnValue = Arrays.asList(clientConfiguration.getScope().toArray());
                 break;
             case PROP_IDTOKENCLAIMS:
-                returnValue = (T) clientConfiguration.getIdTokenClaims();
+                returnValue = Arrays.asList(clientConfiguration.getIdTokenClaims().toArray());
                 break;
             case PROP_USERINFOCLAIMS:
-                returnValue = (T) clientConfiguration.getUserInfoClaims();
+                returnValue = Arrays.asList(clientConfiguration.getUserInfoClaims().toArray());
                 break;
         }
 
-        return returnValue;
+        if (returnValue != null && (!(returnValue instanceof String) || StringUtils.isNotBlank((String) returnValue))) {
+            return this.converter.convert(returnType, returnValue);
+        }
+
+        return null;
     }
 }
