@@ -28,12 +28,13 @@
     <version>1.29.2-SNAPSHOT</version>
   </parent>
 
-  <artifactId>oidc-authenticator-object</artifactId>
-  <name>OpenID Connect Authenticator Object</name>
+  <artifactId>oidc-authenticator-user</artifactId>
+  <name>OpenID Connect Authenticator - User Object</name>
   <packaging>jar</packaging>
   <description>Base tools to manipulate the object used by the authenticator to stored OIDC information in the user profile</description>
 
   <properties>
+    <xwiki.extension.features>org.xwiki.contrib.oidc:oidc-authenticator-object</xwiki.extension.features>
     <xwiki.jacoco.instructionRatio>0.0</xwiki.jacoco.instructionRatio>
 
     <!-- Disable the enforcer for a few transitive dependencies comming from the older version of oldcore -->
