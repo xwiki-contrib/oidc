@@ -46,7 +46,7 @@
     <dependency>
       <groupId>org.xwiki.platform</groupId>
       <artifactId>xwiki-platform-oldcore</artifactId>
-      <version>9.11</version>
+      <version>${platform.version}</version>
     </dependency>
   </dependencies>
 </project>
