@@ -36,12 +36,6 @@
   <properties>
     <xwiki.extension.features>org.xwiki.contrib.oidc:oidc-authenticator-object</xwiki.extension.features>
     <xwiki.jacoco.instructionRatio>0.0</xwiki.jacoco.instructionRatio>
-
-    <!-- Disable the enforcer for a few transitive dependencies comming from the older version of oldcore -->
-    <xwiki.enforcer.enforce-open-json.skip>true</xwiki.enforcer.enforce-open-json.skip>
-    <xwiki.enforcer.enforce-jakarta.activation.skip>true</xwiki.enforcer.enforce-jakarta.activation.skip>
-    <xwiki.enforcer.enforce-jakarta.mail.skip>true</xwiki.enforcer.enforce-jakarta.mail.skip>
-    <xwiki.enforcer.enforce-jta.skip>true</xwiki.enforcer.enforce-jta.skip>
   </properties>
 
   <dependencies>

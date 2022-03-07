@@ -34,12 +34,6 @@
   <description>Tools to manipulate the objects used by the authenticator client configurations</description>
   <properties>
     <xwiki.jacoco.instructionRatio>0.0</xwiki.jacoco.instructionRatio>
-
-    <!-- Disable the enforcer for a few transitive dependencies comming from the older version of oldcore -->
-    <xwiki.enforcer.enforce-open-json.skip>true</xwiki.enforcer.enforce-open-json.skip>
-    <xwiki.enforcer.enforce-jakarta.activation.skip>true</xwiki.enforcer.enforce-jakarta.activation.skip>
-    <xwiki.enforcer.enforce-jakarta.mail.skip>true</xwiki.enforcer.enforce-jakarta.mail.skip>
-    <xwiki.enforcer.enforce-jta.skip>true</xwiki.enforcer.enforce-jta.skip>
   </properties>
 
   <dependencies>
