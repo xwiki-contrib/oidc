@@ -78,6 +78,8 @@ public class OIDCClientConfigurationClassDocumentInitializer extends AbstractMan
             "Token endpoint authentication method", 255);
         xclass.addTextField(OIDCClientConfiguration.FIELD_ENDPOINT_USERINFO_METHOD,
             "User information endpoint method", 255);
+        xclass.addStaticListField(OIDCClientConfiguration.FIELD_ENDPOINT_USERINFO_HEADERS,
+            "User info endpoint headers", 5, true, false, StringUtils.EMPTY, INPUT, SEPARATORS);
         xclass.addTextField(OIDCClientConfiguration.FIELD_ENDPOINT_LOGOUT_METHOD,
             "Logout endpoint method", 255);
         xclass.addBooleanField(OIDCClientConfiguration.FIELD_SKIPPED, "Is authentication skipped ?", "select");
@@ -87,6 +89,8 @@ public class OIDCClientConfigurationClassDocumentInitializer extends AbstractMan
             StringUtils.EMPTY, INPUT, SEPARATORS);
         xclass.addStaticListField(OIDCClientConfiguration.FIELD_CLAIMS_USER_INFO, "User info Claims", 5, true, false,
             StringUtils.EMPTY, INPUT, SEPARATORS);
+        xclass.addNumberField(OIDCClientConfiguration.FIELD_USER_INFO_REFRESH_RATE, "User info refresh rate", 5,
+            "integer");
 
     }
 }

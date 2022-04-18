@@ -24,14 +24,17 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import org.junit.jupiter.api.Test;
 import org.xwiki.configuration.ConfigurationSource;
 import org.xwiki.container.Container;
 import org.xwiki.container.servlet.ServletRequest;
+import org.xwiki.contrib.oidc.auth.store.OIDCClientConfigurationStore;
 import org.xwiki.contrib.oidc.provider.internal.OIDCManager;
 import org.xwiki.contrib.oidc.provider.internal.endpoint.TokenOIDCEndpoint;
 import org.xwiki.properties.ConverterManager;
@@ -39,12 +42,16 @@ import org.xwiki.test.junit5.mockito.ComponentTest;
 import org.xwiki.test.junit5.mockito.InjectMockComponents;
 import org.xwiki.test.junit5.mockito.MockComponent;
 
+import com.nimbusds.openid.connect.sdk.OIDCClaimsRequest;
 import com.xpn.xwiki.web.XWikiServletRequestStub;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
@@ -70,6 +77,22 @@ class OIDCClientConfigurationTest
     @MockComponent
     private ConverterManager converterManager;
 
+    @MockComponent
+    private OIDCClientConfigurationStore oidcClientConfigurationStore;
+
+    private org.xwiki.contrib.oidc.auth.store.OIDCClientConfiguration setUpWikiConfig() throws Exception
+    {
+        String configName = "wiki";
+        when(this.sourceConfiguration.getProperty(
+            OIDCClientConfiguration.DEFAULT_CLIENT_CONFIGURATION_PROPERTY,
+            OIDCClientConfiguration.DEFAULT_CLIENT_CONFIGURATION)).thenReturn(configName);
+        org.xwiki.contrib.oidc.auth.store.OIDCClientConfiguration wikiConfiguration =
+            mock(org.xwiki.contrib.oidc.auth.store.OIDCClientConfiguration.class);
+        when(this.oidcClientConfigurationStore.getOIDCClientConfiguration(configName)).thenReturn(wikiConfiguration);
+
+        return wikiConfiguration;
+    }
+
     @Test
     void getUserInfoOIDCEndpoint() throws URISyntaxException
     {
@@ -85,7 +108,6 @@ class OIDCClientConfigurationTest
         assertTrue(endpoint.getHeaders().isEmpty());
 
         List<String> list = Arrays.asList("key1:value11", "key1:value12", "key2:value2", "alone", ":", "");
-
         when(this.sourceConfiguration.getProperty(OIDCClientConfiguration.PROP_ENDPOINT_USERINFO_HEADERS, List.class))
             .thenReturn(list);
 
@@ -93,6 +115,34 @@ class OIDCClientConfigurationTest
         headers.put("key1", Arrays.asList("value11", "value12"));
         headers.put("key2", Arrays.asList("value2"));
 
+        endpoint = this.configuration.getUserInfoOIDCEndpoint();
+
+        assertEquals(uri, endpoint.getURI());
+        assertEquals(headers, endpoint.getHeaders());
+    }
+
+    @Test
+    void getUserInfoOIDCEndpointFromWikiConfig() throws Exception
+    {
+        org.xwiki.contrib.oidc.auth.store.OIDCClientConfiguration wikiConfiguration = setUpWikiConfig();
+
+        URI uri = new URI("/endpoint");
+        when(wikiConfiguration.getUserInfoEndpoint()).thenReturn(uri.toString());
+        when(this.converterManager.convert(String.class, uri.toString())).thenReturn(uri.toString());
+        when(this.converterManager.convert(URI.class, uri.toString())).thenReturn(uri);
+
+        Endpoint endpoint = this.configuration.getUserInfoOIDCEndpoint();
+
+        assertEquals(uri, endpoint.getURI());
+        assertTrue(endpoint.getHeaders().isEmpty());
+
+        List<String> list = Arrays.asList("key1:value11", "key1:value12", "key2:value2", "alone", ":", "");
+        when(wikiConfiguration.getUserInfoEndpointHeaders()).thenReturn(list);
+        when(this.converterManager.convert(eq(List.class), eq(list))).thenReturn(list);
+
+        Map<String, List<String>> headers = new LinkedHashMap<>();
+        headers.put("key1", Arrays.asList("value11", "value12"));
+        headers.put("key2", Arrays.asList("value2"));
         endpoint = this.configuration.getUserInfoOIDCEndpoint();
 
         assertEquals(uri, endpoint.getURI());
@@ -131,5 +181,80 @@ class OIDCClientConfigurationTest
 
         assertEquals(urlauthorization, this.configuration.getAuthorizationOIDCEndpoint().getURI());
         assertEquals(provider, this.configuration.getTokenOIDCEndpoint().getURI().toString());
+    }
+
+    @Test
+    void getSubjectFormatterFromWikiConfig() throws Exception
+    {
+        org.xwiki.contrib.oidc.auth.store.OIDCClientConfiguration wikiConfiguration = setUpWikiConfig();
+
+        String subjectFormatter = "loremipsum";
+        when(wikiConfiguration.getUserSubjectFormatter()).thenReturn(subjectFormatter);
+        when(this.converterManager.convert(String.class, subjectFormatter)).thenReturn(subjectFormatter);
+
+        assertEquals(subjectFormatter, this.configuration.getSubjectFormater());
+    }
+
+    @Test
+    void getXWikiUserNameFormatterFromWikiConfig() throws Exception
+    {
+        org.xwiki.contrib.oidc.auth.store.OIDCClientConfiguration wikiConfiguration = setUpWikiConfig();
+
+        String userNameFormatter = "loremipsum";
+        when(wikiConfiguration.getUserNameFormatter()).thenReturn(userNameFormatter);
+        when(this.converterManager.convert(String.class, userNameFormatter)).thenReturn(userNameFormatter);
+
+        assertEquals(userNameFormatter, this.configuration.getXWikiUserNameFormater());
+    }
+
+    @Test
+    void getUserMappingFromWikiConfig() throws Exception
+    {
+        org.xwiki.contrib.oidc.auth.store.OIDCClientConfiguration wikiConfiguration = setUpWikiConfig();
+
+        Map<String, String> mapping = new HashMap<>();
+        mapping.put("a", "b");
+        mapping.put("c", "d");
+        List<String> mappingAsString = Arrays.asList("a=b", "c=d");
+        when(wikiConfiguration.getUserMapping()).thenReturn(mappingAsString);
+        when(this.converterManager.convert(eq(List.class), eq(mappingAsString))).thenReturn(mappingAsString);
+
+        assertEquals(mapping, this.configuration.getUserMapping());
+    }
+
+    @Test
+    void getUserInfoRefreshRateFromWikiConfig() throws Exception
+    {
+        org.xwiki.contrib.oidc.auth.store.OIDCClientConfiguration wikiConfiguration = setUpWikiConfig();
+
+        Integer refreshRate = 4269;
+        when(wikiConfiguration.getUserInfoRefreshRate()).thenReturn(refreshRate);
+        when(this.converterManager.convert(Integer.class, refreshRate)).thenReturn(refreshRate);
+
+        assertEquals(refreshRate, this.configuration.getUserInfoRefreshRate());
+    }
+
+    @Test
+    void getClaimsRequestFromWikiConfig() throws Exception
+    {
+        org.xwiki.contrib.oidc.auth.store.OIDCClientConfiguration wikiConfiguration = setUpWikiConfig();
+
+        List<String> idTokenClaims = Arrays.asList("test1", "test2");
+        when(wikiConfiguration.getIdTokenClaims()).thenReturn(idTokenClaims);
+        when(this.converterManager.convert(any(), eq(idTokenClaims))).thenReturn(idTokenClaims);
+
+        List<String> userInfoClaims = Arrays.asList("test3", "test4");
+        when(wikiConfiguration.getUserInfoClaims()).thenReturn(userInfoClaims);
+        when(this.converterManager.convert(any(), eq(userInfoClaims))).thenReturn(userInfoClaims);
+
+        OIDCClaimsRequest claimsRequest = this.configuration.getClaimsRequest();
+
+        // Extract each claim name as ClaimsSetRequest$Entry doesn't implement #equals()
+        List<String> foundIdTokenClaims = claimsRequest.getIDTokenClaimsRequest().getEntries().stream()
+                .map(e -> e.getClaimName()).collect(Collectors.toList());
+        List<String> foundUserInfoClaims = claimsRequest.getUserInfoClaimsRequest().getEntries().stream()
+                .map(e -> e.getClaimName()).collect(Collectors.toList());
+        assertEquals(idTokenClaims, foundIdTokenClaims);
+        assertEquals(userInfoClaims, foundUserInfoClaims);
     }
 }

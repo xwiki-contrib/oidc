@@ -616,10 +616,10 @@ public class OIDCClientConfiguration extends OIDCConfiguration
             ClaimsSetRequest idtokenclaimsRequest = new ClaimsSetRequest();
 
             for (String claim : idtokenclaims) {
-                idtokenclaimsRequest.add(claim);
+                idtokenclaimsRequest = idtokenclaimsRequest.add(claim);
             }
 
-            claimsRequest.withIDTokenClaimsRequest(idtokenclaimsRequest);
+            claimsRequest = claimsRequest.withIDTokenClaimsRequest(idtokenclaimsRequest);
         }
 
         // UserInfo claims
@@ -628,10 +628,10 @@ public class OIDCClientConfiguration extends OIDCConfiguration
             ClaimsSetRequest userinfoclaimsRequest = new ClaimsSetRequest();
 
             for (String claim : userinfoclaims) {
-                userinfoclaimsRequest.add(claim);
+                userinfoclaimsRequest = userinfoclaimsRequest.add(claim);
             }
 
-            claimsRequest.withUserInfoClaimsRequest(userinfoclaimsRequest);
+            claimsRequest = claimsRequest.withUserInfoClaimsRequest(userinfoclaimsRequest);
         }
 
         return claimsRequest;
@@ -952,6 +952,9 @@ public class OIDCClientConfiguration extends OIDCConfiguration
             case PROP_ENDPOINT_USERINFO_METHOD:
                 returnValue = clientConfiguration.getUserInfoEndpointMethod();
                 break;
+            case PROP_ENDPOINT_USERINFO_HEADERS:
+                returnValue = clientConfiguration.getUserInfoEndpointHeaders();
+                break;
             case PROP_ENDPOINT_LOGOUT_METHOD:
                 returnValue = clientConfiguration.getLogoutEndpointMethod();
                 break;
@@ -966,6 +969,9 @@ public class OIDCClientConfiguration extends OIDCConfiguration
                 break;
             case PROP_USERINFOCLAIMS:
                 returnValue = Arrays.asList(clientConfiguration.getUserInfoClaims().toArray());
+                break;
+            case PROP_USERINFOREFRESHRATE:
+                returnValue = clientConfiguration.getUserInfoRefreshRate();
                 break;
         }
 

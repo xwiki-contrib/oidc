@@ -117,6 +117,11 @@ public class OIDCClientConfiguration
     public static final String FIELD_ENDPOINT_USERINFO_METHOD = "userInfoEndpointMethod";
 
     /**
+     * Name of the property containing the user info endpoint headers.
+     */
+    public static final String FIELD_ENDPOINT_USERINFO_HEADERS = "userInfoEndpointHeaders";
+
+    /**
      * Name of the property containing the logout endpoint method.
      */
     public static final String FIELD_ENDPOINT_LOGOUT_METHOD = "logoutEndpointMethod";
@@ -140,6 +145,11 @@ public class OIDCClientConfiguration
      * Name of the property containing the scope.
      */
     public static final String FIELD_SCOPE = "scope";
+
+    /**
+     * Name of the property containing the user info refresh rate.
+     */
+    public static final String FIELD_USER_INFO_REFRESH_RATE = "userInfoRefreshRate";
 
     private final BaseObject xobject;
 
@@ -376,6 +386,22 @@ public class OIDCClientConfiguration
     }
 
     /**
+     * @return the user info endpoint headers
+     */
+    public List<String> getUserInfoEndpointHeaders()
+    {
+        return this.xobject.getListValue(FIELD_ENDPOINT_USERINFO_HEADERS);
+    }
+
+    /**
+     * @param userInfoEndpointHeaders the user info endpoint headers
+     */
+    public void setUserInfoEndpointHeaders(List<String> userInfoEndpointHeaders)
+    {
+        this.xobject.setStringListValue(FIELD_ENDPOINT_USERINFO_HEADERS, userInfoEndpointHeaders);
+    }
+
+    /**
      * @return the logout endpoint method
      */
     public String getLogoutEndpointMethod()
@@ -453,5 +479,21 @@ public class OIDCClientConfiguration
     public void setUserInfoClaims(List<String> userInfoClaims)
     {
         this.xobject.setStringListValue(FIELD_CLAIMS_USER_INFO, userInfoClaims);
+    }
+
+    /**
+     * @return the user info refresh rate
+     */
+    public Integer getUserInfoRefreshRate()
+    {
+        return this.xobject.getIntValue(FIELD_USER_INFO_REFRESH_RATE);
+    }
+
+    /**
+     * @param userInfoRefreshRate the user info refresh rate
+     */
+    public void setUserInfoRefreshRate(int userInfoRefreshRate)
+    {
+        this.xobject.setIntValue(FIELD_USER_INFO_REFRESH_RATE, userInfoRefreshRate);
     }
 }
