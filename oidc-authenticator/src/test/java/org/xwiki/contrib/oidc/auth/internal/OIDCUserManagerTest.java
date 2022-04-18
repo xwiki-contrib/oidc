@@ -37,8 +37,10 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.xwiki.component.manager.ComponentLookupException;
 import org.xwiki.container.Container;
+import org.xwiki.contrib.oidc.auth.internal.store.DefaultOIDCClientConfigurationStore;
 import org.xwiki.contrib.oidc.auth.internal.store.DefaultOIDCUserStore;
 import org.xwiki.contrib.oidc.auth.internal.store.OIDCUserClassDocumentInitializer;
+import org.xwiki.contrib.oidc.auth.store.OIDCClientConfigurationStore;
 import org.xwiki.contrib.oidc.auth.store.OIDCUser;
 import org.xwiki.contrib.oidc.provider.internal.OIDCException;
 import org.xwiki.contrib.oidc.provider.internal.OIDCManager;
@@ -113,6 +115,9 @@ class OIDCUserManagerTest
     ConverterManager converterManager;
 
     @MockComponent
+    OIDCClientConfigurationStore oidcClientConfigurationStore;
+
+    @MockComponent
     @Named("XWiki.XWikiRights")
     MandatoryDocumentInitializer rightsInitializer;
 
@@ -158,6 +163,8 @@ class OIDCUserManagerTest
             new DocumentReference(this.oldcore.getXWikiContext().getWikiId(), "XWiki", "existinggroup");
         this.pgroup1Reference = new DocumentReference(this.oldcore.getXWikiContext().getWikiId(), "XWiki", "pgroup1");
         this.pgroup2Reference = new DocumentReference(this.oldcore.getXWikiContext().getWikiId(), "XWiki", "pgroup2");
+
+        when(oidcClientConfigurationStore.getOIDCClientConfigurationDocument("default")).thenReturn(null);
     }
 
     private void addMember(DocumentReference group, String member) throws XWikiException

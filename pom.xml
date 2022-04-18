@@ -66,7 +66,8 @@
   <modules>
     <module>oidc-api</module>
     <module>oidc-provider</module>
-    <module>oidc-authenticator-object</module>
+    <module>oidc-authenticator-configuration</module>
+    <module>oidc-authenticator-user</module>
     <module>oidc-authenticator</module>
   </modules>
 

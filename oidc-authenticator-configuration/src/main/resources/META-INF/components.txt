@@ -1,0 +1,2 @@
+org.xwiki.contrib.oidc.auth.internal.store.DefaultOIDCClientConfigurationStore
+org.xwiki.contrib.oidc.auth.internal.store.OIDCClientConfigurationClassDocumentInitializer

@@ -55,7 +55,6 @@ public class OIDCConfiguration
     public static final String DEFAULT_GROUPSCLAIM = "xwiki_groups";
 
     @Inject
-    // TODO: store configuration in custom objects
     protected ConfigurationSource configuration;
 
     /**

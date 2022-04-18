@@ -28,30 +28,19 @@
     <version>1.29.2-SNAPSHOT</version>
   </parent>
 
-  <artifactId>oidc-authenticator-object</artifactId>
-  <name>OpenID Connect Authenticator Object</name>
+  <artifactId>oidc-authenticator-configuration</artifactId>
+  <name>OpenID Connect Authenticator - Configuration object</name>
   <packaging>jar</packaging>
-  <description>Base tools to manipulate the object used by the authenticator to stored OIDC information in the user profile</description>
-
+  <description>Tools to manipulate the objects used by the authenticator client configurations</description>
   <properties>
     <xwiki.jacoco.instructionRatio>0.0</xwiki.jacoco.instructionRatio>
-
-    <!-- Disable the enforcer for a few transitive dependencies comming from the older version of oldcore -->
-    <xwiki.enforcer.enforce-open-json.skip>true</xwiki.enforcer.enforce-open-json.skip>
-    <xwiki.enforcer.enforce-jakarta.activation.skip>true</xwiki.enforcer.enforce-jakarta.activation.skip>
-    <xwiki.enforcer.enforce-jakarta.mail.skip>true</xwiki.enforcer.enforce-jakarta.mail.skip>
-    <xwiki.enforcer.enforce-jta.skip>true</xwiki.enforcer.enforce-jta.skip>
   </properties>
 
   <dependencies>
     <dependency>
       <groupId>org.xwiki.platform</groupId>
       <artifactId>xwiki-platform-oldcore</artifactId>
-      <version>9.11</version>
-    </dependency>
-    <dependency>
-      <groupId>javax.servlet</groupId>
-      <artifactId>javax.servlet-api</artifactId>
+      <version>${platform.version}</version>
     </dependency>
   </dependencies>
 </project>
