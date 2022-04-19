@@ -169,8 +169,8 @@ public class AuthorizationOIDCEndpoint implements OIDCEndpoint
             // Resolve claims
             OIDCClaimsRequest resolvedClaims = null;
             if (request instanceof AuthenticationRequest) {
-                resolvedClaims = OIDCClaimsRequest.resolve(request.getResponseType(), request.getScope());
-                resolvedClaims.add(((AuthenticationRequest) request).getOIDCClaims());
+                resolvedClaims = OIDCClaimsRequest.resolve(request.getResponseType(), request.getScope())
+                        .add(((AuthenticationRequest) request).getOIDCClaims());
             }
 
             // Ask user for consent
