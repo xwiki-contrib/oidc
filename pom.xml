@@ -31,7 +31,7 @@
   <groupId>org.xwiki.contrib.oidc</groupId>
   <artifactId>oidc</artifactId>
   <name>OpenID Connect</name>
-  <version>1.31-SNAPSHOT</version>
+  <version>1.29.2-SNAPSHOT</version>
   <packaging>pom</packaging>
   <description>Various tools to manipulate OpenID Connect protocol in XWiki</description>
 
