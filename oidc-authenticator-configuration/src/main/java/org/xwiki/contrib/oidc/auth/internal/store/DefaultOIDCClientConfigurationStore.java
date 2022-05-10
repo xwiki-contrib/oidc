@@ -32,6 +32,8 @@ import org.xwiki.model.reference.DocumentReferenceResolver;
 import org.xwiki.query.Query;
 import org.xwiki.query.QueryException;
 import org.xwiki.query.QueryManager;
+import org.xwiki.security.authorization.AuthorizationManager;
+import org.xwiki.security.authorization.Right;
 
 import com.xpn.xwiki.XWiki;
 import com.xpn.xwiki.XWikiContext;
@@ -57,26 +59,44 @@ public class DefaultOIDCClientConfigurationStore implements OIDCClientConfigurat
     @Inject
     private DocumentReferenceResolver<String> documentReferenceResolver;
 
+    @Inject
+    private AuthorizationManager authorizationManager;
+
     @Override
     public XWikiDocument getOIDCClientConfigurationDocument(String name) throws XWikiException, QueryException
     {
-        Query query = queryManager.createQuery(
-            "select obj.name from BaseObject obj, StringProperty configName "
-            + "where obj.className = :className and obj.id = configName.id.id "
-            + "and configName.id.name = :configFieldName and configName.value = :config", Query.HQL)
+        XWikiContext context = contextProvider.get();
+        XWiki xwiki = context.getWiki();
+
+        // Search for a configuration in the current wiki and in the main wiki
+        List<String> results = getOIDCClientConfigurationDocumentQuery(name).execute();
+        if (!context.isMainWiki()) {
+            results.addAll(getOIDCClientConfigurationDocumentQuery(name).setWiki(XWiki.DEFAULT_MAIN_WIKI).execute());
+        }
+
+        if (results.size() > 0) {
+            for (String result : results) {
+                XWikiDocument document = xwiki.getDocument(documentReferenceResolver.resolve(result), context);
+
+                if (authorizationManager.hasAccess(Right.ADMIN, document.getAuthorReference(),
+                    document.getDocumentReference().getWikiReference())) {
+                    return document;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private Query getOIDCClientConfigurationDocumentQuery(String name) throws QueryException
+    {
+        return queryManager.createQuery(
+                "select obj.name from BaseObject obj, StringProperty configName "
+                    + "where obj.className = :className and obj.id = configName.id.id "
+                    + "and configName.id.name = :configFieldName and configName.value = :config", Query.HQL)
             .bindValue("className", OIDCClientConfiguration.CLASS_FULLNAME)
             .bindValue("configFieldName", OIDCClientConfiguration.FIELD_CONFIGURATION_NAME)
             .bindValue("config", name);
-        List<String> results = query.execute();
-
-        if (results.size() > 0) {
-            XWikiContext context = contextProvider.get();
-            XWiki xwiki = context.getWiki();
-
-            return xwiki.getDocument(documentReferenceResolver.resolve(results.get(0)), context);
-        } else {
-            return null;
-        }
     }
 
     @Override
