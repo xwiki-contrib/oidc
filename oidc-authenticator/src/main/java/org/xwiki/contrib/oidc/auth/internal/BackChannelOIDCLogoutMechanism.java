@@ -28,6 +28,7 @@ import org.slf4j.Logger;
 import org.xwiki.component.annotation.Component;
 import org.xwiki.component.annotation.InstantiationStrategy;
 import org.xwiki.component.descriptor.ComponentInstantiationStrategy;
+import org.xwiki.contrib.oidc.auth.OIDCLogoutException;
 import org.xwiki.contrib.oidc.auth.OIDCLogoutMechanism;
 
 import com.nimbusds.jwt.PlainJWT;
@@ -64,19 +65,19 @@ public class BackChannelOIDCLogoutMechanism implements OIDCLogoutMechanism
     private IDTokenClaimsSet idTokenClaimsSet;
 
     @Override
-    public void prepareLogout()
+    public void prepareLogout() throws OIDCLogoutException
     {
         try {
             this.logoutURI = this.configuration.getLogoutOIDCEndpoint();
         } catch (Exception e) {
-            this.logger.error("Failed to generate the logout endpoint URI", e);
+            throw new OIDCLogoutException("Failed to generate the logout endpoint URI", e);
         }
 
         this.idTokenClaimsSet = this.configuration.getIdToken();
     }
 
     @Override
-    public void logout()
+    public void logout() throws OIDCLogoutException
     {
         if (this.logoutURI != null) {
             try {
@@ -84,7 +85,7 @@ public class BackChannelOIDCLogoutMechanism implements OIDCLogoutMechanism
                 //  code that is not handled.
                 sendBackChannelLogout();
             } catch (Exception e) {
-                this.logger.error("Failed to send logout request", e);
+                throw new OIDCLogoutException("Failed to send logout request", e);
             }
         } else {
             this.logger.debug("Don't send OIDC logout request: no OIDC logout URI set");

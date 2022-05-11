@@ -276,6 +276,12 @@ public class OIDCClientConfiguration extends OIDCConfiguration
      */
     public static final String DEFAULT_CLIENT_CONFIGURATION = "default";
 
+    /**
+     * Default logout mechanism to use.
+     * @since 1.31
+     */
+    public static final String DEFAULT_LOGOUT_MECHANISM = BackChannelOIDCLogoutMechanism.LOGOUT_MECHANISM_NAME;
+
     @Inject
     private InstanceIdManager instance;
 
@@ -603,7 +609,7 @@ public class OIDCClientConfiguration extends OIDCConfiguration
      */
     public String getLogoutMechanism()
     {
-        return getProperty(PROP_LOGOUT_MECHANISM, BackChannelOIDCLogoutMechanism.LOGOUT_MECHANISM_NAME);
+        return getProperty(PROP_LOGOUT_MECHANISM, DEFAULT_LOGOUT_MECHANISM);
     }
 
     public String getSessionState()

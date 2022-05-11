@@ -56,6 +56,7 @@ import org.xwiki.component.manager.ComponentLookupException;
 import org.xwiki.component.manager.ComponentManager;
 import org.xwiki.context.concurrent.ExecutionContextRunnable;
 import org.xwiki.contrib.oidc.OIDCUserInfo;
+import org.xwiki.contrib.oidc.auth.OIDCLogoutException;
 import org.xwiki.contrib.oidc.auth.OIDCLogoutMechanism;
 import org.xwiki.contrib.oidc.auth.internal.OIDCClientConfiguration.GroupMapping;
 import org.xwiki.contrib.oidc.auth.store.OIDCUserStore;
@@ -783,18 +784,12 @@ public class OIDCUserManager
     public void logout()
     {
         XWikiRequest request = this.xcontextProvider.get().getRequest();
-        OIDCLogoutMechanism logoutMechanism = null;
 
+        // Try first to load the configured logout mechanism
         String logoutMechanismHint = this.configuration.getLogoutMechanism();
-        if (componentManager.hasComponent(OIDCLogoutMechanism.class, logoutMechanismHint)) {
-            try {
-                logoutMechanism = componentManager.getInstance(OIDCLogoutMechanism.class, logoutMechanismHint);
-                logoutMechanism.prepareLogout();
-            } catch (ComponentLookupException e) {
-                // Should never happen
-            }
-        } else {
-            this.logger.error("Failed to find OIDC log-out mechanism [{}]", logoutMechanismHint);
+        OIDCLogoutMechanism logoutMechanism = prepareLogoutMechanism(logoutMechanismHint);
+        if (logoutMechanism == null) {
+            prepareLogoutMechanism(OIDCClientConfiguration.DEFAULT_LOGOUT_MECHANISM);
         }
 
         // TODO: remove cookies
@@ -815,7 +810,31 @@ public class OIDCUserManager
         request.getSession().removeAttribute(OIDCClientConfiguration.PROP_USERINFOCLAIMS);
 
         if (logoutMechanism != null) {
-            logoutMechanism.logout();
+            try {
+                logoutMechanism.logout();
+            } catch (OIDCLogoutException e) {
+                this.logger.error("Failed to run OIDC log-out", e);
+            }
         }
+    }
+
+    private OIDCLogoutMechanism prepareLogoutMechanism(String hint)
+    {
+        OIDCLogoutMechanism logoutMechanism = null;
+
+        try {
+            if (componentManager.hasComponent(OIDCLogoutMechanism.class, hint)) {
+                logoutMechanism = componentManager.getInstance(OIDCLogoutMechanism.class, hint);
+                logoutMechanism.prepareLogout();
+            } else {
+                this.logger.warn("OIDC Log-out mechanism not found with hint [{}]", hint);
+            }
+        } catch (ComponentLookupException e) {
+            this.logger.error("Failed to load OIDC log-out mechanism [{}]", hint);
+        } catch (OIDCLogoutException e) {
+            this.logger.error("Failed to prepare for OIDC log-out with mechanism [{}].", hint);
+        }
+
+        return logoutMechanism;
     }
 }

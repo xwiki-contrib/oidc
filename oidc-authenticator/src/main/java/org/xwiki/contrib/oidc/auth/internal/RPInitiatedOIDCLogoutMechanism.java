@@ -33,6 +33,7 @@ import org.slf4j.Logger;
 import org.xwiki.component.annotation.Component;
 import org.xwiki.component.annotation.InstantiationStrategy;
 import org.xwiki.component.descriptor.ComponentInstantiationStrategy;
+import org.xwiki.contrib.oidc.auth.OIDCLogoutException;
 import org.xwiki.contrib.oidc.auth.OIDCLogoutMechanism;
 
 import com.nimbusds.oauth2.sdk.id.ClientID;
@@ -71,12 +72,12 @@ public class RPInitiatedOIDCLogoutMechanism implements OIDCLogoutMechanism
     private ClientID clientID;
 
     @Override
-    public void prepareLogout()
+    public void prepareLogout() throws OIDCLogoutException
     {
         try {
             this.logoutURI = this.clientConfiguration.getLogoutOIDCEndpoint().getURI();
         } catch (URISyntaxException e) {
-            this.logger.error("Failed to prepare OIDC RP-initiated log-out.", e);
+            throw new OIDCLogoutException("Failed to prepare OIDC RP-initiated log-out.", e);
         }
 
         this.idTokenClaimsSet = this.clientConfiguration.getIdToken();
@@ -84,7 +85,7 @@ public class RPInitiatedOIDCLogoutMechanism implements OIDCLogoutMechanism
     }
 
     @Override
-    public void logout()
+    public void logout() throws OIDCLogoutException
     {
         XWikiContext context = contextProvider.get();
 
@@ -101,7 +102,7 @@ public class RPInitiatedOIDCLogoutMechanism implements OIDCLogoutMechanism
                 context.getResponse().sendRedirect(logoutBuilder.build().toString());
                 context.setFinished(true);
             } catch (URISyntaxException | IOException e) {
-                this.logger.error("Failed to perform OIDC RP-initiated log-out.", e);
+                throw new OIDCLogoutException("Failed to perform OIDC RP-initiated log-out.", e);
             }
         }
     }

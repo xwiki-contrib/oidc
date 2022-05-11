@@ -19,28 +19,30 @@
  */
 package org.xwiki.contrib.oidc.auth;
 
-import org.xwiki.component.annotation.Role;
-
 /**
- * Define various strategies for logging-out an OIDC user.
+ * Exception related to OIDC Log-outs.
  *
  * @version $Id$
  * @since 1.31
  */
-@Role
-public interface OIDCLogoutMechanism
+public class OIDCLogoutException extends Exception
 {
     /**
-     * Allows the logout mechanism to extract any information needed from the user session before destroying it.
-     *
-     * @throws OIDCLogoutException if an error happens
+     * Construct a OIDCLogoutException.
+     * @param message the detail message
      */
-    void prepareLogout() throws OIDCLogoutException;
+    public OIDCLogoutException(String message)
+    {
+        super(message);
+    }
 
     /**
-     * Actually logs the user out.
-     *
-     * @throws OIDCLogoutException if an error happens
+     * Construct a OIDCLogoutException.
+     * @param message the detail message
+     * @param cause the cause
      */
-    void logout() throws OIDCLogoutException;
+    public OIDCLogoutException(String message, Throwable cause)
+    {
+        super(message, cause);
+    }
 }
