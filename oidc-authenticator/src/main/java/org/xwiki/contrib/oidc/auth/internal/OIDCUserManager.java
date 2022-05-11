@@ -52,9 +52,11 @@ import org.apache.commons.text.StringSubstitutor;
 import org.securityfilter.realm.SimplePrincipal;
 import org.slf4j.Logger;
 import org.xwiki.component.annotation.Component;
+import org.xwiki.component.manager.ComponentLookupException;
 import org.xwiki.component.manager.ComponentManager;
 import org.xwiki.context.concurrent.ExecutionContextRunnable;
 import org.xwiki.contrib.oidc.OIDCUserInfo;
+import org.xwiki.contrib.oidc.auth.OIDCLogoutMechanism;
 import org.xwiki.contrib.oidc.auth.internal.OIDCClientConfiguration.GroupMapping;
 import org.xwiki.contrib.oidc.auth.store.OIDCUserStore;
 import org.xwiki.contrib.oidc.event.OIDCUserEventData;
@@ -66,12 +68,10 @@ import org.xwiki.model.reference.SpaceReference;
 import org.xwiki.observation.ObservationManager;
 import org.xwiki.query.QueryException;
 
-import com.nimbusds.jwt.PlainJWT;
 import com.nimbusds.oauth2.sdk.ParseException;
 import com.nimbusds.oauth2.sdk.http.HTTPRequest;
 import com.nimbusds.oauth2.sdk.http.HTTPResponse;
 import com.nimbusds.oauth2.sdk.token.BearerAccessToken;
-import com.nimbusds.openid.connect.sdk.LogoutRequest;
 import com.nimbusds.openid.connect.sdk.UserInfoErrorResponse;
 import com.nimbusds.openid.connect.sdk.UserInfoRequest;
 import com.nimbusds.openid.connect.sdk.UserInfoResponse;
@@ -194,45 +194,6 @@ public class OIDCUserManager
 
         // Update/Create XWiki user
         return updateUser(idToken, userInfo);
-    }
-
-    private int sendLogout()
-    {
-        int ret = 0;
-        Endpoint logoutURI = null;
-
-        try {
-            logoutURI = this.configuration.getLogoutOIDCEndpoint();
-        } catch (Exception e) {
-            this.logger.error("Failed to generate the logout endpoint URI", e);
-        }
-
-        if (logoutURI != null) {
-            try {
-                ret = sendLogout(logoutURI, this.configuration.getIdToken());
-            } catch (Exception e) {
-                this.logger.error("Failed to send logout request", e);
-            }
-        } else {
-            this.logger.debug("Don't send OIDC logout request: no OIDC logout URI set");
-        }
-
-        return ret;
-    }
-
-    private int sendLogout(Endpoint logoutEndpoint, IDTokenClaimsSet idToken) throws IOException, ParseException
-    {
-        LogoutRequest logoutRequest =
-            new LogoutRequest(logoutEndpoint.getURI(), new PlainJWT(idToken.toJWTClaimsSet()));
-
-        HTTPRequest logoutHTTP = logoutRequest.toHTTPRequest();
-        logoutEndpoint.prepare(logoutHTTP);
-        this.logger.debug("OIDC logout request ({}?{},{})", logoutHTTP.getURL(), logoutHTTP.getQuery(),
-            logoutHTTP.getHeaderMap());
-        HTTPResponse httpResponse = logoutHTTP.send();
-        this.logger.debug("OIDC logout response ({})", httpResponse.getContent());
-
-        return httpResponse.getStatusCode();
     }
 
     private void checkAllowedGroups(UserInfo userInfo) throws OIDCException
@@ -822,9 +783,19 @@ public class OIDCUserManager
     public void logout()
     {
         XWikiRequest request = this.xcontextProvider.get().getRequest();
+        OIDCLogoutMechanism logoutMechanism = null;
 
-        // Send logout request
-        this.sendLogout();
+        String logoutMechanismHint = this.configuration.getLogoutMechanism();
+        if (componentManager.hasComponent(OIDCLogoutMechanism.class, logoutMechanismHint)) {
+            try {
+                logoutMechanism = componentManager.getInstance(OIDCLogoutMechanism.class, logoutMechanismHint);
+                logoutMechanism.prepareLogout();
+            } catch (ComponentLookupException e) {
+                // Should never happen
+            }
+        } else {
+            this.logger.error("Failed to find OIDC log-out mechanism [{}]", logoutMechanismHint);
+        }
 
         // TODO: remove cookies
 
@@ -842,5 +813,9 @@ public class OIDCUserManager
         request.getSession().removeAttribute(OIDCClientConfiguration.PROP_USER_NAMEFORMATER);
         request.getSession().removeAttribute(OIDCClientConfiguration.PROP_USER_SUBJECTFORMATER);
         request.getSession().removeAttribute(OIDCClientConfiguration.PROP_USERINFOCLAIMS);
+
+        if (logoutMechanism != null) {
+            logoutMechanism.logout();
+        }
     }
 }

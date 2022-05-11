@@ -82,6 +82,7 @@ public class OIDCClientConfigurationClassDocumentInitializer extends AbstractMan
             "User info endpoint headers", 5, true, false, StringUtils.EMPTY, INPUT, SEPARATORS);
         xclass.addTextField(OIDCClientConfiguration.FIELD_ENDPOINT_LOGOUT_METHOD,
             "Logout endpoint method", 255);
+        xclass.addTextField(OIDCClientConfiguration.FIELD_LOGOUT_MECHANISM, "Logout mechanism", 255);
         xclass.addBooleanField(OIDCClientConfiguration.FIELD_SKIPPED, "Is authentication skipped ?", "select");
         xclass.addStaticListField(OIDCClientConfiguration.FIELD_SCOPE, "Scope", 5, true, false,
             StringUtils.EMPTY, INPUT, SEPARATORS);

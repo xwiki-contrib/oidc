@@ -151,6 +151,12 @@ public class OIDCClientConfiguration
      */
     public static final String FIELD_USER_INFO_REFRESH_RATE = "userInfoRefreshRate";
 
+    /**
+     * The name of the logout mechanism to be used.
+     * @since 1.31
+     */
+    public static final String FIELD_LOGOUT_MECHANISM = "logoutMechanism";
+
     private final BaseObject xobject;
 
     /**
@@ -495,5 +501,23 @@ public class OIDCClientConfiguration
     public void setUserInfoRefreshRate(int userInfoRefreshRate)
     {
         this.xobject.setIntValue(FIELD_USER_INFO_REFRESH_RATE, userInfoRefreshRate);
+    }
+
+    /**
+     * @return the logout mechanism
+     * @since 1.31
+     */
+    public String getLogoutMechanism()
+    {
+        return this.xobject.getStringValue(FIELD_LOGOUT_MECHANISM);
+    }
+
+    /**
+     * @param logoutMechanism the logout mechanism
+     * @since 1.31
+     */
+    public void setLogoutMechanism(String logoutMechanism)
+    {
+        this.xobject.setStringValue(FIELD_LOGOUT_MECHANISM, logoutMechanism);
     }
 }

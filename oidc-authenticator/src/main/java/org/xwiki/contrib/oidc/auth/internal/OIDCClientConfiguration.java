@@ -240,6 +240,12 @@ public class OIDCClientConfiguration extends OIDCConfiguration
 
     public static final String PROP_SESSION_USERINFO_EXPORATIONDATE = "oidc.session.userinfoexpirationdate";
 
+    /**
+     * The name of the logout mechanism property.
+     * @since 1.31
+     */
+    public static final String PROP_LOGOUT_MECHANISM = "oidc.logoutMechanism";
+
     private static final String XWIKI_GROUP_PREFIX = "XWiki.";
 
     private static final Set<String> SAFE_PROPERTIES = SetUtils.hashSet(PROP_SKIPPED);
@@ -590,6 +596,14 @@ public class OIDCClientConfiguration extends OIDCConfiguration
     public HTTPRequest.Method getLogoutEndPointMethod()
     {
         return getProperty(PROP_ENDPOINT_LOGOUT_METHOD, HTTPRequest.Method.GET);
+    }
+
+    /**
+     * @since 1.31
+     */
+    public String getLogoutMechanism()
+    {
+        return getProperty(PROP_LOGOUT_MECHANISM, BackChannelOIDCLogoutMechanism.LOGOUT_MECHANISM_NAME);
     }
 
     public String getSessionState()
@@ -972,6 +986,9 @@ public class OIDCClientConfiguration extends OIDCConfiguration
                 break;
             case PROP_USERINFOREFRESHRATE:
                 returnValue = clientConfiguration.getUserInfoRefreshRate();
+                break;
+            case PROP_LOGOUT_MECHANISM:
+                returnValue = clientConfiguration.getLogoutMechanism();
                 break;
         }
 
