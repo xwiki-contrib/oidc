@@ -596,8 +596,15 @@ public class OIDCUserManager
             }
         }
 
+        // The value of the configuration option "xwiki.users.initialGroups" is not accessible from XWiki.class.
+        // The default value of the configuration option is copied here.
+        String defaultGroup = "XWiki.XWikiAllGroup"; // From XWiki.setUserDefaultGroup
+
         // Remove group membership
         for (String xwikiGroupName : xwikiUserGroupList) {
+            if (xwikiGroupName.equals(defaultGroup) ) {
+                continue; // do not remove default group
+            }
             if (groupMapping == null) {
                 if (!providerGroups.contains(xwikiGroupName)
                     && !providerGroups.contains(xwikiGroupName.substring(XWIKI_GROUP_PREFIX.length()))) {
