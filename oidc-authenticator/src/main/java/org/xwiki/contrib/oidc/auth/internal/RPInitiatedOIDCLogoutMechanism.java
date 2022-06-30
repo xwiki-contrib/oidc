@@ -94,10 +94,12 @@ public class RPInitiatedOIDCLogoutMechanism implements OIDCLogoutMechanism
                 URL serverURL = context.getURLFactory().getServerURL(context);
                 URIBuilder xredirectBuilder = new URIBuilder(serverURL.toURI());
                 xredirectBuilder.removeQuery();
+                String redirectURI = xredirectBuilder.build().toString();
 
                 URIBuilder logoutBuilder = new URIBuilder(logoutURI);
                 logoutBuilder.addParameter("client_id", this.clientID.getValue());
-                logoutBuilder.addParameter("logout_uri", xredirectBuilder.build().toString());
+                logoutBuilder.addParameter("logout_uri", redirectURI);
+                logoutBuilder.addParameter("post_logout_redirect_uri", redirectURI);
 
                 context.getResponse().sendRedirect(logoutBuilder.build().toString());
                 context.setFinished(true);
