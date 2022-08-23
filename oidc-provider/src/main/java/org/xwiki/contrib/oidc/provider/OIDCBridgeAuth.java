@@ -82,7 +82,7 @@ public class OIDCBridgeAuth implements XWikiAuthService
                     this.authService = (XWikiAuthService) Class.forName(authClass).newInstance();
                 }
 
-                LOGGER.debug("Initialized AuthService using Relfection.");
+                LOGGER.debug("Initialized AuthService using Reflection.");
 
                 return;
             } catch (Exception e) {
