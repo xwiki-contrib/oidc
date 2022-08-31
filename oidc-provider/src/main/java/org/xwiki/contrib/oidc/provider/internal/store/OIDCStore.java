@@ -109,7 +109,11 @@ public class OIDCStore
         XWikiDocument consentDocument = xcontext.getWiki().getDocument(reference, xcontext);
 
         // Get the consent
-        OIDCConsent consent = new OIDCConsent(consentDocument.getXObject(reference));
+        BaseObject consentObject = consentDocument.getXObject(reference);
+        if (consentObject == null) {
+            return null;
+        }
+        OIDCConsent consent = new OIDCConsent(consentObject);
 
         // Compare token values
         final String stored = consent.getAccessToken();
