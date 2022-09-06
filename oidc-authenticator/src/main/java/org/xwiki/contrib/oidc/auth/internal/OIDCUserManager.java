@@ -181,7 +181,14 @@ public class OIDCUserManager
         userInfoEndpoint.prepare(userinfoHTTP);
         this.logger.debug("OIDC user info request ({}?{},{})", userinfoHTTP.getURL(), userinfoHTTP.getQuery(),
             userinfoHTTP.getHeaderMap());
-        HTTPResponse httpResponse = userinfoHTTP.send();
+
+        HTTPResponse httpResponse;
+        try {
+            httpResponse = userinfoHTTP.send();
+        } catch (IOException e) {
+            this.logger.error("OIDC user info request failed ({}?{} => {})", userinfoHTTP.getURL(), userinfoHTTP.getQuery(), e);
+            throw e;
+        }
         this.logger.debug("OIDC user info response ({})", httpResponse.getContent());
         UserInfoResponse userinfoResponse = UserInfoResponse.parse(httpResponse);
 
