@@ -42,6 +42,7 @@ import java.util.stream.Collectors;
 import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
+import javax.servlet.http.HttpSession;
 
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.io.FilenameUtils;
@@ -792,8 +793,6 @@ public class OIDCUserManager
             prepareLogoutMechanism(OIDCClientConfiguration.DEFAULT_LOGOUT_MECHANISM);
         }
 
-        // TODO: remove cookies
-
         // Make sure the session is free from anything related to a previously authenticated user (i.e. in case we are
         // just after a logout)
         request.getSession().removeAttribute(OIDCClientConfiguration.PROP_SESSION_ACCESSTOKEN);
@@ -808,6 +807,18 @@ public class OIDCUserManager
         request.getSession().removeAttribute(OIDCClientConfiguration.PROP_USER_NAMEFORMATER);
         request.getSession().removeAttribute(OIDCClientConfiguration.PROP_USER_SUBJECTFORMATER);
         request.getSession().removeAttribute(OIDCClientConfiguration.PROP_USERINFOCLAIMS);
+
+        // Destroy the session. Taken from LogoutAction
+        HttpSession currentSession = request.getSession();
+        if (currentSession != null ){
+            synchronized (currentSession) {
+                currentSession.invalidate();
+
+                // Early registration of a new session, so that the client gets to know the new session identifier early
+                // A new session is going to be needed after the redirect anyway
+                request.getSession(true);
+            }
+        }
 
         if (logoutMechanism != null) {
             try {
