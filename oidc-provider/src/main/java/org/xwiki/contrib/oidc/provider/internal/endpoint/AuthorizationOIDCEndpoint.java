@@ -197,7 +197,7 @@ public class AuthorizationOIDCEndpoint implements OIDCEndpoint
             if (request.getResponseType().impliesImplicitFlow()) {
                 accessToken =
                     XWikiBearerAccessToken.create(this.defaultReferenceSerializer.serialize(consent.getReference()));
-                consent.setAccessToken(accessToken);
+                this.store.setAccessToken(accessToken.getRandom(), consent);
             }
 
             // Save consent
@@ -217,8 +217,7 @@ public class AuthorizationOIDCEndpoint implements OIDCEndpoint
             if (accessToken == null) {
                 accessToken =
                     XWikiBearerAccessToken.create(this.defaultReferenceSerializer.serialize(consent.getReference()));
-                consent.setAccessToken(accessToken);
-                this.store.saveConsent(consent, "Store new OIDC access token");
+                this.store.saveAccessToken(accessToken.getRandom(), consent);
             }
             if (request instanceof AuthenticationRequest) {
                 idToken = this.manager.createdIdToken(clientID, consent.getUserReference(), nonce,

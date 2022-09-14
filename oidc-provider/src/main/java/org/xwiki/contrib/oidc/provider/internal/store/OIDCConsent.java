@@ -31,6 +31,7 @@ import com.nimbusds.oauth2.sdk.ParseException;
 import com.nimbusds.oauth2.sdk.id.ClientID;
 import com.nimbusds.openid.connect.sdk.claims.ClaimsSetRequest;
 import com.xpn.xwiki.XWiki;
+import com.xpn.xwiki.XWikiContext;
 import com.xpn.xwiki.doc.XWikiDocument;
 import com.xpn.xwiki.objects.BaseObject;
 import com.xpn.xwiki.objects.BaseObjectReference;
@@ -137,12 +138,12 @@ public class OIDCConsent
         return StringUtils.isNotEmpty(str) ? str : null;
     }
 
-    public void setAccessToken(XWikiBearerAccessToken accessToken)
+    public void setAccessToken(String accessToken, XWikiContext xcontext)
     {
         if (accessToken == null) {
             this.xobject.removeField(FIELD_ACCESSTOKEN);
         } else {
-            this.xobject.setStringValue(FIELD_ACCESSTOKEN, accessToken.getRandom());
+            this.xobject.set(FIELD_ACCESSTOKEN, accessToken, xcontext);
         }
     }
 

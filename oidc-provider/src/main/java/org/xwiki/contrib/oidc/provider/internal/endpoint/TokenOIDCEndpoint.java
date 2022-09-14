@@ -111,9 +111,8 @@ public class TokenOIDCEndpoint implements OIDCEndpoint
             // Create and store a new token (impossible to reuse existing one if any)
             XWikiBearerAccessToken accessToken =
                 XWikiBearerAccessToken.create(this.defaultReferenceSerializer.serialize(consent.getReference()));
-            // TODO: set a configurable lifespan?
-            consent.setAccessToken(accessToken);
-            this.store.saveConsent(consent, "Store new OIDC access token");
+            // TODO: set a configurable lifespan ?
+            this.store.saveAccessToken(accessToken.getRandom(), consent);
 
             // Get the stored nonce
             Nonce nonce = this.store.getNonce(grant.getAuthorizationCode());

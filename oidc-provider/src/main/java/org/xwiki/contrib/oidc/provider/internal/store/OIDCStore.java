@@ -185,6 +185,17 @@ public class OIDCStore
         return xcontext.getWiki().getDocument(xcontext.getUserReference(), xcontext);
     }
 
+    public void saveAccessToken(String accessToken, OIDCConsent consent) throws XWikiException
+    {
+        setAccessToken(accessToken, consent);
+        saveConsent(consent, "Store new OIDC access token");
+    }
+
+    public void setAccessToken(String accessToken, OIDCConsent consent)
+    {
+        consent.setAccessToken(accessToken, this.xcontextProvider.get());
+    }
+
     public OIDCConsent saveConsent(OIDCConsent consent, String comment) throws XWikiException
     {
         XWikiDocument userDocument = consent.getOwnerDocument();
