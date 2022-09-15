@@ -37,7 +37,6 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.xwiki.component.manager.ComponentLookupException;
 import org.xwiki.container.Container;
-import org.xwiki.contrib.oidc.auth.internal.store.DefaultOIDCClientConfigurationStore;
 import org.xwiki.contrib.oidc.auth.internal.store.DefaultOIDCUserStore;
 import org.xwiki.contrib.oidc.auth.internal.store.OIDCUserClassDocumentInitializer;
 import org.xwiki.contrib.oidc.auth.store.OIDCClientConfigurationStore;
