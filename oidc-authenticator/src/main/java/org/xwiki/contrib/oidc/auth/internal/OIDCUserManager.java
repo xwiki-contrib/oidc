@@ -413,7 +413,7 @@ public class OIDCUserManager
 
         // Sync user groups with the provider
         if (this.configuration.isGroupSync()) {
-            userUpdated = updateGroupMembership(userInfo, userDocument, xcontext);
+            userUpdated |= updateGroupMembership(idToken, userInfo, userDocument, xcontext);
         }
 
         // Notify
@@ -440,7 +440,7 @@ public class OIDCUserManager
         }
     }
 
-    private boolean updateGroupMembership(UserInfo userInfo, XWikiDocument userDocument, XWikiContext xcontext)
+    private boolean updateGroupMembership(IDTokenClaimsSet idToken, UserInfo userInfo, XWikiDocument userDocument, XWikiContext xcontext)
         throws XWikiException
     {
         String groupClaim = this.configuration.getGroupClaim();
@@ -448,7 +448,14 @@ public class OIDCUserManager
         this.logger.debug("Getting groups sent by the provider associated with claim [{}]", groupClaim);
 
         List<String> providerGroups = null;
-        Object providerGroupsObj = getClaim(this.configuration.getGroupClaim(), userInfo);
+        Object providerGroupsObj = getClaim(groupClaim, userInfo);
+        
+        if (providerGroupsObj == null) {
+            // Group claim not found in userInfo Token; try idToken (Azure AD)
+            this.logger.debug("Groups claim not found in userInfo token. Trying idToken");
+            providerGroupsObj = getClaim(groupClaim, idToken);
+        }
+        
         if (this.configuration.getGroupSeparator()!=null) {
             providerGroups = Arrays.asList(StringUtils.split(providerGroupsObj.toString(), this.configuration.getGroupSeparator()));
         } else {
