@@ -57,6 +57,21 @@ public class OIDCClientConfiguration
     public static final String FIELD_CLAIM_GROUP = "groupsClaim";
 
     /**
+     * Name of the property containing the group mappings.
+     */
+    public static final String FIELD_GROUP_MAPPING = "groupsMapping";
+
+    /**
+     * Name of the property containing the allowed groups.
+     */
+    public static final String FIELD_ALLOWED_GROUPS = "allowedGroups";
+
+    /**
+     * Name of the property containing the forbidden groups.
+     */
+    public static final String FIELD_FORBIDDEN_GROUPS = "forbiddenGroups";
+
+    /**
      * Name of the property containing the ID token claims.
      */
     public static final String FIELD_CLAIMS_ID_TOKEN = "idTokenClaims";
@@ -197,6 +212,54 @@ public class OIDCClientConfiguration
     public void setGroupClaim(String groupClaim)
     {
         this.xobject.setStringValue(FIELD_CLAIM_GROUP, groupClaim);
+    }
+
+    /**
+     * @return the group mapping
+     */
+    public List<String> getGroupMapping()
+    {
+        return this.xobject.getListValue(FIELD_GROUP_MAPPING);
+    }
+
+    /**
+     * @param groupMapping the group mapping
+     */
+    public void setGroupMapping(List<String> groupMapping)
+    {
+        this.xobject.setStringListValue(FIELD_GROUP_MAPPING, groupMapping);
+    }
+
+    /**
+     * @return the allowed groups
+     */
+    public List<String> getAllowedGroups()
+    {
+        return this.xobject.getListValue(FIELD_ALLOWED_GROUPS);
+    }
+
+    /**
+     * @param allowedGroups the allowed groups
+     */
+    public void setAllowedGroups(List<String> allowedGroups)
+    {
+        this.xobject.setStringListValue(FIELD_ALLOWED_GROUPS, allowedGroups);
+    }
+
+    /**
+     * @return the forbidden groups
+     */
+    public List<String> getForbiddenGroups()
+    {
+        return this.xobject.getListValue(FIELD_FORBIDDEN_GROUPS);
+    }
+
+    /**
+     * @param forbiddenGroups the forbidden groups
+     */
+    public void setForbiddenGroups(List<String> forbiddenGroups)
+    {
+        this.xobject.setStringListValue(FIELD_FORBIDDEN_GROUPS, forbiddenGroups);
     }
 
     /**

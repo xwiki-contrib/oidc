@@ -936,6 +936,15 @@ public class OIDCClientConfiguration extends OIDCConfiguration
             case PROP_GROUPS_CLAIM:
                 returnValue = clientConfiguration.getGroupClaim();
                 break;
+            case PROP_GROUPS_MAPPING:
+                returnValue = clientConfiguration.getGroupMapping();
+                break;
+            case PROP_GROUPS_ALLOWED:
+                returnValue = clientConfiguration.getAllowedGroups();
+                break;
+            case PROP_GROUPS_FORBIDDEN:
+                returnValue = clientConfiguration.getForbiddenGroups();
+                break;
             case PROP_USER_SUBJECTFORMATER:
                 returnValue = clientConfiguration.getUserSubjectFormatter();
                 break;

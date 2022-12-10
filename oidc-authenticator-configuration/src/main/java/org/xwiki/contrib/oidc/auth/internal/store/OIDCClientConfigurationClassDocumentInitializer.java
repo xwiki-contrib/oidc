@@ -57,6 +57,12 @@ public class OIDCClientConfigurationClassDocumentInitializer extends AbstractMan
     {
         xclass.addTextField(OIDCClientConfiguration.FIELD_CONFIGURATION_NAME, "Configuration name", 255);
         xclass.addTextField(OIDCClientConfiguration.FIELD_CLAIM_GROUP, "Group claim", 255);
+        xclass.addStaticListField(OIDCClientConfiguration.FIELD_GROUP_MAPPING, "Group mapping", 5, true, false,
+            StringUtils.EMPTY, INPUT, SEPARATORS);
+        xclass.addStaticListField(OIDCClientConfiguration.FIELD_ALLOWED_GROUPS, "Allowed groups", 5, true, false,
+            StringUtils.EMPTY, INPUT, SEPARATORS);
+        xclass.addStaticListField(OIDCClientConfiguration.FIELD_FORBIDDEN_GROUPS, "Forbidden groups", 5, true, false,
+            StringUtils.EMPTY, INPUT, SEPARATORS);
         xclass.addTextField(OIDCClientConfiguration.FIELD_FORMATTER_USER_SUBJECT,
             "Subject formatter", 255);
         xclass.addTextField(OIDCClientConfiguration.FIELD_FORMATTER_USER_NAME,
