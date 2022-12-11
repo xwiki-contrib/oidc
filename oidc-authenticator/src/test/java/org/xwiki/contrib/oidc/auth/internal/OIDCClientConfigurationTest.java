@@ -24,10 +24,12 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.junit.jupiter.api.Test;
@@ -91,6 +93,26 @@ class OIDCClientConfigurationTest
         when(this.oidcClientConfigurationStore.getOIDCClientConfiguration(configName)).thenReturn(wikiConfiguration);
 
         return wikiConfiguration;
+    }
+
+    @Test
+    void getGroupMappingFromWikiConfig() throws Exception
+    {
+        org.xwiki.contrib.oidc.auth.store.OIDCClientConfiguration wikiConfiguration = setUpWikiConfig();
+
+        Map<String, Set<String>> xwikiMapping = new HashMap<>();
+        xwikiMapping.put("XWiki.a", Collections.singleton("b"));
+        xwikiMapping.put("XWiki.c", Collections.singleton("d"));
+        Map<String, Set<String>> providerMapping = new HashMap<>();
+        providerMapping.put("b", Collections.singleton("XWiki.a"));
+        providerMapping.put("d", Collections.singleton("XWiki.c"));
+        List<String> mappingAsString = Arrays.asList("a=b", "XWiki.c=d");
+        when(wikiConfiguration.getGroupMapping()).thenReturn(mappingAsString);
+        when(this.converterManager.convert(eq(List.class), eq(mappingAsString))).thenReturn(mappingAsString);
+
+        OIDCClientConfiguration.GroupMapping groupMapping = this.configuration.getGroupMapping();
+        assertEquals(xwikiMapping, groupMapping.getXWikiMapping());
+        assertEquals(providerMapping, groupMapping.getProviderMapping());
     }
 
     @Test
