@@ -105,9 +105,11 @@ public class CallbackOIDCEndpoint implements OIDCEndpoint
         // Validate state
         State state = authorizationResponse.getState();
         if (!Objects.equals(state.getValue(), this.configuration.getSessionState())) {
-            this.logger.debug("OIDC callback: Invalid state ([{}])", state);
+            this.logger.debug("OIDC callback: Invalid state (was expecting [{}] and got [{}])",
+                this.configuration.getSessionState(), state);
 
-            throw new OIDCException("Invalid state [" + state + "]");
+            throw new OIDCException(
+                "Invalid state: was expecting [" + this.configuration.getSessionState() + "] and got [" + state + "]");
         }
         // TODO: remove the state from the session ?
 
