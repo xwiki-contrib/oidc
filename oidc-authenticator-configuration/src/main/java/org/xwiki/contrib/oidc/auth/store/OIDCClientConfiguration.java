@@ -171,6 +171,10 @@ public class OIDCClientConfiguration
      * @since 1.31
      */
     public static final String FIELD_LOGOUT_MECHANISM = "logoutMechanism";
+    
+    private static final String LIST_SPLIT_REGEX = "(\\r?\\n|,|\\|)";
+
+    private static final String JOIN_CHAR = "\n";
 
     private final BaseObject xobject;
 
@@ -219,7 +223,7 @@ public class OIDCClientConfiguration
      */
     public List<String> getGroupMapping()
     {
-        return this.xobject.getListValue(FIELD_GROUP_MAPPING);
+        return Arrays.asList(this.xobject.getLargeStringValue(FIELD_GROUP_MAPPING).split(LIST_SPLIT_REGEX));
     }
 
     /**
@@ -227,7 +231,7 @@ public class OIDCClientConfiguration
      */
     public void setGroupMapping(List<String> groupMapping)
     {
-        this.xobject.setStringListValue(FIELD_GROUP_MAPPING, groupMapping);
+        this.xobject.setLargeStringValue(FIELD_GROUP_MAPPING, String.join(JOIN_CHAR, groupMapping));
     }
 
     /**
@@ -235,7 +239,7 @@ public class OIDCClientConfiguration
      */
     public List<String> getAllowedGroups()
     {
-        return this.xobject.getListValue(FIELD_ALLOWED_GROUPS);
+        return Arrays.asList(this.xobject.getLargeStringValue(FIELD_ALLOWED_GROUPS).split(LIST_SPLIT_REGEX));
     }
 
     /**
@@ -243,7 +247,7 @@ public class OIDCClientConfiguration
      */
     public void setAllowedGroups(List<String> allowedGroups)
     {
-        this.xobject.setStringListValue(FIELD_ALLOWED_GROUPS, allowedGroups);
+        this.xobject.setLargeStringValue(FIELD_ALLOWED_GROUPS, String.join(JOIN_CHAR, allowedGroups));
     }
 
     /**
@@ -251,7 +255,7 @@ public class OIDCClientConfiguration
      */
     public List<String> getForbiddenGroups()
     {
-        return this.xobject.getListValue(FIELD_FORBIDDEN_GROUPS);
+        return Arrays.asList(this.xobject.getLargeStringValue(FIELD_FORBIDDEN_GROUPS).split(LIST_SPLIT_REGEX));
     }
 
     /**
@@ -259,7 +263,7 @@ public class OIDCClientConfiguration
      */
     public void setForbiddenGroups(List<String> forbiddenGroups)
     {
-        this.xobject.setStringListValue(FIELD_FORBIDDEN_GROUPS, forbiddenGroups);
+        this.xobject.setLargeStringValue(FIELD_FORBIDDEN_GROUPS, String.join(JOIN_CHAR, forbiddenGroups));
     }
 
     /**
@@ -299,7 +303,7 @@ public class OIDCClientConfiguration
      */
     public List<String> getUserMapping()
     {
-        return this.xobject.getListValue(FIELD_USER_MAPPING);
+        return Arrays.asList(this.xobject.getLargeStringValue(FIELD_USER_MAPPING).split(LIST_SPLIT_REGEX));
     }
 
     /**
@@ -307,7 +311,7 @@ public class OIDCClientConfiguration
      */
     public void setUserMapping(List<String> userMapping)
     {
-        this.xobject.setStringListValue(FIELD_USER_MAPPING, userMapping);
+        this.xobject.setLargeStringValue(FIELD_USER_MAPPING, String.join(JOIN_CHAR, userMapping));
     }
 
     /**
@@ -459,7 +463,7 @@ public class OIDCClientConfiguration
      */
     public List<String> getUserInfoEndpointHeaders()
     {
-        return this.xobject.getListValue(FIELD_ENDPOINT_USERINFO_HEADERS);
+        return Arrays.asList(this.xobject.getLargeStringValue(FIELD_ENDPOINT_USERINFO_HEADERS).split(LIST_SPLIT_REGEX));
     }
 
     /**
@@ -467,7 +471,8 @@ public class OIDCClientConfiguration
      */
     public void setUserInfoEndpointHeaders(List<String> userInfoEndpointHeaders)
     {
-        this.xobject.setStringListValue(FIELD_ENDPOINT_USERINFO_HEADERS, userInfoEndpointHeaders);
+        this.xobject.setLargeStringValue(FIELD_ENDPOINT_USERINFO_HEADERS,
+            String.join(JOIN_CHAR, userInfoEndpointHeaders));
     }
 
     /**
@@ -507,7 +512,7 @@ public class OIDCClientConfiguration
      */
     public List<String> getScope()
     {
-        return this.xobject.getListValue(FIELD_SCOPE);
+        return Arrays.asList(this.xobject.getLargeStringValue(FIELD_SCOPE).split(LIST_SPLIT_REGEX));
     }
 
     /**
@@ -515,7 +520,7 @@ public class OIDCClientConfiguration
      */
     public void setScope(List<String> scope)
     {
-        this.xobject.setStringListValue(FIELD_SCOPE, scope);
+        this.xobject.setLargeStringValue(FIELD_SCOPE, String.join(JOIN_CHAR, scope));
     }
 
     /**
@@ -523,7 +528,7 @@ public class OIDCClientConfiguration
      */
     public List<String> getIdTokenClaims()
     {
-        return this.xobject.getListValue(FIELD_CLAIMS_ID_TOKEN);
+        return Arrays.asList(this.xobject.getLargeStringValue(FIELD_CLAIMS_ID_TOKEN).split(LIST_SPLIT_REGEX));
     }
 
     /**
@@ -531,7 +536,7 @@ public class OIDCClientConfiguration
      */
     public void setIdTokenClaims(List<String> idTokenClaims)
     {
-        this.xobject.setStringListValue(FIELD_CLAIMS_ID_TOKEN, idTokenClaims);
+        this.xobject.setLargeStringValue(FIELD_CLAIMS_ID_TOKEN, String.join(JOIN_CHAR, idTokenClaims));
     }
 
     /**
@@ -539,7 +544,7 @@ public class OIDCClientConfiguration
      */
     public List<String> getUserInfoClaims()
     {
-        return this.xobject.getListValue(FIELD_CLAIMS_USER_INFO);
+        return Arrays.asList(this.xobject.getLargeStringValue(FIELD_CLAIMS_USER_INFO).split(LIST_SPLIT_REGEX));
     }
 
     /**
@@ -547,7 +552,7 @@ public class OIDCClientConfiguration
      */
     public void setUserInfoClaims(List<String> userInfoClaims)
     {
-        this.xobject.setStringListValue(FIELD_CLAIMS_USER_INFO, userInfoClaims);
+        this.xobject.setLargeStringValue(FIELD_CLAIMS_USER_INFO, String.join(JOIN_CHAR, userInfoClaims));
     }
 
     /**
