@@ -80,24 +80,6 @@ public class OIDCStore
         }
     }
 
-    public OIDCConsent getConsent(DocumentReference userReference, ClientID clientID, URI redirectURI)
-        throws XWikiException
-    {
-        XWikiContext xcontext = this.xcontextProvider.get();
-
-        XWikiDocument userDocument = xcontext.getWiki().getDocument(userReference, xcontext);
-        for (OIDCConsent consent : (List<OIDCConsent>) (List) userDocument.getXObjects(OIDCConsent.REFERENCE)) {
-            if (consent != null) {
-                if (clientID.equals(consent.getClientID())
-                    && (redirectURI == null || redirectURI.equals(consent.getRedirectURI()))) {
-                    return consent;
-                }
-            }
-        }
-
-        return null;
-    }
-
     public OIDCConsent getConsent(XWikiBearerAccessToken xwikiAccessToken) throws XWikiException
     {
         EntityReference reference =
