@@ -912,7 +912,7 @@ public class OIDCClientConfiguration extends OIDCConfiguration
         try {
             return oidcClientConfigurationStore.getOIDCClientConfiguration(configName);
         } catch (XWikiException | QueryException e) {
-            logger.error("Failed to load the wiki OIDC client configuration with name [%s]", configName, e);
+            this.logger.error("Failed to load the wiki OIDC client configuration with name [{}]", configName, e);
         }
 
         return null;
