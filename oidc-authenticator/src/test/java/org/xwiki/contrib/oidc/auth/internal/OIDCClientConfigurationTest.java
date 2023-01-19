@@ -85,8 +85,7 @@ class OIDCClientConfigurationTest
     private org.xwiki.contrib.oidc.auth.store.OIDCClientConfiguration setUpWikiConfig() throws Exception
     {
         String configName = "wiki";
-        when(this.sourceConfiguration.getProperty(
-            OIDCClientConfiguration.DEFAULT_CLIENT_CONFIGURATION_PROPERTY,
+        when(this.sourceConfiguration.getProperty(OIDCClientConfiguration.DEFAULT_CLIENT_CONFIGURATION_PROPERTY,
             OIDCClientConfiguration.DEFAULT_CLIENT_CONFIGURATION)).thenReturn(configName);
         org.xwiki.contrib.oidc.auth.store.OIDCClientConfiguration wikiConfiguration =
             mock(org.xwiki.contrib.oidc.auth.store.OIDCClientConfiguration.class);
@@ -273,10 +272,23 @@ class OIDCClientConfigurationTest
 
         // Extract each claim name as ClaimsSetRequest$Entry doesn't implement #equals()
         List<String> foundIdTokenClaims = claimsRequest.getIDTokenClaimsRequest().getEntries().stream()
-                .map(e -> e.getClaimName()).collect(Collectors.toList());
+            .map(e -> e.getClaimName()).collect(Collectors.toList());
         List<String> foundUserInfoClaims = claimsRequest.getUserInfoClaimsRequest().getEntries().stream()
-                .map(e -> e.getClaimName()).collect(Collectors.toList());
+            .map(e -> e.getClaimName()).collect(Collectors.toList());
         assertEquals(idTokenClaims, foundIdTokenClaims);
         assertEquals(userInfoClaims, foundUserInfoClaims);
+    }
+
+    @Test
+    void getClaimsRequestWithEmptyClaims()
+    {
+        when(this.sourceConfiguration.getProperty(OIDCClientConfiguration.PROP_IDTOKENCLAIMS,
+            OIDCClientConfiguration.DEFAULT_IDTOKENCLAIMS)).thenReturn(Collections.singletonList(""));
+        when(this.sourceConfiguration.getProperty(OIDCClientConfiguration.PROP_USERINFOCLAIMS,
+            OIDCClientConfiguration.DEFAULT_USERINFOCLAIMS)).thenReturn(Collections.singletonList(""));
+
+        OIDCClaimsRequest claimsRequest = this.configuration.getClaimsRequest();
+
+        assertEquals("{}", claimsRequest.toJSONString());
     }
 }

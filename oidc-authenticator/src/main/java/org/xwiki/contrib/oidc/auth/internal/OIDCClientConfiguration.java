@@ -25,6 +25,7 @@ import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -657,12 +658,28 @@ public class OIDCClientConfiguration extends OIDCConfiguration
         return claimsRequest;
     }
 
+    private List<String> getListProperty(String key)
+    {
+        return getListProperty(key, null);
+    }
+
+    private List<String> getListProperty(String key, List<String> def)
+    {
+        List<String> claims = def != null ? getProperty(key, def) : getProperty(key, List.class);
+
+        if (claims != null && claims.size() == 1 && claims.get(0).equals("")) {
+            claims = Collections.emptyList();
+        }
+
+        return claims;
+    }
+
     /**
      * @since 1.2
      */
     public List<String> getIDTokenClaims()
     {
-        return getProperty(PROP_IDTOKENCLAIMS, DEFAULT_IDTOKENCLAIMS);
+        return getListProperty(PROP_IDTOKENCLAIMS, DEFAULT_IDTOKENCLAIMS);
     }
 
     /**
@@ -670,7 +687,7 @@ public class OIDCClientConfiguration extends OIDCConfiguration
      */
     public List<String> getUserInfoClaims()
     {
-        return getProperty(PROP_USERINFOCLAIMS, DEFAULT_USERINFOCLAIMS);
+        return getListProperty(PROP_USERINFOCLAIMS, DEFAULT_USERINFOCLAIMS);
     }
 
     /**
@@ -745,7 +762,7 @@ public class OIDCClientConfiguration extends OIDCConfiguration
      */
     public List<String> getAllowedGroups()
     {
-        List<String> groups = getProperty(PROP_GROUPS_ALLOWED, List.class);
+        List<String> groups = getListProperty(PROP_GROUPS_ALLOWED);
 
         return groups != null && !groups.isEmpty() ? groups : null;
     }
@@ -755,7 +772,7 @@ public class OIDCClientConfiguration extends OIDCConfiguration
      */
     public List<String> getForbiddenGroups()
     {
-        List<String> groups = getProperty(PROP_GROUPS_FORBIDDEN, List.class);
+        List<String> groups = getListProperty(PROP_GROUPS_FORBIDDEN);
 
         return groups != null && !groups.isEmpty() ? groups : null;
     }
