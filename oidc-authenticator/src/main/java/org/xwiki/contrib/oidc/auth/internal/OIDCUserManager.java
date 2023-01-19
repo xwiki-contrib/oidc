@@ -143,6 +143,8 @@ public class OIDCUserManager
         Date date = this.configuration.removeUserInfoExpirationDate();
         if (date != null) {
             if (date.before(new Date())) {
+                this.logger.debug("Refresing the user info");
+
                 try {
                     updateUserInfoAsync();
                 } catch (Exception e) {
@@ -152,6 +154,8 @@ public class OIDCUserManager
                 // Restart user information expiration counter
                 this.configuration.resetUserInfoExpirationDate();
             } else {
+                this.logger.debug("No user info refresh is needed");
+
                 // Put back the date
                 this.configuration.setUserInfoExpirationDate(date);
             }

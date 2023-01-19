@@ -81,10 +81,14 @@ public class OIDCAuthServiceImpl extends XWikiAuthServiceImpl
     @Override
     public XWikiUser checkAuth(XWikiContext context) throws XWikiException
     {
+        LOGGER.debug("Checking if there is already a user in the session");
+
         // Check if there is already a user in the session, take care of logout, etc.
         XWikiUser user = super.checkAuth(context);
 
         if (user == null) {
+            LOGGER.debug("No user could be found in the session, starting an OpenID Connect authentication");
+
             // Try OIDC if there is no already authenticated user
             try {
                 checkAuthOIDC(context);
@@ -93,6 +97,8 @@ public class OIDCAuthServiceImpl extends XWikiAuthServiceImpl
             }
         } else {
             // See if we need to refresh the user information
+            LOGGER.debug("Checking if a user info refresh is needed");
+
             this.users.checkUpdateUserInfo();
         }
 
