@@ -926,6 +926,8 @@ public class OIDCClientConfiguration extends OIDCConfiguration
     {
         String configName = getOIDCProviderName();
 
+        this.logger.debug("Wiki configuration name is [{}]", configName);
+
         try {
             return oidcClientConfigurationStore.getOIDCClientConfiguration(configName);
         } catch (XWikiException | QueryException e) {
@@ -1024,8 +1026,14 @@ public class OIDCClientConfiguration extends OIDCConfiguration
                 break;
         }
 
+        this.logger.debug("The value of configuration property [{}] is [{}]", key, returnValue);
+
         if (returnValue != null && (!(returnValue instanceof String) || StringUtils.isNotBlank((String) returnValue))) {
-            return this.converter.convert(returnType, returnValue);
+            T convertedValue = this.converter.convert(returnType, returnValue);
+
+            this.logger.debug("  Converted to [{}]", returnValue);
+
+            return convertedValue;
         }
 
         return null;
