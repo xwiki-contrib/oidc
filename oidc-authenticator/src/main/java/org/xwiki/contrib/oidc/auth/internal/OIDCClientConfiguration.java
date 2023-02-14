@@ -63,6 +63,7 @@ import org.xwiki.instance.InstanceIdManager;
 import org.xwiki.properties.ConverterManager;
 import org.xwiki.query.QueryException;
 
+import com.nimbusds.oauth2.sdk.ParseException;
 import com.nimbusds.oauth2.sdk.Scope;
 import com.nimbusds.oauth2.sdk.auth.ClientAuthenticationMethod;
 import com.nimbusds.oauth2.sdk.auth.Secret;
@@ -827,7 +828,9 @@ public class OIDCClientConfiguration extends OIDCConfiguration
      */
     public BearerAccessToken getAccessToken()
     {
-        return getSessionAttribute(PROP_SESSION_ACCESSTOKEN);
+        String accessTokenValue = getSessionAttribute(PROP_SESSION_ACCESSTOKEN);
+
+        return accessTokenValue != null ? new BearerAccessToken(accessTokenValue) : null;
     }
 
     /**
@@ -835,7 +838,9 @@ public class OIDCClientConfiguration extends OIDCConfiguration
      */
     public void setAccessToken(BearerAccessToken accessToken)
     {
-        setSessionAttribute(PROP_SESSION_ACCESSTOKEN, accessToken);
+        // Don't store the BearerAccessToken object directly as it could cause classloader problems when an extension is
+        // upgraded
+        setSessionAttribute(PROP_SESSION_ACCESSTOKEN, accessToken.getValue());
     }
 
     /**
@@ -843,7 +848,17 @@ public class OIDCClientConfiguration extends OIDCConfiguration
      */
     public IDTokenClaimsSet getIdToken()
     {
-        return getSessionAttribute(PROP_SESSION_IDTOKEN);
+        String idTokenValue = getSessionAttribute(PROP_SESSION_IDTOKEN);
+
+        try {
+            return idTokenValue != null ? IDTokenClaimsSet.parse(idTokenValue) : null;
+        } catch (ParseException e) {
+            // Should never happen since the value was serialized from a IDTokenClaimsSet
+            this.logger.error("Failed to parse the id token from the session with value [{}]", idTokenValue, e);
+
+            // Return null in that case
+            return null;
+        }
     }
 
     /**
@@ -851,7 +866,9 @@ public class OIDCClientConfiguration extends OIDCConfiguration
      */
     public void setIdToken(IDTokenClaimsSet idToken)
     {
-        setSessionAttribute(PROP_SESSION_IDTOKEN, idToken);
+        // Don't store the IDTokenClaimsSet object directly as it could cause classloader problem when an extension is
+        // upgraded
+        setSessionAttribute(PROP_SESSION_IDTOKEN, idToken.toJSONString());
     }
 
     /**
