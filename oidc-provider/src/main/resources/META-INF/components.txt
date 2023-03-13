@@ -1,3 +1,4 @@
+org.xwiki.contrib.oidc.provider.internal.OIDCBridgeAuthService
 org.xwiki.contrib.oidc.provider.internal.OIDCManager
 org.xwiki.contrib.oidc.provider.internal.OIDCProviderAuthenticator
 org.xwiki.contrib.oidc.provider.internal.OIDCProviderConfiguration

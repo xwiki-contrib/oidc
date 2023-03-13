@@ -74,6 +74,11 @@
       <artifactId>xwiki-platform-instance</artifactId>
       <version>${platform.version}</version>
     </dependency>
+    <dependency>
+      <groupId>org.xwiki.contrib</groupId>
+      <artifactId>authservice-backport-api</artifactId>
+      <version>1.0.2</version>
+    </dependency>
   </dependencies>
 
   <build>
