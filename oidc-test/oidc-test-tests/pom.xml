@@ -25,7 +25,7 @@
   <parent>
     <groupId>org.xwiki.contrib.oidc</groupId>
     <artifactId>oidc-test</artifactId>
-    <version>1.36.0</version>
+    <version>1.36.1-SNAPSHOT</version>
   </parent>
   <artifactId>oidc-test-tests</artifactId>
   <name>OpenID Connect - Tests - Functional Tests</name>
