@@ -696,7 +696,8 @@ public class OIDCUserManager
         document.setCreator(XWikiRightService.SUPERADMIN_USER);
         document.setAuthorReference(document.getCreatorReference());
         document.setContentAuthorReference(document.getCreatorReference());
-        xcontext.getWiki().protectUserPage(document.getFullName(), "edit", document, xcontext);
+        xcontext.getWiki().protectUserPage(document.getFullName(), this.configuration.getUserOwnProfileRights(),
+            document, xcontext);
 
         return document;
     }

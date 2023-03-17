@@ -142,6 +142,16 @@ public class OIDCClientConfiguration extends OIDCConfiguration
      */
     public static final String DEFAULT_USER_SUBJECTFORMATER = "${oidc.user.subject}";
 
+    /**
+     * @since 1.36.0
+     */
+    public static final String PROP_USER_OWNPROFILERIGHTS = "oidc.user.ownProfileRights";
+
+    /**
+     * @since 1.36.0
+     */
+    public static final String DEFAULT_USER_OWNPROFILERIGHTS = "edit";
+
     public static final String PROPPREFIX_ENDPOINT = "oidc.endpoint.";
 
     public static final String PROP_ENDPOINT_AUTHORIZATION = PROPPREFIX_ENDPOINT + AuthorizationOIDCEndpoint.HINT;
@@ -793,6 +803,15 @@ public class OIDCClientConfiguration extends OIDCConfiguration
     public String getGroupSeparator()
     {
         return getProperty(PROP_GROUPS_SEPARATOR, String.class);
+    }
+
+    /**
+     * @return the right to give to the user on its own profile
+     * @since 1.36.0
+     */
+    public String getUserOwnProfileRights()
+    {
+        return getProperty(PROP_USER_OWNPROFILERIGHTS, DEFAULT_USER_OWNPROFILERIGHTS);
     }
 
     // Session only
