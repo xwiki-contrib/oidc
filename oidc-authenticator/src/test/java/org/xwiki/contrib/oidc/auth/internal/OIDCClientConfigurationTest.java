@@ -291,4 +291,13 @@ class OIDCClientConfigurationTest
 
         assertEquals("{}", claimsRequest.toJSONString());
     }
+
+    @Test
+    void getGroupClaim()
+    {
+        when(this.sourceConfiguration.getProperty(OIDCClientConfiguration.PROP_GROUPS_CLAIM,
+            OIDCClientConfiguration.DEFAULT_GROUPSCLAIM)).thenReturn("groupclaim");
+
+        assertEquals("groupclaim", this.configuration.getGroupClaim());
+    }
 }
