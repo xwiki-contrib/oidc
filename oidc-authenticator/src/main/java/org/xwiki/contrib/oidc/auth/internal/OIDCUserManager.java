@@ -83,6 +83,7 @@ import com.nimbusds.openid.connect.sdk.claims.IDTokenClaimsSet;
 import com.nimbusds.openid.connect.sdk.claims.UserInfo;
 import com.xpn.xwiki.XWikiContext;
 import com.xpn.xwiki.XWikiException;
+import com.xpn.xwiki.doc.XWikiAttachment;
 import com.xpn.xwiki.doc.XWikiDocument;
 import com.xpn.xwiki.objects.BaseObject;
 import com.xpn.xwiki.objects.classes.BaseClass;
@@ -368,7 +369,22 @@ public class OIDCUserManager
                 connection.setRequestProperty("User-Agent", this.getClass().getPackage().getImplementationTitle() + '/'
                     + this.getClass().getPackage().getImplementationVersion());
                 try (InputStream content = connection.getInputStream()) {
-                    modifiableDocument.setAttachment(filename, content, xcontext);
+                    // Get the maximum attachment size
+                    int filenameSizeLimit = xcontext.getWiki().getStore().getLimitSize(xcontext, XWikiAttachment.class, "filename");
+                    if (filename.length() > filenameSizeLimit) {
+                        // If the provided file name is too long, use an arbitrary one
+                        filename = "oidc-avatar";
+                        String ext = FilenameUtils.getExtension(filename);
+                        if (ext.length() < 10) {
+                            filename += '.' + ext;
+                        }
+                    }
+
+                    // Update the attachment content
+                    XWikiAttachment attachment = modifiableDocument.setAttachment(filename, content, xcontext);
+
+                    // Calculate the attachment mime type
+                    attachment.resetMimeType(xcontext);
                 }
                 userObject.set("avatar", filename, xcontext);
             } catch (IOException e) {
