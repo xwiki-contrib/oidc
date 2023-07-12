@@ -66,6 +66,10 @@
       <artifactId>oauth2-oidc-sdk</artifactId>
     </dependency>
     <dependency>
+      <groupId>net.minidev</groupId>
+      <artifactId>json-smart</artifactId>
+    </dependency>
+    <dependency>
       <groupId>com.nimbusds</groupId>
       <artifactId>nimbus-jose-jwt</artifactId>
     </dependency>

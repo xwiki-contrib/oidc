@@ -48,6 +48,13 @@
         <groupId>com.nimbusds</groupId>
         <artifactId>oauth2-oidc-sdk</artifactId>
         <version>9.22</version>
+        <exclusions>
+          <!-- Exclude json-smart because the declared range is lower than the managed one without any valid reason -->
+          <exclusion>
+            <groupId>net.minidev</groupId>
+            <artifactId>json-smart</artifactId>
+          </exclusion>
+        </exclusions>
       </dependency>
       <dependency>
         <groupId>com.nimbusds</groupId>
