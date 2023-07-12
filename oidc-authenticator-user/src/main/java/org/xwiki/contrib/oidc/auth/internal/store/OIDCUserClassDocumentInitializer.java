@@ -28,6 +28,11 @@ import org.xwiki.contrib.oidc.auth.store.OIDCUser;
 import com.xpn.xwiki.doc.AbstractMandatoryClassInitializer;
 import com.xpn.xwiki.objects.classes.BaseClass;
 
+/**
+ * Initialize the OpenID Connect User Class.
+ * 
+ * @version $Id$
+ */
 @Component
 @Named(OIDCUser.CLASS_FULLNAME)
 @Singleton

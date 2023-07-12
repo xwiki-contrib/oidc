@@ -25,7 +25,7 @@
   <parent>
     <groupId>org.xwiki.contrib</groupId>
     <artifactId>parent-platform</artifactId>
-    <version>11.10-1</version>
+    <version>14.10</version>
   </parent>
 
   <groupId>org.xwiki.contrib.oidc</groupId>
@@ -54,11 +54,10 @@
         <artifactId>nimbus-jose-jwt</artifactId>
         <version>9.15.2</version>
       </dependency>
-      <!-- Json-smart 2.4+ requires Java 11 -->
       <dependency>
         <groupId>net.minidev</groupId>
         <artifactId>json-smart</artifactId>
-        <version>2.3.1</version>
+        <version>2.4.11</version>
       </dependency>
     </dependencies>
   </dependencyManagement>
@@ -92,6 +91,26 @@
         </plugin>
       </plugins>
     </pluginManagement>
+    <plugins>
+      <plugin>
+        <groupId>org.revapi</groupId>
+        <artifactId>revapi-maven-plugin</artifactId>
+        <configuration>
+          <analysisConfiguration>
+            <revapi.filter>
+              <archives>
+                <!-- We don't care about breakages comming from XWiki Standard. -->
+                <exclude>
+                  <item>org\.xwiki\.commons:.*:.*</item>
+                  <item>org\.xwiki\.rendering:.*:.*</item>
+                  <item>org\.xwiki\.platform:.*:.*</item>
+                </exclude>
+              </archives>
+            </revapi.filter>
+          </analysisConfiguration>
+        </configuration>
+      </plugin>
+    </plugins>
   </build>
 
   <developers>
