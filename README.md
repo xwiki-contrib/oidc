@@ -7,7 +7,7 @@ Various tools to manipulate OpenID Connect protocol in XWiki.
 * [Issue Tracker](http://jira.xwiki.org/browse/OIDC)
 * Communication: [Mailing List](http://dev.xwiki.org/xwiki/bin/view/Community/MailingLists), [IRC](http://dev.xwiki.org/xwiki/bin/view/Community/IRC)
 * [Development Practices](http://dev.xwiki.org)
-* Minimal XWiki version supported: XWiki 11.10
+* Minimal XWiki version supported: XWiki 14.10
 * License: LGPL 2.1
 * Translations: N/A
 * Sonar Dashboard: N/A
