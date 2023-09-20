@@ -25,6 +25,7 @@ import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -35,6 +36,7 @@ import javax.inject.Provider;
 import javax.inject.Singleton;
 import javax.servlet.http.HttpServletResponse;
 
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.RandomStringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
@@ -115,9 +117,13 @@ public class OIDCManager implements Initializable
 
     private RSASSASigner signer;
 
-    private JWKSet jwkSet;
+    private JWKSet privateJWKSet;
 
-    private RSAKey rsaKey;
+    private JWKSet publicJWKSet;
+
+    private RSAKey privateRSAKey;
+
+    private RSAKey publicRSAKey;
 
     private JWSHeader header;
 
@@ -138,7 +144,7 @@ public class OIDCManager implements Initializable
                 }
             }
 
-            if (this.rsaKey == null) {
+            if (this.privateRSAKey == null) {
                 try {
                     generateKeys(jwkSetFile);
                 } catch (Exception e) {
@@ -147,13 +153,13 @@ public class OIDCManager implements Initializable
                 }
             }
 
-            if (this.rsaKey != null) {
+            if (this.privateRSAKey != null) {
                 try {
-                    this.signer = new RSASSASigner(this.rsaKey);
-                    this.header = new JWSHeader(JWSAlgorithm.RS256, null, null, null, null, this.rsaKey,
-                        this.rsaKey.getX509CertURL(), this.rsaKey.getX509CertThumbprint(),
-                        this.rsaKey.getX509CertSHA256Thumbprint(), this.rsaKey.getX509CertChain(),
-                        this.rsaKey.getKeyID(), true, null, null);
+                    this.signer = new RSASSASigner(this.privateRSAKey);
+                    this.header = new JWSHeader(JWSAlgorithm.RS256, null, null, null, null, this.publicRSAKey,
+                        this.privateRSAKey.getX509CertURL(), this.privateRSAKey.getX509CertThumbprint(),
+                        this.privateRSAKey.getX509CertSHA256Thumbprint(), this.privateRSAKey.getX509CertChain(),
+                        this.privateRSAKey.getKeyID(), true, null, null);
                 } catch (JOSEException e) {
                     this.logger.warn("Failed to generate a signer, tokens won't be signed: {}",
                         ExceptionUtils.getRootCauseMessage(e));
@@ -164,22 +170,32 @@ public class OIDCManager implements Initializable
 
     private void loadKeys(File jwkSetFile) throws IOException, java.text.ParseException
     {
-        this.jwkSet = JWKSet.load(jwkSetFile);
+        this.privateJWKSet = JWKSet.load(jwkSetFile);
 
-        for (JWK key : this.jwkSet.getKeys()) {
-            if (key instanceof RSAKey) {
-                this.rsaKey = (RSAKey) key;
+        if (CollectionUtils.isNotEmpty(this.privateJWKSet.getKeys())) {
+            List<JWK> publicKeys = new ArrayList<>(this.privateJWKSet.getKeys().size());
+
+            for (JWK key : this.privateJWKSet.getKeys()) {
+                if (key instanceof RSAKey) {
+                    this.privateRSAKey = (RSAKey) key;
+                    this.publicRSAKey = this.privateRSAKey.toPublicJWK();
+                    publicKeys.add(this.publicRSAKey);
+                }
             }
+
+            this.publicJWKSet = new JWKSet(publicKeys);
         }
     }
 
     private void generateKeys(File jwkSetFile) throws JOSEException
     {
-        this.rsaKey = new RSAKeyGenerator(2048).keyID(RandomStringUtils.randomAlphanumeric(4)).keyUse(KeyUse.SIGNATURE)
-            .generate();
-        this.jwkSet = new JWKSet(this.rsaKey);
+        this.privateRSAKey = new RSAKeyGenerator(2048).keyID(RandomStringUtils.randomAlphanumeric(4))
+            .keyUse(KeyUse.SIGNATURE).generate();
+        this.publicRSAKey = this.privateRSAKey.toPublicJWK();
+        this.privateJWKSet = new JWKSet(this.privateRSAKey);
+        this.publicJWKSet = new JWKSet(this.publicRSAKey);
 
-        String json = this.jwkSet.toString(false);
+        String json = this.privateJWKSet.toString(false);
         try {
             FileUtils.write(jwkSetFile, json, StandardCharsets.UTF_8);
         } catch (IOException e) {
@@ -192,9 +208,9 @@ public class OIDCManager implements Initializable
      * @return the JWKSet
      * @since 1.24
      */
-    public JWKSet getJWKSet()
+    public JWKSet getPublicJWKSet()
     {
-        return this.jwkSet;
+        return this.publicJWKSet;
     }
 
     /**

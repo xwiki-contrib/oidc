@@ -55,7 +55,7 @@ public class JWKOIDCEndpoint implements OIDCEndpoint
     @Override
     public Response handle(HTTPRequest httpRequest, OIDCResourceReference reference) throws Exception
     {
-        JWKSet jwk = this.manager.getJWKSet();
+        JWKSet jwk = this.manager.getPublicJWKSet();
         if (jwk == null) {
             jwk = new JWKSet();
         }
