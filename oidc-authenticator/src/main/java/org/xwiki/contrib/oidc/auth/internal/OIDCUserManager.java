@@ -199,7 +199,7 @@ public class OIDCUserManager
         UserInfo userInfo = userinfoSuccessResponse.getUserInfo();
 
         // Update/Create XWiki user
-        return updateUser(idToken, userInfo);
+        return updateUser(idToken, userInfo, accessToken);
     }
 
     private void checkAllowedGroups(UserInfo userInfo) throws OIDCException
@@ -282,7 +282,7 @@ public class OIDCUserManager
         return (T) value;
     }
 
-    public Principal updateUser(IDTokenClaimsSet idToken, UserInfo userInfo)
+    public Principal updateUser(IDTokenClaimsSet idToken, UserInfo userInfo, BearerAccessToken accessToken)
         throws XWikiException, QueryException, OIDCException
     {
         // Check allowed/forbidden groups
@@ -366,11 +366,14 @@ public class OIDCUserManager
             try {
                 String filename = FilenameUtils.getName(userInfo.getPicture().toString());
                 URLConnection connection = userInfo.getPicture().toURL().openConnection();
+                connection.setRequestProperty("Authorization", accessToken.toAuthorizationHeader());
                 connection.setRequestProperty("User-Agent", this.getClass().getPackage().getImplementationTitle() + '/'
                     + this.getClass().getPackage().getImplementationVersion());
+
                 try (InputStream content = connection.getInputStream()) {
                     // Get the maximum attachment size
-                    int filenameSizeLimit = xcontext.getWiki().getStore().getLimitSize(xcontext, XWikiAttachment.class, "filename");
+                    int filenameSizeLimit =
+                        xcontext.getWiki().getStore().getLimitSize(xcontext, XWikiAttachment.class, "filename");
                     if (filename.length() > filenameSizeLimit) {
                         // If the provided file name is too long, use an arbitrary one
                         filename = "oidc-avatar";

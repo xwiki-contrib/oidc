@@ -35,7 +35,6 @@ import org.apache.commons.collections4.ListUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
-import org.xwiki.component.manager.ComponentLookupException;
 import org.xwiki.container.Container;
 import org.xwiki.contrib.oidc.auth.internal.store.DefaultOIDCUserStore;
 import org.xwiki.contrib.oidc.auth.internal.store.OIDCUserClassDocumentInitializer;
@@ -60,6 +59,7 @@ import org.xwiki.test.junit5.mockito.MockComponent;
 
 import com.nimbusds.oauth2.sdk.id.Issuer;
 import com.nimbusds.oauth2.sdk.id.Subject;
+import com.nimbusds.oauth2.sdk.token.BearerAccessToken;
 import com.nimbusds.openid.connect.sdk.claims.Address;
 import com.nimbusds.openid.connect.sdk.claims.IDTokenClaimsSet;
 import com.nimbusds.openid.connect.sdk.claims.UserInfo;
@@ -208,8 +208,7 @@ class OIDCUserManagerTest
     // Tests
 
     @Test
-    void updateUserInfo()
-        throws XWikiException, QueryException, OIDCException, ComponentLookupException, URISyntaxException
+    void updateUserInfo() throws XWikiException, QueryException, OIDCException, URISyntaxException
     {
         Issuer issuer = new Issuer("http://issuer");
         Subject subject = new Subject("subject");
@@ -253,7 +252,7 @@ class OIDCUserManagerTest
         userClassDocument.getXClass().apply(userClass, true);
         this.oldcore.getSpyXWiki().saveDocument(userClassDocument, this.oldcore.getXWikiContext());
 
-        Principal principal = this.manager.updateUser(idToken, userInfo);
+        Principal principal = this.manager.updateUser(idToken, userInfo, new BearerAccessToken());
 
         assertEquals("xwiki:XWiki.issuer-preferredUserName", principal.getName());
 
@@ -285,8 +284,7 @@ class OIDCUserManagerTest
     }
 
     @Test
-    void updateUserInfoWithGroupSyncWithDefaultGroupsClaim()
-        throws XWikiException, QueryException, OIDCException, ComponentLookupException
+    void updateUserInfoWithGroupSyncWithDefaultGroupsClaim() throws XWikiException, QueryException, OIDCException
     {
         Issuer issuer = new Issuer("http://issuer");
         Subject subject = new Subject("subject");
@@ -300,7 +298,7 @@ class OIDCUserManagerTest
 
         userInfo.setClaim(OIDCClientConfiguration.DEFAULT_GROUPSCLAIM, Arrays.asList("pgroup1", "pgroup2"));
 
-        Principal principal = this.manager.updateUser(idToken, userInfo);
+        Principal principal = this.manager.updateUser(idToken, userInfo, new BearerAccessToken());
 
         assertEquals("xwiki:XWiki.issuer-subject", principal.getName());
 
@@ -326,8 +324,7 @@ class OIDCUserManagerTest
     }
 
     @Test
-    void updateUserInfoWithGroupSyncWithoutMapping()
-        throws XWikiException, QueryException, OIDCException, ComponentLookupException
+    void updateUserInfoWithGroupSyncWithoutMapping() throws XWikiException, QueryException, OIDCException
     {
         this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_GROUPS_CLAIM, "groupclaim");
         this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_USERINFOCLAIMS,
@@ -352,7 +349,7 @@ class OIDCUserManagerTest
         assertFalse(groupContains(this.group2Reference, userFullName));
         assertTrue(groupContains(this.existinggroupReference, userFullName));
 
-        Principal principal = this.manager.updateUser(idToken, userInfo);
+        Principal principal = this.manager.updateUser(idToken, userInfo, new BearerAccessToken());
 
         assertEquals("xwiki:XWiki.issuer-subject", principal.getName());
 
@@ -379,8 +376,7 @@ class OIDCUserManagerTest
     }
 
     @Test
-    void updateUserInfoWithGroupSyncWithMapping()
-        throws XWikiException, QueryException, OIDCException, ComponentLookupException
+    void updateUserInfoWithGroupSyncWithMapping() throws XWikiException, QueryException, OIDCException
     {
         this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_GROUPS_MAPPING,
             Arrays.asList("group1=pgroup1", "group1=pgroup2", "XWiki.group2=pgroup2", "existinggroup=othergroup"));
@@ -407,7 +403,7 @@ class OIDCUserManagerTest
         assertFalse(groupContains(this.group2Reference, userFullName));
         assertTrue(groupContains(this.existinggroupReference, userFullName));
 
-        Principal principal = this.manager.updateUser(idToken, userInfo);
+        Principal principal = this.manager.updateUser(idToken, userInfo, new BearerAccessToken());
 
         assertEquals("xwiki:XWiki.issuer-subject", principal.getName());
 
@@ -435,7 +431,7 @@ class OIDCUserManagerTest
 
     @Test
     void updateUserInfoWithCustomNameAndIdPattern()
-        throws XWikiException, QueryException, OIDCException, ComponentLookupException, URISyntaxException
+        throws XWikiException, QueryException, OIDCException, URISyntaxException
     {
         this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_USER_NAMEFORMATER,
             "custom-${oidc.user.mail}-${oidc.user.mail.upperCase}-${oidc.user.mail.clean.upperCase}");
@@ -460,7 +456,7 @@ class OIDCUserManagerTest
         userInfo.setZoneinfo("timezone");
         userInfo.setWebsite(new URI("http://website"));
 
-        Principal principal = this.manager.updateUser(idToken, userInfo);
+        Principal principal = this.manager.updateUser(idToken, userInfo, new BearerAccessToken());
 
         assertEquals("xwiki:XWiki.custom-mail@domain\\.com-MAIL@DOMAIN\\.COM-MAILDOMAINCOM", principal.getName());
 
@@ -488,7 +484,7 @@ class OIDCUserManagerTest
     }
 
     @Test
-    void updateUserInfoWithAllowedGroup() throws XWikiException, QueryException, OIDCException, ComponentLookupException
+    void updateUserInfoWithAllowedGroup() throws XWikiException, QueryException, OIDCException
     {
         this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_GROUPS_ALLOWED,
             Arrays.asList("pgroup1", "pgroup2"));
@@ -505,14 +501,13 @@ class OIDCUserManagerTest
 
         userInfo.setClaim("groupclaim", Arrays.asList("pgroup1", "pgroup3"));
 
-        Principal principal = this.manager.updateUser(idToken, userInfo);
+        Principal principal = this.manager.updateUser(idToken, userInfo, new BearerAccessToken());
 
         assertNotNull(principal);
     }
 
     @Test
     void updateUserInfoWithNotAllowedGroup()
-        throws XWikiException, QueryException, OIDCException, ComponentLookupException
     {
         this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_GROUPS_ALLOWED,
             Arrays.asList("pgroup1"));
@@ -529,12 +524,11 @@ class OIDCUserManagerTest
 
         userInfo.setClaim("groupclaim", Arrays.asList("pgroup2", "pgroup3"));
 
-        assertThrows(OIDCException.class, () -> this.manager.updateUser(idToken, userInfo));
+        assertThrows(OIDCException.class, () -> this.manager.updateUser(idToken, userInfo, new BearerAccessToken()));
     }
 
     @Test
     void updateUserInfoWithForbiddenGroup()
-        throws XWikiException, QueryException, OIDCException, ComponentLookupException
     {
         this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_GROUPS_FORBIDDEN,
             Arrays.asList("pgroup1", "pgroup2"));
@@ -551,12 +545,11 @@ class OIDCUserManagerTest
 
         userInfo.setClaim("groupclaim", Arrays.asList("pgroup1", "pgroup3"));
 
-        assertThrows(OIDCException.class, () -> this.manager.updateUser(idToken, userInfo));
+        assertThrows(OIDCException.class, () -> this.manager.updateUser(idToken, userInfo, new BearerAccessToken()));
     }
 
     @Test
-    void updateUserInfoWithNotForbiddenGroup()
-        throws XWikiException, QueryException, OIDCException, ComponentLookupException
+    void updateUserInfoWithNotForbiddenGroup() throws XWikiException, QueryException, OIDCException
     {
         this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_GROUPS_FORBIDDEN,
             Arrays.asList("pgroup1"));
@@ -573,14 +566,13 @@ class OIDCUserManagerTest
 
         userInfo.setClaim("groupclaim", Arrays.asList("pgroup2", "pgroup3"));
 
-        Principal principal = this.manager.updateUser(idToken, userInfo);
+        Principal principal = this.manager.updateUser(idToken, userInfo, new BearerAccessToken());
 
         assertNotNull(principal);
     }
 
     @Test
-    void updateUserInfoWithAllowedAndForbiddenGroup()
-        throws XWikiException, QueryException, OIDCException, ComponentLookupException
+    void updateUserInfoWithAllowedAndForbiddenGroup() throws XWikiException, QueryException, OIDCException
     {
         this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_GROUPS_ALLOWED,
             Arrays.asList("pgroup1", "pgroup2"));
@@ -595,27 +587,28 @@ class OIDCUserManagerTest
         IDTokenClaimsSet idToken =
             new IDTokenClaimsSet(issuer, subject, Collections.emptyList(), new Date(), new Date());
         UserInfo userInfo = new UserInfo(subject);
+        BearerAccessToken accessToken = new BearerAccessToken();
 
         this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_GROUPS_CLAIM, "groupclaim");
         userInfo.setClaim("groupclaim", Arrays.asList("pgroup1", "pgroup3"));
 
-        assertNotNull(this.manager.updateUser(idToken, userInfo));
+        assertNotNull(this.manager.updateUser(idToken, userInfo, accessToken));
 
         userInfo.setClaim("groupclaim", Arrays.asList("otherpgroup1", "otherpgroup3"));
 
-        assertThrows(OIDCException.class, () -> this.manager.updateUser(idToken, userInfo),
+        assertThrows(OIDCException.class, () -> this.manager.updateUser(idToken, userInfo, accessToken),
             "The user is not allowed to authenticate because it's not a member of the following groups: [pgroup1, pgroup2]");
 
         this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_GROUPS_CLAIM,
             "custom.customgroupclaim");
         userInfo.setClaim("custom", Collections.singletonMap("customgroupclaim", Arrays.asList("pgroup1", "pgroup3")));
 
-        assertNotNull(this.manager.updateUser(idToken, userInfo));
+        assertNotNull(this.manager.updateUser(idToken, userInfo, accessToken));
 
         userInfo.setClaim("custom",
             Collections.singletonMap("customgroupclaim", Arrays.asList("otherpgroup1", "otherpgroup3")));
 
-        assertThrows(OIDCException.class, () -> this.manager.updateUser(idToken, userInfo),
+        assertThrows(OIDCException.class, () -> this.manager.updateUser(idToken, userInfo, accessToken),
             "The user is not allowed to authenticate because it's not a member of the following groups: [pgroup1, pgroup2]");
     }
 }
