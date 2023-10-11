@@ -49,15 +49,15 @@ public class ContentResponse implements Response
 
     /**
      * @param type the type of the content
-     * @param content the content to return
+     * @param body the content to return
      * @param statusCode the status code to return
      */
-    public ContentResponse(ContentType type, String content, int statusCode)
+    public ContentResponse(ContentType type, String body, int statusCode)
     {
         this.httpResponse = new HTTPResponse(statusCode);
 
         this.httpResponse.setEntityContentType(type);
-        this.httpResponse.setContent(content);
+        this.httpResponse.setBody(body);
     }
 
     @Override

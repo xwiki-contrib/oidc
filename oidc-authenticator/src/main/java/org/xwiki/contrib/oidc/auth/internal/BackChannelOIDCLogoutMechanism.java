@@ -101,10 +101,10 @@ public class BackChannelOIDCLogoutMechanism implements OIDCLogoutMechanism
         HTTPRequest logoutHTTP = logoutRequest.toHTTPRequest();
 
         this.logoutURI.prepare(logoutHTTP);
-        this.logger.debug("OIDC logout request ({}?{},{})", logoutHTTP.getURL(), logoutHTTP.getQuery(),
+        this.logger.debug("OIDC logout request ({}?{},{})", logoutHTTP.getURL(), logoutHTTP.getURL(),
             logoutHTTP.getHeaderMap());
         HTTPResponse httpResponse = logoutHTTP.send();
-        this.logger.debug("OIDC logout response ({})", httpResponse.getContent());
+        this.logger.debug("OIDC logout response ({})", httpResponse.getBody());
 
         return httpResponse.getStatusCode();
     }

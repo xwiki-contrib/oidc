@@ -167,11 +167,11 @@ public class CallbackOIDCEndpoint implements OIDCEndpoint
         HTTPRequest tokenHTTP = tokeRequest.toHTTPRequest();
         tokenEndpoint.prepare(httpRequest);
 
-        this.logger.debug("OIDC Token request ({}?{},{},{})", tokenHTTP.getURL(), tokenHTTP.getQuery(),
+        this.logger.debug("OIDC Token request ({}?{},{},{})", tokenHTTP.getURL(), tokenHTTP.getURL(),
             tokenHTTP.getAuthorization(), tokenHTTP.getHeaderMap());
 
         HTTPResponse httpResponse = tokenHTTP.send();
-        this.logger.debug("OIDC Token response ({})", httpResponse.getContent());
+        this.logger.debug("OIDC Token response ({})", httpResponse.getBody());
 
         if (httpResponse.getStatusCode() != HTTPResponse.SC_OK) {
             TokenErrorResponse error = TokenErrorResponse.parse(httpResponse);
