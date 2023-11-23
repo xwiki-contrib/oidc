@@ -17,30 +17,48 @@
  * Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
  */
-package org.xwiki.contrib.oidc.auth;
+package org.xwiki.contrib.oidc.provider.internal.util;
 
-import org.xwiki.component.annotation.Role;
+import com.nimbusds.oauth2.sdk.Response;
+import com.nimbusds.oauth2.sdk.http.HTTPResponse;
 
 /**
- * Define various strategies for logging-out an OIDC user.
- *
+ * Implementation of {@link Response} which return a simple content.
+ * 
  * @version $Id$
- * @since 1.31
+ * @since 2.4.0
  */
-@Role
-public interface OIDCLogoutMechanism
+public class EmptyResponse implements Response
 {
     /**
-     * Allows the logout mechanism to extract any information needed from the user session before destroying it.
-     *
-     * @throws OIDCLogoutException if an error happens
+     * Indicate the request succeeded.
      */
-    void prepareLogout() throws OIDCLogoutException;
+    public static final EmptyResponse OK = new EmptyResponse(HTTPResponse.SC_OK);
 
     /**
-     * Actually logs the user out.
-     *
-     * @throws OIDCLogoutException if an error happens
+     * Indicate a bad request.
      */
-    void logout() throws OIDCLogoutException;
+    public static final EmptyResponse BAD_REQUEST = new EmptyResponse(HTTPResponse.SC_BAD_REQUEST);
+
+    private final HTTPResponse httpResponse;
+
+    /**
+     * @param statusCode the status code to return
+     */
+    public EmptyResponse(int statusCode)
+    {
+        this.httpResponse = new HTTPResponse(statusCode);
+    }
+
+    @Override
+    public HTTPResponse toHTTPResponse()
+    {
+        return this.httpResponse;
+    }
+
+    @Override
+    public boolean indicatesSuccess()
+    {
+        return true;
+    }
 }

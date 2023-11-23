@@ -17,40 +17,48 @@
  * Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
  */
-package org.xwiki.contrib.oidc.test.po;
+package org.xwiki.contrib.oidc.provider.internal.util;
 
-import org.openqa.selenium.WebElement;
-import org.openqa.selenium.support.FindBy;
-import org.xwiki.test.ui.po.BaseElement;
+import com.nimbusds.oauth2.sdk.Response;
+import com.nimbusds.oauth2.sdk.http.HTTPResponse;
 
 /**
- * The page you get when no provider is configured (corresponding to oidc/client/provider.vm template).
+ * Implementation of {@link Response} which return a simple content.
  * 
  * @version $Id$
+ * @since 2.4.0
  */
-public class OIDCClientProviderPage extends BaseElement
+public class ErrorResponse implements Response
 {
-    @FindBy(xpath = "//form[1]//input[@name='oidc.provider']")
-    private WebElement providerInput;
+    /**
+     * Indicate the request succeeded.
+     */
+    public static final ErrorResponse OK = new ErrorResponse(HTTPResponse.SC_OK);
 
-    @FindBy(xpath = "//form[1]//input[@type='submit']")
-    private WebElement authenticateButton;
+    /**
+     * Indicate a bad request.
+     */
+    public static final ErrorResponse BAD_REQUEST = new ErrorResponse(HTTPResponse.SC_BAD_REQUEST);
 
-    @FindBy(xpath = "//form[2]//input[@type='submit']")
-    private WebElement skipButton;
+    private final HTTPResponse httpResponse;
 
-    public void setProvider(String provider)
+    /**
+     * @param statusCode the status code to return
+     */
+    public ErrorResponse(int statusCode)
     {
-        this.providerInput.sendKeys(provider);
+        this.httpResponse = new HTTPResponse(statusCode);
     }
 
-    public void clickAuthenticate()
+    @Override
+    public HTTPResponse toHTTPResponse()
     {
-        this.authenticateButton.click();
+        return this.httpResponse;
     }
 
-    public void clickSkip()
+    @Override
+    public boolean indicatesSuccess()
     {
-        this.skipButton.click();
+        return true;
     }
 }

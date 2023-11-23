@@ -19,7 +19,7 @@
  */
 package org.xwiki.contrib.oidc.auth.internal;
 
-import java.net.MalformedURLException;
+import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
@@ -44,6 +44,7 @@ import org.xwiki.test.junit5.mockito.ComponentTest;
 import org.xwiki.test.junit5.mockito.InjectMockComponents;
 import org.xwiki.test.junit5.mockito.MockComponent;
 
+import com.nimbusds.oauth2.sdk.GeneralException;
 import com.nimbusds.openid.connect.sdk.OIDCClaimsRequest;
 import com.xpn.xwiki.web.XWikiServletRequestStub;
 
@@ -115,7 +116,7 @@ class OIDCClientConfigurationTest
     }
 
     @Test
-    void getUserInfoOIDCEndpoint() throws URISyntaxException
+    void getUserInfoOIDCEndpoint() throws URISyntaxException, GeneralException, IOException
     {
         assertNull(this.configuration.getUserInfoOIDCEndpoint());
 
@@ -171,7 +172,7 @@ class OIDCClientConfigurationTest
     }
 
     @Test
-    void getPropertyOrder() throws MalformedURLException, URISyntaxException
+    void getPropertyOrder() throws URISyntaxException, GeneralException, IOException
     {
         String provider = "http://urlprovider";
         URI urlauthorization = new URI("http://urlauthorization");
@@ -182,7 +183,7 @@ class OIDCClientConfigurationTest
         when(this.sourceConfiguration.getProperty(OIDCClientConfiguration.PROP_SKIPPED, false)).thenReturn(false);
 
         assertFalse(this.configuration.isSkipped());
-        assertNull(this.configuration.getXWikiProvider());
+        assertNull(this.configuration.getProvider());
         assertNull(this.configuration.getAuthorizationOIDCEndpoint());
         assertNull(this.configuration.getAuthorizationOIDCEndpoint());
         assertNull(this.configuration.getTokenOIDCEndpoint());
@@ -196,7 +197,7 @@ class OIDCClientConfigurationTest
 
         assertNull(this.configuration.getAllowedGroups());
 
-        requestStub.put(OIDCClientConfiguration.PROP_XWIKIPROVIDER, provider.toString());
+        requestStub.put(OIDCClientConfiguration.PROP_PROVIDER, provider.toString());
         requestStub.put(OIDCClientConfiguration.PROP_ENDPOINT_AUTHORIZATION, urlauthorization.toString());
         when(this.manager.createEndPointURI(provider, TokenOIDCEndpoint.HINT)).thenReturn(new URI(provider));
 

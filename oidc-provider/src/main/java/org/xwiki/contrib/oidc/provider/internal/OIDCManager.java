@@ -28,7 +28,9 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Date;
 import java.util.List;
+import java.util.Set;
 
 import javax.inject.Inject;
 import javax.inject.Named;
@@ -45,8 +47,14 @@ import org.slf4j.Logger;
 import org.xwiki.component.annotation.Component;
 import org.xwiki.component.phase.Initializable;
 import org.xwiki.component.phase.InitializationException;
+import org.xwiki.container.Container;
+import org.xwiki.context.Execution;
+import org.xwiki.context.ExecutionContext;
 import org.xwiki.contrib.oidc.OIDCIdToken;
-import org.xwiki.contrib.oidc.provider.internal.OIDCProviderConfiguration.SubFormat;
+import org.xwiki.contrib.oidc.provider.internal.session.OIDCClients;
+import org.xwiki.contrib.oidc.provider.internal.session.ProviderOIDCSessions;
+import org.xwiki.contrib.oidc.provider.internal.session.ProviderOIDCSessions.ProviderOIDCSession;
+import org.xwiki.contrib.oidc.provider.internal.store.OIDCStore;
 import org.xwiki.contrib.oidc.provider.internal.util.ContentResponse;
 import org.xwiki.environment.Environment;
 import org.xwiki.instance.InstanceIdManager;
@@ -57,13 +65,20 @@ import org.xwiki.template.TemplateManager;
 import com.nimbusds.jose.JOSEException;
 import com.nimbusds.jose.JWSAlgorithm;
 import com.nimbusds.jose.JWSHeader;
+import com.nimbusds.jose.KeySourceException;
 import com.nimbusds.jose.crypto.RSASSASigner;
 import com.nimbusds.jose.jwk.JWK;
 import com.nimbusds.jose.jwk.JWKSet;
 import com.nimbusds.jose.jwk.KeyUse;
 import com.nimbusds.jose.jwk.RSAKey;
 import com.nimbusds.jose.jwk.gen.RSAKeyGenerator;
+import com.nimbusds.jose.jwk.source.JWKSetBasedJWKSource;
+import com.nimbusds.jose.jwk.source.JWKSetCacheRefreshEvaluator;
+import com.nimbusds.jose.jwk.source.JWKSetSource;
+import com.nimbusds.jose.jwk.source.JWKSource;
+import com.nimbusds.jose.proc.SecurityContext;
 import com.nimbusds.jwt.JWT;
+import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.PlainJWT;
 import com.nimbusds.jwt.SignedJWT;
 import com.nimbusds.oauth2.sdk.ParseException;
@@ -73,13 +88,15 @@ import com.nimbusds.oauth2.sdk.http.ServletUtils;
 import com.nimbusds.oauth2.sdk.id.Audience;
 import com.nimbusds.oauth2.sdk.id.ClientID;
 import com.nimbusds.oauth2.sdk.id.Issuer;
+import com.nimbusds.oauth2.sdk.id.JWTID;
 import com.nimbusds.oauth2.sdk.id.Subject;
 import com.nimbusds.openid.connect.sdk.Nonce;
+import com.nimbusds.openid.connect.sdk.claims.ClaimsSet;
 import com.nimbusds.openid.connect.sdk.claims.ClaimsSetRequest;
 import com.nimbusds.openid.connect.sdk.claims.ClaimsSetRequest.Entry;
 import com.nimbusds.openid.connect.sdk.claims.IDTokenClaimsSet;
+import com.nimbusds.openid.connect.sdk.claims.LogoutTokenClaimsSet;
 import com.xpn.xwiki.XWikiContext;
-import com.xpn.xwiki.web.XWikiURLFactory;
 
 /**
  * Main utility for OIDC provider.
@@ -88,13 +105,10 @@ import com.xpn.xwiki.web.XWikiURLFactory;
  */
 @Component(roles = OIDCManager.class)
 @Singleton
-public class OIDCManager implements Initializable
+public class OIDCManager implements Initializable, JWKSetSource<SecurityContext>
 {
     @Inject
     private Provider<XWikiContext> xcontextProvider;
-
-    @Inject
-    private EntityReferenceSerializer<String> referenceSerializer;
 
     @Inject
     @Named("compact")
@@ -107,15 +121,29 @@ public class OIDCManager implements Initializable
     private InstanceIdManager instance;
 
     @Inject
-    private OIDCProviderConfiguration configuration;
+    private Environment environment;
 
     @Inject
-    private Environment environment;
+    private OIDCStore oidcStore;
+
+    @Inject
+    private ProviderOIDCSessions sessions;
+
+    @Inject
+    private Container container;
+
+    @Inject
+    private OIDCClients clients;
+
+    @Inject
+    private Execution execution;
 
     @Inject
     private Logger logger;
 
     private RSASSASigner signer;
+
+    private JWKSource<SecurityContext> privateJWLSource = new JWKSetBasedJWKSource<>(this);
 
     private JWKSet privateJWKSet;
 
@@ -213,17 +241,32 @@ public class OIDCManager implements Initializable
         return this.publicJWKSet;
     }
 
+    @Override
+    public JWKSet getJWKSet(JWKSetCacheRefreshEvaluator refreshEvaluator, long currentTime, SecurityContext context)
+        throws KeySourceException
+    {
+        return this.privateJWKSet;
+    }
+
+    public JWKSource<SecurityContext> getJWKSource()
+    {
+        return this.privateJWLSource;
+    }
+
+    @Override
+    public void close() throws IOException
+    {
+        // Nothing to do
+    }
+
     /**
      * @return the issuer
      * @throws MalformedURLException when failing to create the issuer
+     * @throws URISyntaxException when failing to create the issuer
      */
-    public Issuer getIssuer() throws MalformedURLException
+    public Issuer getIssuer() throws MalformedURLException, URISyntaxException
     {
-        XWikiContext xcontext = this.xcontextProvider.get();
-
-        XWikiURLFactory urlFactory = xcontext.getURLFactory();
-
-        return new Issuer(urlFactory.getServerURL(xcontext).toString());
+        return new Issuer(createBaseEndPointURI());
     }
 
     /**
@@ -235,6 +278,15 @@ public class OIDCManager implements Initializable
      * @throws URISyntaxException when failing to create the URI
      */
     public URI createEndPointURI(String endpoint) throws MalformedURLException, URISyntaxException
+    {
+        return createEndPointURI(createBaseEndPointURI(), endpoint);
+    }
+
+    /**
+     * @return the base URL
+     * @throws MalformedURLException when failing to get server URL
+     */
+    public String createBaseEndPointURI() throws MalformedURLException
     {
         XWikiContext xcontext = this.xcontextProvider.get();
 
@@ -251,9 +303,9 @@ public class OIDCManager implements Initializable
             base.append(webAppPath);
         }
 
-        base.append("oidc/");
+        base.append("oidc");
 
-        return createEndPointURI(base.toString(), endpoint);
+        return base.toString();
     }
 
     /**
@@ -285,15 +337,15 @@ public class OIDCManager implements Initializable
      * @param nonce the nonce
      * @param claims the custom fields to return
      * @return the id token
-     * @throws ParseException when failing to create the id token
-     * @throws MalformedURLException when failing to get issuer
-     * @since 1.3
+     * @throws MalformedURLException when failing to create the issuer
+     * @throws URISyntaxException when failing to create the issuer
+     * @since 2.4.0
      */
-    public JWT createdIdToken(ClientID clientID, DocumentReference userReference, Nonce nonce, ClaimsSetRequest claims)
-        throws ParseException, MalformedURLException
+    public IDTokenClaimsSet createdIdToken(ClientID clientID, DocumentReference userReference, Nonce nonce,
+        ClaimsSetRequest claims) throws MalformedURLException, URISyntaxException
     {
         Issuer issuer = getIssuer();
-        Subject subject = getSubject(userReference);
+        Subject subject = this.oidcStore.getSubject(userReference);
         List<Audience> audiences =
             clientID != null ? Arrays.asList(new Audience(clientID)) : Collections.<Audience>emptyList();
 
@@ -319,9 +371,24 @@ public class OIDCManager implements Initializable
             }
         }
 
+        return idTokenClaimSet;
+    }
+
+    /**
+     * Sign the token.
+     * 
+     * @param token the token to sign
+     * @return the signed token
+     * @throws ParseException when failing to parse the id token
+     * @since 2.4.0
+     */
+    public JWT signToken(ClaimsSet token) throws ParseException
+    {
+        JWTClaimsSet jwtClaimsSet = token.toJWTClaimsSet();
+
         // Convert to JWT
         if (this.signer != null) {
-            SignedJWT signedJWT = new SignedJWT(this.header, idTokenClaimSet.toJWTClaimsSet());
+            SignedJWT signedJWT = new SignedJWT(this.header, jwtClaimsSet);
 
             try {
                 signedJWT.sign(this.signer);
@@ -334,17 +401,7 @@ public class OIDCManager implements Initializable
         }
 
         // Fallback on plain JWT in case of problem
-        return new PlainJWT(idTokenClaimSet.toJWTClaimsSet());
-    }
-
-    /**
-     * @param userReference the reference of the user
-     * @return the OIDC subject
-     */
-    public Subject getSubject(DocumentReference userReference)
-    {
-        return new Subject(this.configuration.getSubMode() == SubFormat.LOCAL ? userReference.getName()
-            : this.referenceSerializer.serialize(userReference));
+        return new PlainJWT(jwtClaimsSet);
     }
 
     /**
@@ -366,5 +423,48 @@ public class OIDCManager implements Initializable
         Response response = executeTemplate(templateName);
 
         ServletUtils.applyHTTPResponse(response.toHTTPResponse(), servletResponse);
+    }
+
+    /**
+     * @since 2.4.0
+     */
+    public void logoutSessions(DocumentReference userReference)
+    {
+        Subject subject = this.oidcStore.getSubject(userReference);
+
+        // Logout the user from all known clients
+        Set<ProviderOIDCSession> subjectSessions = this.sessions.removeSessions(subject);
+        for (ProviderOIDCSession sessoin : subjectSessions) {
+            try {
+                // Create a logout token
+                LogoutTokenClaimsSet logoutToken = new LogoutTokenClaimsSet(getIssuer(), sessoin.getSubject(),
+                    Arrays.asList(new Audience(sessoin.getClientID())), new Date(), new JWTID(), null);
+
+                // Send a logout notification
+                this.clients.logout(sessoin.getClientID(), signToken(logoutToken));
+            } catch (Exception e) {
+                this.logger.error("Failed to logout user with subject [{}] on client [{}]", subject,
+                    sessoin.getClientID(), e);
+            }
+        }
+    }
+
+    /**
+     * @since 2.4.0
+     */
+    public void redirect(String location, boolean safe) throws IOException
+    {
+        if (safe) {
+            // Bypass the allowed domain protection, since the URL is safe
+            ExecutionContext executionContext = this.execution.getContext();
+            if (executionContext != null) {
+                executionContext.setProperty("bypassDomainSecurityCheck", true);
+            }
+        }
+
+        // Redirect to the provider
+        XWikiContext xcontext = this.xcontextProvider.get();
+        xcontext.getResponse().sendRedirect(location);
+        xcontext.setFinished(true);
     }
 }

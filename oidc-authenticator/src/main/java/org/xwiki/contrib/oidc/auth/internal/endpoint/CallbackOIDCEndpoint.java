@@ -20,7 +20,6 @@
 package org.xwiki.contrib.oidc.auth.internal.endpoint;
 
 import java.net.URI;
-import java.security.Principal;
 import java.util.Objects;
 
 import javax.inject.Inject;
@@ -29,6 +28,7 @@ import javax.inject.Singleton;
 import javax.servlet.http.HttpSession;
 
 import org.securityfilter.filter.SecurityRequestWrapper;
+import org.securityfilter.realm.SimplePrincipal;
 import org.slf4j.Logger;
 import org.xwiki.component.annotation.Component;
 import org.xwiki.container.Container;
@@ -36,11 +36,16 @@ import org.xwiki.container.servlet.ServletSession;
 import org.xwiki.contrib.oidc.auth.internal.Endpoint;
 import org.xwiki.contrib.oidc.auth.internal.OIDCClientConfiguration;
 import org.xwiki.contrib.oidc.auth.internal.OIDCUserManager;
+import org.xwiki.contrib.oidc.auth.internal.session.ClientHttpSessions;
+import org.xwiki.contrib.oidc.auth.internal.session.ClientProviders.ClientProvider;
 import org.xwiki.contrib.oidc.provider.internal.OIDCException;
 import org.xwiki.contrib.oidc.provider.internal.OIDCManager;
 import org.xwiki.contrib.oidc.provider.internal.OIDCResourceReference;
 import org.xwiki.contrib.oidc.provider.internal.endpoint.OIDCEndpoint;
 import org.xwiki.contrib.oidc.provider.internal.util.RedirectResponse;
+import org.xwiki.observation.ObservationManager;
+import org.xwiki.security.authentication.UserAuthenticatedEvent;
+import org.xwiki.user.UserReferenceResolver;
 
 import com.nimbusds.oauth2.sdk.AuthorizationCode;
 import com.nimbusds.oauth2.sdk.AuthorizationCodeGrant;
@@ -58,14 +63,17 @@ import com.nimbusds.oauth2.sdk.auth.ClientSecretPost;
 import com.nimbusds.oauth2.sdk.auth.Secret;
 import com.nimbusds.oauth2.sdk.http.HTTPRequest;
 import com.nimbusds.oauth2.sdk.http.HTTPResponse;
+import com.nimbusds.oauth2.sdk.id.ClientID;
+import com.nimbusds.oauth2.sdk.id.Issuer;
 import com.nimbusds.oauth2.sdk.id.State;
 import com.nimbusds.oauth2.sdk.token.BearerAccessToken;
 import com.nimbusds.openid.connect.sdk.OIDCError;
 import com.nimbusds.openid.connect.sdk.OIDCTokenResponse;
 import com.nimbusds.openid.connect.sdk.claims.IDTokenClaimsSet;
+import com.nimbusds.openid.connect.sdk.validators.IDTokenValidator;
 
 /**
- * Token endpoint for OpenID Connect.
+ * Callback endpoint for OpenID Connect.
  * 
  * @version $Id$
  */
@@ -92,6 +100,16 @@ public class CallbackOIDCEndpoint implements OIDCEndpoint
     private OIDCUserManager users;
 
     @Inject
+    private ObservationManager observationManager;
+
+    @Inject
+    @Named("document")
+    private UserReferenceResolver<String> userResolver;
+
+    @Inject
+    private ClientHttpSessions sessions;
+
+    @Inject
     private Logger logger;
 
     @Override
@@ -104,7 +122,7 @@ public class CallbackOIDCEndpoint implements OIDCEndpoint
 
         // Validate state
         State state = authorizationResponse.getState();
-        if (!Objects.equals(state.getValue(), this.configuration.getSessionState())) {
+        if (!Objects.equals(state != null ? state.getValue() : null, this.configuration.getSessionState())) {
             this.logger.debug("OIDC callback: Invalid state (was expecting [{}] and got [{}])",
                 this.configuration.getSessionState(), state);
 
@@ -145,23 +163,24 @@ public class CallbackOIDCEndpoint implements OIDCEndpoint
         // Get access token
         AuthorizationGrant authorizationGrant = new AuthorizationCodeGrant(code, callback);
 
+        Issuer issuer = authorizationResponse.getIssuer();
+        ClientID clientID = this.configuration.getClientID(issuer);
+
         TokenRequest tokeRequest;
         Secret secret = this.configuration.getSecret();
         Endpoint tokenEndpoint = this.configuration.getTokenOIDCEndpoint();
         if (secret != null) {
-            this.logger.debug("OIDC callback: adding secret ({} {})", this.configuration.getClientID(),
-                secret.getValue());
+            this.logger.debug("OIDC callback: adding secret ({} {})", clientID, secret.getValue());
 
             ClientAuthentication clientSecret;
             if (this.configuration.getTokenEndPointAuthMethod() == ClientAuthenticationMethod.CLIENT_SECRET_POST) {
-                clientSecret = new ClientSecretPost(this.configuration.getClientID(), secret);
+                clientSecret = new ClientSecretPost(clientID, secret);
             } else {
-                clientSecret = new ClientSecretBasic(this.configuration.getClientID(), secret);
+                clientSecret = new ClientSecretBasic(clientID, secret);
             }
             tokeRequest = new TokenRequest(tokenEndpoint.getURI(), clientSecret, authorizationGrant);
         } else {
-            tokeRequest =
-                new TokenRequest(tokenEndpoint.getURI(), this.configuration.getClientID(), authorizationGrant);
+            tokeRequest = new TokenRequest(tokenEndpoint.getURI(), clientID, authorizationGrant);
         }
 
         HTTPRequest tokenHTTP = tokeRequest.toHTTPRequest();
@@ -188,9 +207,18 @@ public class CallbackOIDCEndpoint implements OIDCEndpoint
 
         OIDCTokenResponse tokenResponse = OIDCTokenResponse.parse(httpResponse);
 
-        // TODO: validate the signature of the id token
+        // Parse and validate the id token
+        ClientProvider clientProvider = this.configuration.getClientProvider(issuer);
+        IDTokenClaimsSet idToken;
+        if (clientProvider != null) {
+            idToken = IDTokenValidator.create(clientProvider.getMetadata(),
+                this.configuration.createClientInformation(issuer), this.oidc.getJWKSource())
+                .validate(tokenResponse.getOIDCTokens().getIDToken(), null);
+        } else {
+            // TODO: add support for null ClientProvider
+            idToken = new IDTokenClaimsSet(tokenResponse.getOIDCTokens().getIDToken().getJWTClaimsSet());
+        }
 
-        IDTokenClaimsSet idToken = new IDTokenClaimsSet(tokenResponse.getOIDCTokens().getIDToken().getJWTClaimsSet());
         BearerAccessToken accessToken = tokenResponse.getTokens().getBearerAccessToken();
 
         HttpSession session = ((ServletSession) this.container.getSession()).getHttpSession();
@@ -200,12 +228,19 @@ public class CallbackOIDCEndpoint implements OIDCEndpoint
         this.configuration.setAccessToken(accessToken);
 
         // Update/Create XWiki user
-        Principal principal = this.users.updateUserInfo(accessToken);
+        SimplePrincipal principal = this.users.updateUserInfo(accessToken);
 
         // Remember user in the session
         session.setAttribute(SecurityRequestWrapper.PRINCIPAL_SESSION_KEY, principal);
 
-        // TODO: put enough information in the cookie to automatically authenticate when coming back
+        // Indicate that the user is now authenticated
+        this.observationManager.notify(new UserAuthenticatedEvent(this.userResolver.resolve(principal.getName())),
+            null);
+        // Remember the session of that OIDC user (to be able to do back channel logout)
+        this.sessions.onLogin(session, idToken.getSubject());
+
+        // TODO: put enough information in the cookie to automatically authenticate when coming back after the session
+        // is lost
 
         this.logger.debug("OIDC callback: principal=[{}]", principal);
         this.logger.debug("OIDC callback: redirect=[{}]", this.configuration.getSuccessRedirectURI());

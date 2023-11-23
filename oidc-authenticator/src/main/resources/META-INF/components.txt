@@ -1,6 +1,8 @@
-org.xwiki.contrib.oidc.auth.internal.BackChannelOIDCLogoutMechanism
 org.xwiki.contrib.oidc.auth.internal.OIDCAuthService
 org.xwiki.contrib.oidc.auth.internal.OIDCClientConfiguration
 org.xwiki.contrib.oidc.auth.internal.OIDCUserManager
+org.xwiki.contrib.oidc.auth.internal.endpoint.BackChannelLogoutOIDCEndpoint
 org.xwiki.contrib.oidc.auth.internal.endpoint.CallbackOIDCEndpoint
-org.xwiki.contrib.oidc.auth.internal.RPInitiatedOIDCLogoutMechanism
+org.xwiki.contrib.oidc.auth.internal.session.ClientHttpSessionListener
+org.xwiki.contrib.oidc.auth.internal.session.ClientHttpSessions
+org.xwiki.contrib.oidc.auth.internal.session.ClientProviders

@@ -22,10 +22,8 @@ package org.xwiki.contrib.oidc.auth;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.lang.reflect.Type;
-import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.net.URL;
 import java.net.URLEncoder;
 
 import javax.script.ScriptContext;
@@ -35,8 +33,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xwiki.container.servlet.HttpServletUtils;
 import org.xwiki.container.servlet.filters.SavedRequestManager;
-import org.xwiki.context.Execution;
-import org.xwiki.context.ExecutionContext;
 import org.xwiki.contrib.oidc.auth.internal.Endpoint;
 import org.xwiki.contrib.oidc.auth.internal.OIDCClientConfiguration;
 import org.xwiki.contrib.oidc.auth.internal.OIDCUserManager;
@@ -45,6 +41,7 @@ import org.xwiki.contrib.oidc.provider.internal.OIDCManager;
 import org.xwiki.properties.ConverterManager;
 import org.xwiki.script.ScriptContextManager;
 
+import com.nimbusds.oauth2.sdk.GeneralException;
 import com.nimbusds.oauth2.sdk.ResponseType;
 import com.nimbusds.oauth2.sdk.id.State;
 import com.nimbusds.openid.connect.sdk.AuthenticationRequest;
@@ -118,23 +115,23 @@ public class OIDCAuthServiceImpl extends XWikiAuthServiceImpl
                 Boolean.class);
         }
 
+        // Check if the current session already have associated logged in OIDC metadata
         if (this.configuration.getAccessToken() != null) {
             // Make sure the session is free from anything related to a previously authenticated user (i.e. in case we
             // are just after a logout)
-            // FIXME: probably cleaner provide a custom com.xpn.xwiki.user.impl.xwiki.XWikiAuthenticator extending
-            // MyFormAuthenticator
             this.users.logout();
         }
 
         // If the URL contain a OIDC provider, assume it was asked to the user
-        String provider = context.getRequest().getParameter(OIDCClientConfiguration.PROP_XWIKIPROVIDER);
+        String provider = context.getRequest().getParameter(OIDCClientConfiguration.PROP_PROVIDER);
         if (provider != null) {
             authenticate(context);
 
             return;
         }
 
-        // Ugly but there is no other way for an authenticator to be called when someone request to login...
+        // Ugly but there is no other way for a custom authenticator to be called when someone explicitly request to
+        // login...
         if (context.getAction().equals("login")) {
             showLoginOIDC(context);
         }
@@ -190,7 +187,7 @@ public class OIDCAuthServiceImpl extends XWikiAuthServiceImpl
         return savedRequestId;
     }
 
-    private void authenticate(XWikiContext context) throws URISyntaxException, IOException
+    private void authenticate(XWikiContext context) throws URISyntaxException, IOException, GeneralException
     {
         // Save the request to not loose sent content
         String savedRequestId = handleSavedRequest(context);
@@ -221,7 +218,8 @@ public class OIDCAuthServiceImpl extends XWikiAuthServiceImpl
         return redirectBack;
     }
 
-    private void authenticate(String savedRequestId, XWikiContext context) throws URISyntaxException, IOException
+    private void authenticate(String savedRequestId, XWikiContext context)
+        throws URISyntaxException, IOException, GeneralException
     {
         // Generate callback URL
         URI callback = this.oidc.createEndPointURI(CallbackOIDCEndpoint.HINT);
@@ -231,17 +229,17 @@ public class OIDCAuthServiceImpl extends XWikiAuthServiceImpl
 
         // Generate unique state
         State state = new State();
-        request.getSession().setAttribute(OIDCClientConfiguration.PROP_STATE, state.getValue());
+        this.configuration.setSessionState(state.getValue());
 
         // Remember the initial request URL
         this.configuration.setSuccessRedirectURI(URI.create(createSuccessRedirectURI(savedRequestId, context)));
 
-        maybeStoreRequestParameterURLInSession(request, OIDCClientConfiguration.PROP_XWIKIPROVIDER);
+        maybeStoreRequestParameterInSession(request, OIDCClientConfiguration.PROP_PROVIDER);
         maybeStoreRequestParameterInSession(request, OIDCClientConfiguration.PROP_USER_NAMEFORMATER);
         maybeStoreRequestParameterInSession(request, OIDCClientConfiguration.PROP_USER_SUBJECTFORMATER);
-        maybeStoreRequestParameterURLInSession(request, OIDCClientConfiguration.PROP_ENDPOINT_AUTHORIZATION);
-        maybeStoreRequestParameterURLInSession(request, OIDCClientConfiguration.PROP_ENDPOINT_TOKEN);
-        maybeStoreRequestParameterURLInSession(request, OIDCClientConfiguration.PROP_ENDPOINT_USERINFO);
+        maybeStoreRequestParameterInSession(request, OIDCClientConfiguration.PROP_ENDPOINT_AUTHORIZATION);
+        maybeStoreRequestParameterInSession(request, OIDCClientConfiguration.PROP_ENDPOINT_TOKEN);
+        maybeStoreRequestParameterInSession(request, OIDCClientConfiguration.PROP_ENDPOINT_USERINFO);
 
         // Create the request URL
         ResponseType responseType = ResponseType.getDefault();
@@ -256,26 +254,7 @@ public class OIDCAuthServiceImpl extends XWikiAuthServiceImpl
         requestBuilder.state(state);
 
         // Redirect the user to the provider
-        // Bypass the allowed domain protection introduced XWiki 13.3, since the URL is coming from configuration
-        // already
-        ExecutionContext executionContext = getExecutionContext();
-        if (executionContext != null) {
-            executionContext.setProperty("bypassDomainSecurityCheck", true);
-        }
-
-        // Redirect to the provider
-        context.getResponse().sendRedirect(requestBuilder.build().toURI().toString());
-    }
-
-    private ExecutionContext getExecutionContext()
-    {
-        Execution execution = Utils.getComponent(Execution.class);
-
-        if (execution != null) {
-            return execution.getContext();
-        }
-
-        return null;
+        this.manager.redirect(requestBuilder.build().toURI().toString(), true);
     }
 
     private void maybeStoreRequestParameterInSession(XWikiRequest request, String key)
@@ -283,7 +262,7 @@ public class OIDCAuthServiceImpl extends XWikiAuthServiceImpl
         String value = request.get(key);
 
         if (value != null) {
-            request.getSession().setAttribute(key, value);
+            this.configuration.setSessionAttribute(key, value);
         }
     }
 
@@ -292,16 +271,7 @@ public class OIDCAuthServiceImpl extends XWikiAuthServiceImpl
         String value = request.get(key);
 
         if (value != null) {
-            request.getSession().setAttribute(key, this.converter.convert(targetType, value));
-        }
-    }
-
-    private void maybeStoreRequestParameterURLInSession(XWikiRequest request, String key) throws MalformedURLException
-    {
-        String value = request.get(key);
-
-        if (value != null) {
-            request.getSession().setAttribute(key, new URL(value));
+            this.configuration.setSessionAttribute(key, this.converter.convert(targetType, value));
         }
     }
 

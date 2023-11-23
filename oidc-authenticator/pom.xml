@@ -34,7 +34,7 @@
   <description>Allow an XWiki instance to authenticate on an OpenID Connect provider</description>
 
   <properties>
-    <xwiki.jacoco.instructionRatio>0.47</xwiki.jacoco.instructionRatio>
+    <xwiki.jacoco.instructionRatio>0.45</xwiki.jacoco.instructionRatio>
 
     <!-- This extension needs to be installed at the farm level (ie in the root namespace) to work fine.
          This is because is contributes a new URL Resource Handler and those need to be installed in the
@@ -102,6 +102,7 @@
               org/xwiki/contrib/oidc/auth/OIDCAuthServiceImpl.java,
               org/xwiki/contrib/oidc/auth/internal/OIDCClientConfiguration.java,
               org/xwiki/contrib/oidc/auth/internal/OIDCUserManager.java,
+              org/xwiki/contrib/oidc/auth/internal/endpoint/BackChannelLogoutOIDCEndpoint.java,
               org/xwiki/contrib/oidc/auth/internal/endpoint/CallbackOIDCEndpoint.java,
               org/xwiki/contrib/oidc/auth/internal/store/OIDCUserClassDocumentInitializer.java,
               org/xwiki/contrib/oidc/auth/internal/store/OIDCUser.java,

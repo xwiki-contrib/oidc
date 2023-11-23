@@ -21,11 +21,11 @@ package org.xwiki.contrib.oidc.auth.internal;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLConnection;
-import java.security.Principal;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Date;
@@ -49,30 +49,33 @@ import org.apache.commons.lang3.RegExUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.commons.text.StringSubstitutor;
+import org.apache.http.client.utils.URIBuilder;
 import org.securityfilter.realm.SimplePrincipal;
 import org.slf4j.Logger;
 import org.xwiki.component.annotation.Component;
-import org.xwiki.component.manager.ComponentLookupException;
 import org.xwiki.component.manager.ComponentManager;
 import org.xwiki.context.concurrent.ExecutionContextRunnable;
 import org.xwiki.contrib.oidc.OIDCUserInfo;
-import org.xwiki.contrib.oidc.auth.OIDCLogoutException;
-import org.xwiki.contrib.oidc.auth.OIDCLogoutMechanism;
 import org.xwiki.contrib.oidc.auth.internal.OIDCClientConfiguration.GroupMapping;
+import org.xwiki.contrib.oidc.auth.internal.session.ClientHttpSessions;
 import org.xwiki.contrib.oidc.auth.store.OIDCUserStore;
 import org.xwiki.contrib.oidc.event.OIDCUserEventData;
 import org.xwiki.contrib.oidc.event.OIDCUserUpdated;
 import org.xwiki.contrib.oidc.event.OIDCUserUpdating;
 import org.xwiki.contrib.oidc.provider.internal.OIDCException;
+import org.xwiki.contrib.oidc.provider.internal.OIDCManager;
 import org.xwiki.model.reference.DocumentReference;
 import org.xwiki.model.reference.SpaceReference;
 import org.xwiki.observation.ObservationManager;
 import org.xwiki.query.QueryException;
 
+import com.nimbusds.oauth2.sdk.GeneralException;
 import com.nimbusds.oauth2.sdk.ParseException;
 import com.nimbusds.oauth2.sdk.http.HTTPRequest;
 import com.nimbusds.oauth2.sdk.http.HTTPResponse;
+import com.nimbusds.oauth2.sdk.id.ClientID;
 import com.nimbusds.oauth2.sdk.token.BearerAccessToken;
+import com.nimbusds.openid.connect.sdk.LogoutRequest;
 import com.nimbusds.openid.connect.sdk.UserInfoErrorResponse;
 import com.nimbusds.openid.connect.sdk.UserInfoRequest;
 import com.nimbusds.openid.connect.sdk.UserInfoResponse;
@@ -116,6 +119,12 @@ public class OIDCUserManager
     private ComponentManager componentManager;
 
     @Inject
+    private ClientHttpSessions sessions;
+
+    @Inject
+    private OIDCManager manager;
+
+    @Inject
     private Logger logger;
 
     private Executor executor = Executors.newFixedThreadPool(1);
@@ -124,7 +133,7 @@ public class OIDCUserManager
 
     private static final String XWIKI_GROUP_PREFIX = "XWiki.";
 
-    public void updateUserInfoAsync() throws URISyntaxException
+    public void updateUserInfoAsync() throws URISyntaxException, GeneralException, IOException
     {
         final Endpoint userInfoEndpoint = this.configuration.getUserInfoOIDCEndpoint();
         final IDTokenClaimsSet idToken = this.configuration.getIdToken();
@@ -163,10 +172,10 @@ public class OIDCUserManager
         }
     }
 
-    public Principal updateUserInfo(BearerAccessToken accessToken)
-        throws URISyntaxException, IOException, ParseException, OIDCException, XWikiException, QueryException
+    public SimplePrincipal updateUserInfo(BearerAccessToken accessToken)
+        throws URISyntaxException, IOException, OIDCException, XWikiException, QueryException, GeneralException
     {
-        Principal principal =
+        SimplePrincipal principal =
             updateUserInfo(this.configuration.getUserInfoOIDCEndpoint(), this.configuration.getIdToken(), accessToken);
 
         // Restart user information expiration counter
@@ -175,8 +184,8 @@ public class OIDCUserManager
         return principal;
     }
 
-    public Principal updateUserInfo(Endpoint userInfoEndpoint, IDTokenClaimsSet idToken, BearerAccessToken accessToken)
-        throws IOException, ParseException, OIDCException, XWikiException, QueryException
+    public SimplePrincipal updateUserInfo(Endpoint userInfoEndpoint, IDTokenClaimsSet idToken,
+        BearerAccessToken accessToken) throws IOException, ParseException, OIDCException, XWikiException, QueryException
     {
         // Get OIDC user info
         this.logger.debug("OIDC user info request ({},{})", userInfoEndpoint, accessToken);
@@ -206,19 +215,18 @@ public class OIDCUserManager
     {
         List<String> providerGroups = null;
         Object providerGroupsObj = getClaim(this.configuration.getGroupClaim(), userInfo);
-        if (this.configuration.getGroupSeparator()!=null) {
-            providerGroups = Arrays.asList(StringUtils.split(providerGroupsObj.toString(), this.configuration.getGroupSeparator()));
+        if (this.configuration.getGroupSeparator() != null) {
+            providerGroups =
+                Arrays.asList(StringUtils.split(providerGroupsObj.toString(), this.configuration.getGroupSeparator()));
         } else {
-            providerGroups = (List<String>)providerGroupsObj;
+            providerGroups = (List<String>) providerGroupsObj;
         }
         String groupPrefix = this.configuration.getGroupPrefix();
         if (!StringUtils.isEmpty(groupPrefix)) {
-            providerGroups = providerGroups.stream()
-                    .filter(item -> item.startsWith(groupPrefix))
-                    .map(item -> StringUtils.replace(item, groupPrefix, ""))
-                    .collect(Collectors.toList());
+            providerGroups = providerGroups.stream().filter(item -> item.startsWith(groupPrefix))
+                .map(item -> StringUtils.replace(item, groupPrefix, "")).collect(Collectors.toList());
         }
-        
+
         if (providerGroups != null) {
             // Check allowed groups
             List<String> allowedGroups = this.configuration.getAllowedGroups();
@@ -282,8 +290,8 @@ public class OIDCUserManager
         return (T) value;
     }
 
-    public Principal updateUser(IDTokenClaimsSet idToken, UserInfo userInfo, BearerAccessToken accessToken)
-        throws XWikiException, QueryException, OIDCException
+    public SimplePrincipal updateUser(IDTokenClaimsSet idToken, UserInfo userInfo, BearerAccessToken accessToken)
+        throws XWikiException, QueryException, OIDCException, MalformedURLException
     {
         // Check allowed/forbidden groups
         checkAllowedGroups(userInfo);
@@ -463,8 +471,8 @@ public class OIDCUserManager
         }
     }
 
-    private boolean updateGroupMembership(IDTokenClaimsSet idToken, UserInfo userInfo, XWikiDocument userDocument, XWikiContext xcontext)
-        throws XWikiException
+    private boolean updateGroupMembership(IDTokenClaimsSet idToken, UserInfo userInfo, XWikiDocument userDocument,
+        XWikiContext xcontext) throws XWikiException
     {
         String groupClaim = this.configuration.getGroupClaim();
 
@@ -472,26 +480,25 @@ public class OIDCUserManager
 
         List<String> providerGroups = null;
         Object providerGroupsObj = getClaim(groupClaim, userInfo);
-        
+
         if (providerGroupsObj == null) {
             // Group claim not found in userInfo Token; try idToken (Azure AD)
             this.logger.debug("Groups claim not found in userInfo token. Trying idToken");
             providerGroupsObj = getClaim(groupClaim, idToken);
         }
-        
-        if (this.configuration.getGroupSeparator()!=null) {
-            providerGroups = Arrays.asList(StringUtils.split(providerGroupsObj.toString(), this.configuration.getGroupSeparator()));
+
+        if (this.configuration.getGroupSeparator() != null) {
+            providerGroups =
+                Arrays.asList(StringUtils.split(providerGroupsObj.toString(), this.configuration.getGroupSeparator()));
         } else {
-            providerGroups = (List<String>)providerGroupsObj;
+            providerGroups = (List<String>) providerGroupsObj;
         }
         String groupPrefix = this.configuration.getGroupPrefix();
         if (!StringUtils.isEmpty(groupPrefix)) {
-            providerGroups = providerGroups.stream()
-                    .filter(item -> item.startsWith(groupPrefix))
-                    .map(item -> StringUtils.replace(item, groupPrefix, ""))
-                    .collect(Collectors.toList());
+            providerGroups = providerGroups.stream().filter(item -> item.startsWith(groupPrefix))
+                .map(item -> StringUtils.replace(item, groupPrefix, "")).collect(Collectors.toList());
         }
-        
+
         if (providerGroups != null) {
             this.logger.debug("The provider sent the following groups: {}", providerGroups);
 
@@ -752,6 +759,7 @@ public class OIDCUserManager
     }
 
     private Map<String, String> createFormatMap(IDTokenClaimsSet idToken, UserInfo userInfo)
+        throws MalformedURLException
     {
         Map<String, String> formatMap = new HashMap<>();
 
@@ -766,9 +774,10 @@ public class OIDCUserManager
         putVariable(formatMap, "oidc.user.familyName", userInfo.getFamilyName());
         putVariable(formatMap, "oidc.user.givenName", userInfo.getGivenName());
 
-        // Provider (only XWiki OIDC providers)
-        URL providerURL = this.configuration.getXWikiProvider();
-        if (providerURL != null) {
+        // Provider
+        String providerString = this.configuration.getProvider();
+        if (providerString != null) {
+            URL providerURL = new URL(providerString);
             putVariable(formatMap, "oidc.provider", providerURL.toString());
             putVariable(formatMap, "oidc.provider.host", providerURL.getHost());
             putVariable(formatMap, "oidc.provider.path", providerURL.getPath());
@@ -818,60 +827,57 @@ public class OIDCUserManager
         return substitutor.replace(this.configuration.getSubjectFormater());
     }
 
-    public void logout()
+    public void logout() throws URISyntaxException, GeneralException, IOException
     {
         XWikiRequest request = this.xcontextProvider.get().getRequest();
 
-        // Try first to load the configured logout mechanism
-        String logoutMechanismHint = this.configuration.getLogoutMechanism();
-        OIDCLogoutMechanism logoutMechanism = prepareLogoutMechanism(logoutMechanismHint);
-        if (logoutMechanism == null) {
-            prepareLogoutMechanism(OIDCClientConfiguration.DEFAULT_LOGOUT_MECHANISM);
-        }
+        // Remember a few information before cleaning the session
+        Endpoint logoutEndpoint = this.configuration.getLogoutOIDCEndpoint();
+        IDTokenClaimsSet idToken = this.configuration.getIdToken();
+        ClientID clientID = this.configuration.getClientID();
 
         // TODO: remove cookies
 
-        // Make sure the session is free from anything related to a previously authenticated user (i.e. in case we are
-        // just after a logout)
-        request.getSession().removeAttribute(OIDCClientConfiguration.PROP_SESSION_ACCESSTOKEN);
-        request.getSession().removeAttribute(OIDCClientConfiguration.PROP_SESSION_IDTOKEN);
-        request.getSession().removeAttribute(OIDCClientConfiguration.PROP_ENDPOINT_AUTHORIZATION);
-        request.getSession().removeAttribute(OIDCClientConfiguration.PROP_ENDPOINT_TOKEN);
-        request.getSession().removeAttribute(OIDCClientConfiguration.PROP_ENDPOINT_USERINFO);
-        request.getSession().removeAttribute(OIDCClientConfiguration.PROP_IDTOKENCLAIMS);
-        request.getSession().removeAttribute(OIDCClientConfiguration.PROP_INITIAL_REQUEST);
-        request.getSession().removeAttribute(OIDCClientConfiguration.PROP_XWIKIPROVIDER);
-        request.getSession().removeAttribute(OIDCClientConfiguration.PROP_STATE);
-        request.getSession().removeAttribute(OIDCClientConfiguration.PROP_USER_NAMEFORMATER);
-        request.getSession().removeAttribute(OIDCClientConfiguration.PROP_USER_SUBJECTFORMATER);
-        request.getSession().removeAttribute(OIDCClientConfiguration.PROP_USERINFOCLAIMS);
+        // Make sure the session is free from anything related to a previously authenticated user (i.e. in case we
+        // are just after a logout)
+        this.sessions.logout(request.getSession());
 
-        if (logoutMechanism != null) {
+        // Logout the provider if configured, otherwise just logout locally
+        if (logoutEndpoint != null && idToken != null && clientID != null) {
             try {
-                logoutMechanism.logout();
-            } catch (OIDCLogoutException e) {
-                this.logger.error("Failed to run OIDC log-out", e);
+                logoutProvider(logoutEndpoint, idToken, clientID);
+            } catch (Exception e) {
+                this.logger.error("Failed to perform OIDC RP-initiated log-out.", e);
             }
         }
     }
 
-    private OIDCLogoutMechanism prepareLogoutMechanism(String hint)
+    private void logoutProvider(Endpoint logoutEndpoint, IDTokenClaimsSet idToken, ClientID clientID)
+        throws URISyntaxException, IOException, ParseException
     {
-        OIDCLogoutMechanism logoutMechanism = null;
+        XWikiContext context = this.xcontextProvider.get();
 
-        try {
-            if (componentManager.hasComponent(OIDCLogoutMechanism.class, hint)) {
-                logoutMechanism = componentManager.getInstance(OIDCLogoutMechanism.class, hint);
-                logoutMechanism.prepareLogout();
+        URI redirectURI;
+        String xredirect = context.getRequest().getParameter("xredirect");
+        if (xredirect != null) {
+            if (xredirect.startsWith("/")) {
+                URL serverURL = context.getURLFactory().getServerURL(context);
+                URIBuilder xredirectBuilder = new URIBuilder(serverURL.toURI());
+                xredirectBuilder.removeQuery();
+                xredirectBuilder.setPath(xredirect);
+                redirectURI = xredirectBuilder.build();
             } else {
-                this.logger.warn("OIDC Log-out mechanism not found with hint [{}]", hint);
+                redirectURI = new URI(xredirect);
             }
-        } catch (ComponentLookupException e) {
-            this.logger.error("Failed to load OIDC log-out mechanism [{}]", hint);
-        } catch (OIDCLogoutException e) {
-            this.logger.error("Failed to prepare for OIDC log-out with mechanism [{}].", hint);
+        } else {
+            // If no redirect is provided, redirect to wiki home page
+            redirectURI = new URI(context.getWiki().getURL(context.getWikiReference(), "view", context));
         }
 
-        return logoutMechanism;
+        LogoutRequest logoutRequest =
+            new LogoutRequest(logoutEndpoint.getURI(), null, null, clientID, redirectURI, null, null);
+
+        // Redirect to the provider
+        this.manager.redirect(logoutRequest.toURI().toString(), true);
     }
 }

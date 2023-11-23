@@ -43,8 +43,8 @@ public class OIDCClientConfiguration
     /**
      * The local reference of the configuration class.
      */
-    public static final LocalDocumentReference CLASS_REFERENCE = new LocalDocumentReference(Arrays.asList(
-        XWiki.SYSTEM_SPACE, "OIDC"), "ClientConfigurationClass");
+    public static final LocalDocumentReference CLASS_REFERENCE =
+        new LocalDocumentReference(Arrays.asList(XWiki.SYSTEM_SPACE, "OIDC"), "ClientConfigurationClass");
 
     /**
      * Name of the property containing the configuration.
@@ -142,6 +142,13 @@ public class OIDCClientConfiguration
     public static final String FIELD_ENDPOINT_LOGOUT_METHOD = "logoutEndpointMethod";
 
     /**
+     * Name of the property containing the token to use to register the client.
+     * 
+     * @since 2.4.0
+     */
+    public static final String FIELD_ENDPOINT_REGISTER_TOKEN = "registerEndpointToken";
+
+    /**
      * Name of the property containing the client id.
      */
     public static final String FIELD_CLIENT_ID = "clientId";
@@ -168,10 +175,11 @@ public class OIDCClientConfiguration
 
     /**
      * The name of the logout mechanism to be used.
+     * 
      * @since 1.31
      */
     public static final String FIELD_LOGOUT_MECHANISM = "logoutMechanism";
-    
+
     private static final String LIST_SPLIT_REGEX = "(\\r?\\n|,|\\|)";
 
     private static final String JOIN_CHAR = "\n";
@@ -489,6 +497,24 @@ public class OIDCClientConfiguration
     public void setLogoutEndpointMethod(String logoutEndpointMethod)
     {
         this.xobject.setStringValue(FIELD_ENDPOINT_LOGOUT_METHOD, logoutEndpointMethod);
+    }
+
+    /**
+     * @return the register endpoint token
+     * @since 2.4.0
+     */
+    public String getRegisterEndpointToken()
+    {
+        return this.xobject.getStringValue(FIELD_ENDPOINT_REGISTER_TOKEN);
+    }
+
+    /**
+     * @param registerEndpointToken the register endpoint token
+     * @since 2.4.0
+     */
+    public void setRegisterEndpointToken(String registerEndpointToken)
+    {
+        this.xobject.setStringValue(FIELD_ENDPOINT_REGISTER_TOKEN, registerEndpointToken);
     }
 
     /**

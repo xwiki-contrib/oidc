@@ -8,8 +8,11 @@ org.xwiki.contrib.oidc.provider.internal.endpoint.AuthorizationOIDCEndpoint
 org.xwiki.contrib.oidc.provider.internal.endpoint.ConfigurationOIDCEndpoint
 org.xwiki.contrib.oidc.provider.internal.endpoint.JWKOIDCEndpoint
 org.xwiki.contrib.oidc.provider.internal.endpoint.LogoutOIDCEndpoint
+org.xwiki.contrib.oidc.provider.internal.endpoint.RegisterAddOIDCEndpoint
 org.xwiki.contrib.oidc.provider.internal.endpoint.TokenOIDCEndpoint
 org.xwiki.contrib.oidc.provider.internal.endpoint.UnknownOIDCEndpoint
 org.xwiki.contrib.oidc.provider.internal.endpoint.UserInfoOIDCEndpoint
+org.xwiki.contrib.oidc.provider.internal.session.OIDCClients
+org.xwiki.contrib.oidc.provider.internal.session.ProviderOIDCSessions
 org.xwiki.contrib.oidc.provider.internal.store.OIDCStore
 org.xwiki.contrib.oidc.provider.internal.store.OIDCConsentClassDocumentInitializer

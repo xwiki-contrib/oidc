@@ -122,7 +122,7 @@ public class UserInfoOIDCEndpoint implements OIDCEndpoint
 
         DocumentReference userReference = consent.getUserReference();
 
-        UserInfo userInfo = new UserInfo(this.manager.getSubject(userReference));
+        UserInfo userInfo = new UserInfo(this.store.getSubject(userReference));
 
         XWikiContext xcontext = this.xcontextProvider.get();
 

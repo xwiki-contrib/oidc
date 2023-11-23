@@ -19,25 +19,41 @@
  */
 package org.xwiki.contrib.oidc.provider.internal.endpoint;
 
+import java.net.URI;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+
+import javax.inject.Inject;
 import javax.inject.Named;
+import javax.inject.Provider;
 import javax.inject.Singleton;
 
 import org.xwiki.component.annotation.Component;
+import org.xwiki.contrib.oidc.provider.internal.OIDCManager;
 import org.xwiki.contrib.oidc.provider.internal.OIDCResourceReference;
+import org.xwiki.contrib.oidc.provider.internal.util.EmptyResponse;
+import org.xwiki.contrib.oidc.provider.internal.util.RedirectResponse;
 
 import com.nimbusds.oauth2.sdk.Response;
 import com.nimbusds.oauth2.sdk.http.HTTPRequest;
 import com.nimbusds.openid.connect.sdk.LogoutRequest;
+import com.xpn.xwiki.XWikiContext;
+import com.xpn.xwiki.user.api.XWikiUser;
 
 /**
  * Provider Logout set endpoint for OpenID Connect.
- *
+ * <p>
+ * Related specifications:
+ * <ul>
+ * <li>OpenID Connect RP-Initiated Logout 1.0, section 2. https://openid.net/specs/openid-connect-rpinitiated-1_0.html
+ * </ul>
+ * 
  * @version $Id$
+ * @since 2.4.0
  */
 @Component
 @Named(LogoutOIDCEndpoint.HINT)
 @Singleton
-// TODO
 public class LogoutOIDCEndpoint implements OIDCEndpoint
 {
     /**
@@ -45,13 +61,51 @@ public class LogoutOIDCEndpoint implements OIDCEndpoint
      */
     public static final String HINT = "logout";
 
+    private static final String LOGOUT_ACTION = HINT;
+
+    @Inject
+    private OIDCManager manager;
+
+    @Inject
+    private Provider<XWikiContext> xcontextProvider;
+
     @Override
     public Response handle(HTTPRequest httpRequest, OIDCResourceReference reference) throws Exception
     {
         // Parse the request
         LogoutRequest request = LogoutRequest.parse(httpRequest);
 
-        // LogoutResponse
-        return null;
+        XWikiContext xcontext = xcontextProvider.get();
+
+        // Authenticate
+        XWikiUser user = xcontext.getWiki().checkAuth(xcontext);
+
+        // If the user is authenticated, log out
+        if (user != null) {
+            // Set context user
+            xcontext.setUser(user.getUser());
+
+            // Logout clients
+            this.manager.logoutSessions(xcontext.getUserReference());
+
+            // Redirect to standard local logout (and back, if there is a post logout indicated in the request)
+            String xredirect = null;
+            if (request.getPostLogoutRedirectionURI() != null) {
+                LogoutRequest xredirectLogout =
+                    LogoutRequest.parse(this.manager.createEndPointURI(HINT), request.toQueryString());
+                xredirect =
+                    "xredirect=" + URLEncoder.encode(xredirectLogout.toURI().toString(), StandardCharsets.UTF_8);
+            }
+            String logoutURL =
+                xcontext.getWiki().getExternalURL("XWiki.XWikiLogout", LOGOUT_ACTION, xredirect, xcontext);
+            return new RedirectResponse(new URI(logoutURL));
+        }
+
+        // Redirect if specified in the request
+        if (request.getPostLogoutRedirectionURI() != null) {
+            return new RedirectResponse(request.getPostLogoutRedirectionURI());
+        }
+
+        return EmptyResponse.OK;
     }
 }

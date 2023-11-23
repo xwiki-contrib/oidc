@@ -19,10 +19,11 @@
  */
 package org.xwiki.contrib.oidc.auth.internal;
 
+import java.io.IOException;
 import java.lang.reflect.Type;
+import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -33,6 +34,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Function;
 
 import javax.inject.Inject;
 import javax.inject.Named;
@@ -54,28 +57,43 @@ import org.xwiki.container.Session;
 import org.xwiki.container.servlet.ServletSession;
 import org.xwiki.contrib.oidc.OIDCIdToken;
 import org.xwiki.contrib.oidc.OIDCUserInfo;
+import org.xwiki.contrib.oidc.auth.internal.endpoint.BackChannelLogoutOIDCEndpoint;
+import org.xwiki.contrib.oidc.auth.internal.endpoint.CallbackOIDCEndpoint;
+import org.xwiki.contrib.oidc.auth.internal.session.ClientProviders;
+import org.xwiki.contrib.oidc.auth.internal.session.ClientProviders.ClientProvider;
 import org.xwiki.contrib.oidc.auth.store.OIDCClientConfigurationStore;
 import org.xwiki.contrib.oidc.internal.OIDCConfiguration;
 import org.xwiki.contrib.oidc.provider.internal.OIDCManager;
 import org.xwiki.contrib.oidc.provider.internal.endpoint.AuthorizationOIDCEndpoint;
 import org.xwiki.contrib.oidc.provider.internal.endpoint.LogoutOIDCEndpoint;
+import org.xwiki.contrib.oidc.provider.internal.endpoint.RegisterAddOIDCEndpoint;
 import org.xwiki.contrib.oidc.provider.internal.endpoint.TokenOIDCEndpoint;
 import org.xwiki.contrib.oidc.provider.internal.endpoint.UserInfoOIDCEndpoint;
 import org.xwiki.instance.InstanceIdManager;
 import org.xwiki.properties.ConverterManager;
 import org.xwiki.query.QueryException;
 
+import com.nimbusds.jose.JWSAlgorithm;
+import com.nimbusds.oauth2.sdk.GeneralException;
 import com.nimbusds.oauth2.sdk.ParseException;
 import com.nimbusds.oauth2.sdk.Scope;
 import com.nimbusds.oauth2.sdk.auth.ClientAuthenticationMethod;
 import com.nimbusds.oauth2.sdk.auth.Secret;
 import com.nimbusds.oauth2.sdk.http.HTTPRequest;
+import com.nimbusds.oauth2.sdk.http.HTTPResponse;
 import com.nimbusds.oauth2.sdk.id.ClientID;
+import com.nimbusds.oauth2.sdk.id.Issuer;
 import com.nimbusds.oauth2.sdk.token.BearerAccessToken;
 import com.nimbusds.openid.connect.sdk.OIDCClaimsRequest;
 import com.nimbusds.openid.connect.sdk.OIDCScopeValue;
 import com.nimbusds.openid.connect.sdk.claims.ClaimsSetRequest;
 import com.nimbusds.openid.connect.sdk.claims.IDTokenClaimsSet;
+import com.nimbusds.openid.connect.sdk.op.OIDCProviderMetadata;
+import com.nimbusds.openid.connect.sdk.rp.ApplicationType;
+import com.nimbusds.openid.connect.sdk.rp.OIDCClientInformation;
+import com.nimbusds.openid.connect.sdk.rp.OIDCClientInformationResponse;
+import com.nimbusds.openid.connect.sdk.rp.OIDCClientMetadata;
+import com.nimbusds.openid.connect.sdk.rp.OIDCClientRegistrationRequest;
 import com.xpn.xwiki.XWikiContext;
 import com.xpn.xwiki.XWikiException;
 import com.xpn.xwiki.web.XWikiServletRequest;
@@ -122,7 +140,12 @@ public class OIDCClientConfiguration extends OIDCConfiguration
         }
     }
 
-    public static final String PROP_XWIKIPROVIDER = "oidc.xwikiprovider";
+    public static final String SESSION = "oidc";
+
+    @Deprecated(since = "2.4.0")
+    private static final String PROP_XWIKIPROVIDER = "oidc.xwikiprovider";
+
+    public static final String PROP_PROVIDER = "oidc.provider";
 
     public static final String PROP_USER_NAMEFORMATER = "oidc.user.nameFormater";
 
@@ -165,9 +188,14 @@ public class OIDCClientConfiguration extends OIDCConfiguration
     /**
      * @since 1.21
      */
-    public static final String PROP_ENDPOINT_LOGOUT = PROPPREFIX_ENDPOINT + LogoutOIDCEndpoint.HINT;
+    public static final String PROP_ENDPOINT_LOGOUT = PROPPREFIX_ENDPOINT + "logout";
 
     public static final String PROP_CLIENTID = "oidc.clientid";
+
+    /**
+     * @since 2.4.0
+     */
+    public static final String PROP_PROVIDERMETADATA = "oidc.providermetadata";
 
     /**
      * @since 1.13
@@ -198,6 +226,12 @@ public class OIDCClientConfiguration extends OIDCConfiguration
      * @since 1.21
      */
     public static final String PROP_ENDPOINT_LOGOUT_METHOD = PROPPREFIX_ENDPOINT + LogoutOIDCEndpoint.HINT + ".method";
+
+    /**
+     * @since 2.4.0
+     */
+    public static final String PROP_ENDPOINT_RESGISTER_TOKEN =
+        PROPPREFIX_ENDPOINT + RegisterAddOIDCEndpoint.HINT + ".token";
 
     /**
      * @since 1.12
@@ -256,6 +290,7 @@ public class OIDCClientConfiguration extends OIDCConfiguration
 
     /**
      * The name of the logout mechanism property.
+     * 
      * @since 1.31
      */
     public static final String PROP_LOGOUT_MECHANISM = "oidc.logoutMechanism";
@@ -266,35 +301,33 @@ public class OIDCClientConfiguration extends OIDCConfiguration
 
     /**
      * The name of the property in which the name of the OIDC configuration should be stored.
+     * 
      * @since 1.30
      */
-    public static final String CLIENT_CONFIGURATION_COOKIE_PROPERTY = OIDCConfiguration.PREFIX_PROP
-        + "clientConfigurationCookie";
+    public static final String CLIENT_CONFIGURATION_COOKIE_PROPERTY =
+        OIDCConfiguration.PREFIX_PROP + "clientConfigurationCookie";
 
     /**
      * The default name of the cookie in which the OIDC client configuration is defined.
+     * 
      * @since 1.30
      */
     public static final String DEFAULT_OIDC_CONFIGURATION_COOKIE = "oidcProvider";
 
     /**
      * The name of the property which stores the name of the default OIDC client configuration.
+     * 
      * @since 1.30
      */
-    public static final String DEFAULT_CLIENT_CONFIGURATION_PROPERTY = OIDCConfiguration.PREFIX_PROP
-        + "defaultClientConfiguration";
+    public static final String DEFAULT_CLIENT_CONFIGURATION_PROPERTY =
+        OIDCConfiguration.PREFIX_PROP + "defaultClientConfiguration";
 
     /**
      * Default client configuration to use when no configuration is defined.
+     * 
      * @since 1.30
      */
     public static final String DEFAULT_CLIENT_CONFIGURATION = "default";
-
-    /**
-     * Default logout mechanism to use.
-     * @since 1.31
-     */
-    public static final String DEFAULT_LOGOUT_MECHANISM = BackChannelOIDCLogoutMechanism.LOGOUT_MECHANISM_NAME;
 
     @Inject
     private InstanceIdManager instance;
@@ -318,12 +351,18 @@ public class OIDCClientConfiguration extends OIDCConfiguration
     private OIDCClientConfigurationStore oidcClientConfigurationStore;
 
     @Inject
+    private ClientProviders providers;
+
+    @Inject
     @Named("xwikicfg")
     private ConfigurationSource xwikicfg;
 
     private Set<String> mandatoryXWikiGroups;
 
-    private HttpSession getHttpSession()
+    /**
+     * @since 2.4.0
+     */
+    public Map<String, Object> getOIDCSession(boolean create)
     {
         Session session = this.container.getSession();
         if (session instanceof ServletSession) {
@@ -331,41 +370,47 @@ public class OIDCClientConfiguration extends OIDCConfiguration
 
             this.logger.debug("Session: {}", httpSession.getId());
 
-            return httpSession;
+            Map<String, Object> oidcSession = (Map<String, Object>) httpSession.getAttribute(SESSION);
+            if (oidcSession == null && create) {
+                oidcSession = new ConcurrentHashMap<>();
+                httpSession.setAttribute(SESSION, oidcSession);
+            }
+
+            return oidcSession;
         }
 
         return null;
     }
 
-    private <T> T getSessionAttribute(String name)
+    public <T> T getSessionAttribute(String name)
     {
-        HttpSession session = getHttpSession();
+        Map<String, Object> session = getOIDCSession(false);
         if (session != null) {
-            return (T) session.getAttribute(name);
+            return (T) session.get(name);
         }
 
         return null;
     }
 
-    private <T> T removeSessionAttribute(String name)
+    public <T> T removeSessionAttribute(String name)
     {
-        HttpSession session = getHttpSession();
+        Map<String, Object> session = getOIDCSession(false);
         if (session != null) {
             try {
-                return (T) session.getAttribute(name);
+                return (T) session.get(name);
             } finally {
-                session.removeAttribute(name);
+                session.remove(name);
             }
         }
 
         return null;
     }
 
-    private void setSessionAttribute(String name, Object value)
+    public void setSessionAttribute(String name, Object value)
     {
-        HttpSession session = getHttpSession();
+        Map<String, Object> session = getOIDCSession(true);
         if (session != null) {
-            session.setAttribute(name, value);
+            session.put(name, value);
         }
     }
 
@@ -419,8 +464,9 @@ public class OIDCClientConfiguration extends OIDCConfiguration
             return sessionValue;
         }
 
-        // Get the property form the wiki configuration
-        org.xwiki.contrib.oidc.auth.store.OIDCClientConfiguration wikiClientConfiguration = getWikiClientConfiguration();
+        // Get the property from the wiki configuration
+        org.xwiki.contrib.oidc.auth.store.OIDCClientConfiguration wikiClientConfiguration =
+            getWikiClientConfiguration();
         if (wikiClientConfiguration != null) {
             T wikiValue = getWikiConfigurationAttribute(wikiClientConfiguration, key, valueClass);
             if (wikiValue != null) {
@@ -450,7 +496,8 @@ public class OIDCClientConfiguration extends OIDCConfiguration
         }
 
         // Get the property form the wiki configuration
-        org.xwiki.contrib.oidc.auth.store.OIDCClientConfiguration wikiClientConfiguration = getWikiClientConfiguration();
+        org.xwiki.contrib.oidc.auth.store.OIDCClientConfiguration wikiClientConfiguration =
+            getWikiClientConfiguration();
         if (wikiClientConfiguration != null) {
             T wikiValue = getWikiConfigurationAttribute(wikiClientConfiguration, key, def.getClass());
             if (wikiValue != null) {
@@ -496,21 +543,40 @@ public class OIDCClientConfiguration extends OIDCConfiguration
         return getMap(PROP_USER_MAPPING);
     }
 
-    public URL getXWikiProvider()
+    public String getProvider()
     {
-        return getProperty(PROP_XWIKIPROVIDER, URL.class);
+        String provider = getProperty(PROP_PROVIDER, String.class);
+
+        if (StringUtils.isEmpty(provider)) {
+            // Try the old property
+            provider = getProperty(PROP_XWIKIPROVIDER, String.class);
+        }
+
+        return provider;
     }
 
-    private Endpoint getEndPoint(String hint) throws URISyntaxException
+    /**
+     * @since 2.4.0
+     */
+    public Issuer getIssuer()
+    {
+        String provider = getProvider();
+
+        return provider != null ? Issuer.parse(provider) : null;
+    }
+
+    private Endpoint getEndPoint(String hint, Function<OIDCProviderMetadata, URI> providerSupplier)
+        throws URISyntaxException, GeneralException, IOException
     {
         // TODO: use URI directly when upgrading to a version of XWiki providing a URI converter
         String uriString = getProperty(PROPPREFIX_ENDPOINT + hint, String.class);
 
-        // If no direct endpoint is provider assume it's a XWiki OIDC provider and generate the endpoint from the hint
+        // If no direct endpoint check if the provided gave indicated one
         URI uri;
-        if (uriString == null) {
-            if (getProperty(PROP_XWIKIPROVIDER, String.class) != null) {
-                uri = this.manager.createEndPointURI(getXWikiProvider().toString(), hint);
+        if (uriString == null && providerSupplier != null) {
+            ClientProvider clientProvider = getClientProvider();
+            if (clientProvider != null) {
+                uri = providerSupplier.apply(clientProvider.getMetadata());
             } else {
                 uri = null;
             }
@@ -522,7 +588,7 @@ public class OIDCClientConfiguration extends OIDCConfiguration
         if (uri == null) {
             uriString = getRequestParameter(PROPPREFIX_ENDPOINT + hint);
             if (uriString == null) {
-                String provider = getRequestParameter(PROP_XWIKIPROVIDER);
+                String provider = getRequestParameter(PROP_PROVIDER);
                 if (provider == null) {
                     return null;
                 }
@@ -551,35 +617,120 @@ public class OIDCClientConfiguration extends OIDCConfiguration
         return new Endpoint(uri, headers);
     }
 
-    public Endpoint getAuthorizationOIDCEndpoint() throws URISyntaxException
+    public Endpoint getAuthorizationOIDCEndpoint() throws URISyntaxException, GeneralException, IOException
     {
-        return getEndPoint(AuthorizationOIDCEndpoint.HINT);
+        return getEndPoint(AuthorizationOIDCEndpoint.HINT, m -> m.getAuthorizationEndpointURI());
     }
 
-    public Endpoint getTokenOIDCEndpoint() throws URISyntaxException
+    public Endpoint getTokenOIDCEndpoint() throws URISyntaxException, GeneralException, IOException
     {
-        return getEndPoint(TokenOIDCEndpoint.HINT);
+        return getEndPoint(TokenOIDCEndpoint.HINT, m -> m.getTokenEndpointURI());
     }
 
-    public Endpoint getUserInfoOIDCEndpoint() throws URISyntaxException
+    public Endpoint getUserInfoOIDCEndpoint() throws URISyntaxException, GeneralException, IOException
     {
-        return getEndPoint(UserInfoOIDCEndpoint.HINT);
+        return getEndPoint(UserInfoOIDCEndpoint.HINT, m -> m.getUserInfoEndpointURI());
     }
 
     /**
      * @since 1.21
      */
-    public Endpoint getLogoutOIDCEndpoint() throws URISyntaxException
+    public Endpoint getLogoutOIDCEndpoint() throws URISyntaxException, GeneralException, IOException
     {
-        return getEndPoint(LogoutOIDCEndpoint.HINT);
+        return getEndPoint("logout", m -> m.getEndSessionEndpointURI());
     }
 
-    public ClientID getClientID()
+    public ClientID getClientID() throws GeneralException, IOException, URISyntaxException
     {
-        String clientId = getProperty(PROP_CLIENTID, String.class);
+        return getClientID(getIssuer());
+    }
+
+    public ClientID getConfiguredClientID()
+    {
+        String clientIdString = getProperty(PROP_CLIENTID, String.class);
+
+        return clientIdString != null ? new ClientID(clientIdString) : null;
+    }
+
+    public ClientID getClientID(Issuer issuer) throws GeneralException, IOException, URISyntaxException
+    {
+        // Try the configuration
+        ClientID clientId = getConfiguredClientID();
+        if (clientId != null) {
+            return clientId;
+        }
+
+        // Ask the provider
+        ClientProvider clientProvider = getClientProvider(issuer);
+        if (clientProvider != null && clientProvider.getClientID() != null) {
+            return clientProvider.getClientID();
+        }
 
         // Fallback on instance id
-        return new ClientID(clientId != null ? clientId : this.instance.getInstanceId().getInstanceId());
+        return new ClientID(this.instance.getInstanceId().getInstanceId());
+    }
+
+    public ClientProvider getClientProvider() throws GeneralException, IOException, URISyntaxException
+    {
+        return getClientProvider(getIssuer());
+    }
+
+    public ClientProvider getClientProvider(Issuer issuer) throws GeneralException, IOException, URISyntaxException
+    {
+        if (issuer == null) {
+            return null;
+        }
+
+        ClientProvider clientProvider = this.providers.getClientProvider(issuer);
+
+        if (clientProvider != null) {
+            return clientProvider;
+        }
+
+        // Get provider metadata
+        OIDCProviderMetadata providerMetadata = OIDCProviderMetadata.resolve(issuer);
+
+        // If not client id is explicitly provided, try to register the client
+        ClientID clientID = getConfiguredClientID();
+        if (clientID == null) {
+            URI registrationEndpoint = providerMetadata.getRegistrationEndpointURI();
+            if (registrationEndpoint != null) {
+                OIDCClientRegistrationRequest request = new OIDCClientRegistrationRequest(registrationEndpoint,
+                    createClientMetadata(), getRegisterEndpointToken());
+
+                HTTPRequest httpRequest = request.toHTTPRequest();
+                HTTPResponse httpResponse = httpRequest.send();
+
+                OIDCClientInformationResponse response = OIDCClientInformationResponse.parse(httpResponse);
+
+                clientID = response.getOIDCClientInformation().getID();
+            }
+        }
+
+        return this.providers.setClientProvider(issuer, providerMetadata, clientID);
+    }
+
+    public OIDCClientMetadata createClientMetadata() throws MalformedURLException, URISyntaxException
+    {
+        OIDCClientMetadata metadata = new OIDCClientMetadata();
+
+        metadata.setApplicationType(ApplicationType.WEB);
+        metadata.setBackChannelLogoutURI(this.manager.createEndPointURI(BackChannelLogoutOIDCEndpoint.HINT));
+        metadata.setIDTokenJWSAlg(JWSAlgorithm.RS256);
+        metadata.setRedirectionURI(this.manager.createEndPointURI(CallbackOIDCEndpoint.HINT));
+
+        return metadata;
+    }
+
+    public OIDCClientInformation createClientInformation() throws URISyntaxException, GeneralException, IOException
+    {
+        return createClientInformation(getIssuer());
+    }
+
+    public OIDCClientInformation createClientInformation(Issuer issuer)
+        throws URISyntaxException, GeneralException, IOException
+    {
+        return new OIDCClientInformation(getClientID(issuer), createClientMetadata());
     }
 
     /**
@@ -616,25 +767,14 @@ public class OIDCClientConfiguration extends OIDCConfiguration
         return getProperty(PROP_ENDPOINT_USERINFO_METHOD, HTTPRequest.Method.GET);
     }
 
-    /**
-     * @since 1.21
-     */
-    public HTTPRequest.Method getLogoutEndPointMethod()
-    {
-        return getProperty(PROP_ENDPOINT_LOGOUT_METHOD, HTTPRequest.Method.GET);
-    }
-
-    /**
-     * @since 1.31
-     */
-    public String getLogoutMechanism()
-    {
-        return getProperty(PROP_LOGOUT_MECHANISM, DEFAULT_LOGOUT_MECHANISM);
-    }
-
     public String getSessionState()
     {
         return getSessionAttribute(PROP_STATE);
+    }
+
+    public void setSessionState(String state)
+    {
+        setSessionAttribute(PROP_STATE, state);
     }
 
     public boolean isSkipped()
@@ -848,6 +988,21 @@ public class OIDCClientConfiguration extends OIDCConfiguration
         return getProperty(PROP_USER_OWNPROFILERIGHTS, DEFAULT_USER_OWNPROFILERIGHTS);
     }
 
+    /**
+     * @return the token to use to access the register API
+     * @since 2.4.0
+     */
+    public BearerAccessToken getRegisterEndpointToken()
+    {
+        String property = getProperty(PROP_ENDPOINT_RESGISTER_TOKEN, String.class);
+
+        if (property == null) {
+            return null;
+        }
+
+        return new BearerAccessToken(property);
+    }
+
     // Session only
 
     /**
@@ -962,11 +1117,11 @@ public class OIDCClientConfiguration extends OIDCConfiguration
      */
     private String getOIDCProviderName()
     {
-        String cookieName = configuration.getProperty(CLIENT_CONFIGURATION_COOKIE_PROPERTY,
-            DEFAULT_OIDC_CONFIGURATION_COOKIE);
+        String cookieName =
+            configuration.getProperty(CLIENT_CONFIGURATION_COOKIE_PROPERTY, DEFAULT_OIDC_CONFIGURATION_COOKIE);
 
-        String fallbackProviderName = configuration.getProperty(DEFAULT_CLIENT_CONFIGURATION_PROPERTY,
-            DEFAULT_CLIENT_CONFIGURATION);
+        String fallbackProviderName =
+            configuration.getProperty(DEFAULT_CLIENT_CONFIGURATION_PROPERTY, DEFAULT_CLIENT_CONFIGURATION);
 
         // Check if a cookie exists, indicating which configuration to use
         XWikiContext context = contextProvider.get();
@@ -1016,9 +1171,7 @@ public class OIDCClientConfiguration extends OIDCConfiguration
      * @return the configuration. Null if the configuration key is invalid
      */
     private <T> T getWikiConfigurationAttribute(
-        org.xwiki.contrib.oidc.auth.store.OIDCClientConfiguration clientConfiguration,
-        String key,
-        Type returnType)
+        org.xwiki.contrib.oidc.auth.store.OIDCClientConfiguration clientConfiguration, String key, Type returnType)
     {
         Object returnValue = null;
         switch (key) {
@@ -1075,6 +1228,9 @@ public class OIDCClientConfiguration extends OIDCConfiguration
                 break;
             case PROP_ENDPOINT_LOGOUT_METHOD:
                 returnValue = clientConfiguration.getLogoutEndpointMethod();
+                break;
+            case PROP_ENDPOINT_RESGISTER_TOKEN:
+                returnValue = clientConfiguration.getRegisterEndpointToken();
                 break;
             case PROP_SKIPPED:
                 returnValue = clientConfiguration.isSkipped();

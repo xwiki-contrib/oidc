@@ -32,10 +32,14 @@ import org.xwiki.contrib.oidc.provider.internal.OIDCResourceReference;
 import org.xwiki.contrib.oidc.provider.internal.util.ContentResponse;
 
 import com.nimbusds.common.contenttype.ContentType;
+import com.nimbusds.jose.JWSAlgorithm;
 import com.nimbusds.oauth2.sdk.Response;
+import com.nimbusds.oauth2.sdk.ResponseType;
+import com.nimbusds.oauth2.sdk.Scope;
 import com.nimbusds.oauth2.sdk.http.HTTPRequest;
 import com.nimbusds.oauth2.sdk.http.HTTPResponse;
 import com.nimbusds.oauth2.sdk.id.Issuer;
+import com.nimbusds.openid.connect.sdk.OIDCScopeValue;
 import com.nimbusds.openid.connect.sdk.SubjectType;
 import com.nimbusds.openid.connect.sdk.op.OIDCProviderMetadata;
 
@@ -60,9 +64,18 @@ public class ConfigurationOIDCEndpoint implements OIDCEndpoint
 
         OIDCProviderMetadata metadata = new OIDCProviderMetadata(issuer, subjectTypes, jwkSetURI);
 
+        metadata.setScopes(new Scope(OIDCScopeValue.OPENID, OIDCScopeValue.PROFILE, OIDCScopeValue.EMAIL,
+            OIDCScopeValue.ADDRESS, OIDCScopeValue.PHONE));
+        metadata.setResponseTypes(List.of(ResponseType.CODE));
+
+        metadata.setIDTokenJWSAlgs(List.of(JWSAlgorithm.RS256));
+
         metadata.setAuthorizationEndpointURI(this.manager.createEndPointURI(AuthorizationOIDCEndpoint.HINT));
         metadata.setTokenEndpointURI(this.manager.createEndPointURI(TokenOIDCEndpoint.HINT));
         metadata.setUserInfoEndpointURI(this.manager.createEndPointURI(UserInfoOIDCEndpoint.HINT));
+        metadata.setRegistrationEndpointURI(this.manager.createEndPointURI(RegisterAddOIDCEndpoint.HINT));
+        metadata.setEndSessionEndpointURI(this.manager.createEndPointURI(LogoutOIDCEndpoint.HINT));
+        metadata.setSupportsBackChannelLogout(true);
 
         return new ContentResponse(ContentType.APPLICATION_JSON, metadata.toJSONObject().toString(),
             HTTPResponse.SC_OK);

@@ -19,6 +19,7 @@
  */
 package org.xwiki.contrib.oidc.auth.internal;
 
+import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.security.Principal;
@@ -36,6 +37,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.xwiki.container.Container;
+import org.xwiki.contrib.oidc.auth.internal.session.ClientProviders;
 import org.xwiki.contrib.oidc.auth.internal.store.DefaultOIDCUserStore;
 import org.xwiki.contrib.oidc.auth.internal.store.OIDCUserClassDocumentInitializer;
 import org.xwiki.contrib.oidc.auth.store.OIDCClientConfigurationStore;
@@ -43,6 +45,9 @@ import org.xwiki.contrib.oidc.auth.store.OIDCUser;
 import org.xwiki.contrib.oidc.provider.internal.OIDCException;
 import org.xwiki.contrib.oidc.provider.internal.OIDCManager;
 import org.xwiki.contrib.oidc.provider.internal.OIDCProviderConfiguration;
+import org.xwiki.contrib.oidc.provider.internal.session.OIDCClients;
+import org.xwiki.contrib.oidc.provider.internal.session.ProviderOIDCSessions;
+import org.xwiki.contrib.oidc.provider.internal.store.OIDCStore;
 import org.xwiki.environment.Environment;
 import org.xwiki.instance.InstanceIdManager;
 import org.xwiki.localization.ContextualLocalizationManager;
@@ -88,7 +93,8 @@ import static org.mockito.Mockito.when;
  */
 @OldcoreTest
 @ComponentList({OIDCManager.class, OIDCClientConfiguration.class, DefaultOIDCUserStore.class,
-    OIDCProviderConfiguration.class})
+    OIDCProviderConfiguration.class, OIDCStore.class, ProviderOIDCSessions.class, OIDCClients.class,
+    ClientProviders.class})
 @ReferenceComponentList
 class OIDCUserManagerTest
 {
@@ -212,7 +218,8 @@ class OIDCUserManagerTest
     // Tests
 
     @Test
-    void updateUserInfo() throws XWikiException, QueryException, OIDCException, URISyntaxException
+    void updateUserInfo()
+        throws XWikiException, QueryException, OIDCException, URISyntaxException, MalformedURLException
     {
         Issuer issuer = new Issuer("http://issuer");
         Subject subject = new Subject("subject");
@@ -288,7 +295,8 @@ class OIDCUserManagerTest
     }
 
     @Test
-    void updateUserInfoWithGroupSyncWithDefaultGroupsClaim() throws XWikiException, QueryException, OIDCException
+    void updateUserInfoWithGroupSyncWithDefaultGroupsClaim()
+        throws XWikiException, QueryException, OIDCException, MalformedURLException
     {
         Issuer issuer = new Issuer("http://issuer");
         Subject subject = new Subject("subject");
@@ -328,7 +336,8 @@ class OIDCUserManagerTest
     }
 
     @Test
-    void updateUserInfoWithGroupSyncWithoutMapping() throws XWikiException, QueryException, OIDCException
+    void updateUserInfoWithGroupSyncWithoutMapping()
+        throws XWikiException, QueryException, OIDCException, MalformedURLException
     {
         this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_GROUPS_CLAIM, "groupclaim");
         this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_USERINFOCLAIMS,
@@ -383,7 +392,8 @@ class OIDCUserManagerTest
     }
 
     @Test
-    void updateUserInfoWithGroupSyncWithMapping() throws XWikiException, QueryException, OIDCException
+    void updateUserInfoWithGroupSyncWithMapping()
+        throws XWikiException, QueryException, OIDCException, MalformedURLException
     {
         this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_GROUPS_MAPPING,
             Arrays.asList("group1=pgroup1", "group1=pgroup2", "XWiki.group2=pgroup2", "existinggroup=othergroup"));
@@ -438,7 +448,7 @@ class OIDCUserManagerTest
 
     @Test
     void updateUserInfoWithCustomNameAndIdPattern()
-        throws XWikiException, QueryException, OIDCException, URISyntaxException
+        throws XWikiException, QueryException, OIDCException, URISyntaxException, MalformedURLException
     {
         this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_USER_NAMEFORMATER,
             "custom-${oidc.user.mail}-${oidc.user.mail.upperCase}-${oidc.user.mail.clean.upperCase}");
@@ -492,7 +502,7 @@ class OIDCUserManagerTest
 
     @Test
     void updateUserWithCustomNameFromIdToken()
-        throws XWikiException, QueryException, OIDCException, URISyntaxException
+        throws XWikiException, QueryException, OIDCException, MalformedURLException
     {
         this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_USER_NAMEFORMATER,
             "custom-${oidc.idtoken.employeeName}");
@@ -506,15 +516,15 @@ class OIDCUserManagerTest
 
         Principal principal = this.manager.updateUser(idToken, userInfo, new BearerAccessToken());
 
-        XWikiDocument userDocument =
-            this.oldcore.getSpyXWiki().getDocument(new DocumentReference(this.oldcore.getXWikiContext().getWikiId(),
-                "XWiki", "custom-Azul"), this.oldcore.getXWikiContext());
+        XWikiDocument userDocument = this.oldcore.getSpyXWiki().getDocument(
+            new DocumentReference(this.oldcore.getXWikiContext().getWikiId(), "XWiki", "custom-Azul"),
+            this.oldcore.getXWikiContext());
 
         assertFalse(userDocument.isNew());
     }
 
     @Test
-    void updateUserInfoWithAllowedGroup() throws XWikiException, QueryException, OIDCException
+    void updateUserInfoWithAllowedGroup() throws XWikiException, QueryException, OIDCException, MalformedURLException
     {
         this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_GROUPS_ALLOWED,
             Arrays.asList("pgroup1", "pgroup2"));
@@ -579,7 +589,8 @@ class OIDCUserManagerTest
     }
 
     @Test
-    void updateUserInfoWithNotForbiddenGroup() throws XWikiException, QueryException, OIDCException
+    void updateUserInfoWithNotForbiddenGroup()
+        throws XWikiException, QueryException, OIDCException, MalformedURLException
     {
         this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_GROUPS_FORBIDDEN,
             Arrays.asList("pgroup1"));
@@ -602,7 +613,8 @@ class OIDCUserManagerTest
     }
 
     @Test
-    void updateUserInfoWithAllowedAndForbiddenGroup() throws XWikiException, QueryException, OIDCException
+    void updateUserInfoWithAllowedAndForbiddenGroup()
+        throws XWikiException, QueryException, OIDCException, MalformedURLException
     {
         this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_GROUPS_ALLOWED,
             Arrays.asList("pgroup1", "pgroup2"));

@@ -21,16 +21,18 @@ package org.xwiki.oidc.test;
 
 import java.util.Arrays;
 
-import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.openqa.selenium.By;
 import org.xwiki.contrib.oidc.test.po.OIDCClientProviderPage;
 import org.xwiki.contrib.oidc.test.po.OIDCProviderConsentPage;
 import org.xwiki.test.integration.XWikiExecutor;
 import org.xwiki.test.ui.AbstractTest;
 import org.xwiki.test.ui.PersistentTestContext;
 import org.xwiki.test.ui.po.LoginPage;
-import org.xwiki.test.ui.po.ViewPage;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 
 /**
  * Verify the document cache update based on distributed events.
@@ -39,6 +41,9 @@ import org.xwiki.test.ui.po.ViewPage;
  */
 public class OIDCTest extends AbstractTest
 {
+    // We have to use a different domains for the client and the provider or it's going to mess with the session
+    private static final String[] HOSTS = new String[] {"localhost:8080", "127.0.0.1:8081"};
+
     @BeforeClass
     public static void init() throws Exception
     {
@@ -58,24 +63,13 @@ public class OIDCTest extends AbstractTest
         }
     }
 
-    private void logout()
-    {
-        getUtil().gotoPage(getUtil().getURLToLogout());
-    }
-
-    private void gotToLogin()
-    {
-        getUtil().gotoPage(
-            getUtil().getBaseBinURL() + "login/XWiki/XWikiLogin?xredirect=%2Fxwiki%2Fbin%2Fview%2FMain%2FWebHome");
-    }
-
     private void cleanupProvider() throws Exception
     {
         getUtil().switchExecutor(1);
         // Delete user if already exist
         getUtil().rest().deletePage("XWiki", "provideruser");
         // Logout
-        logout();
+        logout(1);
     }
 
     private void cleanupClient() throws Exception
@@ -84,7 +78,47 @@ public class OIDCTest extends AbstractTest
         // Delete user if already exist
         getUtil().rest().deletePage("XWiki", "127001-provideruser");
         // Logout
-        logout();
+        logout(0);
+    }
+
+    private void gotToClientLogin()
+    {
+        getUtil().switchExecutor(0);
+        getUtil()
+            .gotoPage(getUtil().getBaseBinURL() + "login/XWiki/XWikiLogin?xredirect=%2Fxwiki%2Fbin%2Fview%2FMain%2F");
+    }
+
+    private String getBaseURL(int index)
+    {
+        return "http://" + HOSTS[index] + "/xwiki";
+    }
+
+    private String getURL(int index, String path)
+    {
+        return getBaseURL(index) + path;
+    }
+
+    private void logout(int index)
+    {
+        getUtil().switchExecutor(index);
+        getUtil().gotoPage(getURL(index, "/bin/logout/XWiki/XWikiLogout?xredirect=%2Fxwiki%2Fbin%2Fview%2FMain%2F"));
+    }
+
+    private String getHomeURL(int index)
+    {
+        return getURL(index, "/bin/view/Main/");
+    }
+
+    private void gotoHome(int index)
+    {
+        getUtil().switchExecutor(index);
+        getUtil().gotoPage(getHomeURL(index));
+    }
+
+    private String getCurrentUserReference()
+    {
+        return getUtil().getDriver().findElementWithoutWaiting(By.tagName("html"))
+            .getAttribute("data-xwiki-user-reference");
     }
 
     @Test
@@ -94,60 +128,81 @@ public class OIDCTest extends AbstractTest
         cleanupProvider();
 
         // Create a user on the provider
-        getUtil().switchExecutor(1);
-        getUtil().gotoPage("Main", "WebHome", "view");
+        gotoHome(1);
         getUtil().recacheSecretToken();
         getUtil().createUser("provideruser", "providerpassword", null);
 
-        // Go to client home page
-        getUtil().switchExecutor(0);
-        getUtil().gotoPage("Main", "WebHome", "view");
+        // Login on the client
+        gotToClientLogin();
 
-        // Login
-        gotToLogin();
-        // Go to client provider page
+        // We are asked for the provider to use, set it
         OIDCClientProviderPage providerPage = new OIDCClientProviderPage();
-
-        // Set other XWiki instance as provider
-        providerPage.setProvider("http://127.0.0.1:8081/xwiki/oidc");
+        providerPage.setProvider(getURL(1, "/oidc"));
 
         // Start authentication
         providerPage.clickAuthenticate();
-        // It gets redirected to the other wiki instance login page
-        getUtil().switchExecutor(1);
+
+        // It gets redirected to the provider login page, login
         LoginPage loginPage = new LoginPage();
-
-        // Login on the provider
         loginPage.loginAs("provideruser", "providerpassword");
-        // A consent is asked
+        // A consent is asked, accept
         OIDCProviderConsentPage consentPage = new OIDCProviderConsentPage();
-
-        // Accept
         consentPage.clickAccept();
+
         // It gets redirected back to the client authenticated with the remote user
-        getUtil().switchExecutor(0);
-        ViewPage view = new ViewPage();
+        assertEquals(getHomeURL(0), getUtil().getDriver().getCurrentUrl());
 
         // Make sure the we are authenticated and we get the expected id on client side
-        Assert.assertEquals("127001-provideruser", view.getCurrentUser());
+        assertEquals("xwiki:XWiki.127001-provideruser", getCurrentUserReference());
 
-        // Logout from client
-        logout();
+        // Log out of the client
+        logout(0);
+
+        // We are logged out of the provider and come back on the client
+        assertEquals(getHomeURL(0), getUtil().getDriver().getCurrentUrl());
+
+        // Make sure we are logged out of the client
+        assertNull(getCurrentUserReference());
+
+        // Make sure we are logged out of the provider too
+        gotoHome(1);
+        assertNull(getCurrentUserReference());
 
         // Login again
-        gotToLogin();
-        // Go to client provider page
-        providerPage = new OIDCClientProviderPage();
+        gotToClientLogin();
 
-        // Set other XWiki instance as provider
-        providerPage.setProvider("http://127.0.0.1:8081/xwiki/oidc");
+        // We are asked for the provider to use, set it
+        providerPage = new OIDCClientProviderPage();
+        providerPage.setProvider(getURL(1, "/oidc"));
 
         // Start authentication
         providerPage.clickAuthenticate();
-        // The browser goes to the provider and immediately come back authenticated
-        view = new ViewPage();
+
+        // It gets redirected to the provider login page, login
+        loginPage = new LoginPage();
+        loginPage.loginAs("provideruser", "providerpassword");
+        // No consent is needed this time
+
+        // It gets redirected back to the client authenticated with the remote user
+        assertEquals(getHomeURL(0), getUtil().getDriver().getCurrentUrl());
 
         // Make sure the we are authenticated and we get the expected id on client side
-        Assert.assertEquals("127001-provideruser", view.getCurrentUser());
+        assertEquals("xwiki:XWiki.127001-provideruser", getCurrentUserReference());
+
+        // Make sure the user is logged in the provider
+        gotoHome(1);
+        assertEquals("xwiki:XWiki.provideruser", getCurrentUserReference());
+
+        // TODO: Add support on provider side to automatically catch standard logout and send a backchannel logout to
+        // all registered clients
+        // Log out of the provider
+        // logout(1);
+        //
+        // Make sure we are logged out of the provider
+        // assertNull(getCurrentUserReference());
+        //
+        // Make sure we are also logged out of the client
+        // gotoHome(0);
+        // assertNull(getCurrentUserReference());
     }
 }

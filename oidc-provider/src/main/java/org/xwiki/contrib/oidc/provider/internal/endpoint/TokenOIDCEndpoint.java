@@ -32,7 +32,6 @@ import org.xwiki.contrib.oidc.provider.internal.store.OIDCStore;
 import org.xwiki.contrib.oidc.provider.internal.store.XWikiBearerAccessToken;
 import org.xwiki.model.reference.EntityReferenceSerializer;
 
-import com.nimbusds.jwt.JWT;
 import com.nimbusds.oauth2.sdk.AuthorizationCodeGrant;
 import com.nimbusds.oauth2.sdk.AuthorizationGrant;
 import com.nimbusds.oauth2.sdk.GrantType;
@@ -45,6 +44,7 @@ import com.nimbusds.oauth2.sdk.http.HTTPRequest;
 import com.nimbusds.oauth2.sdk.id.ClientID;
 import com.nimbusds.openid.connect.sdk.Nonce;
 import com.nimbusds.openid.connect.sdk.OIDCTokenResponse;
+import com.nimbusds.openid.connect.sdk.claims.IDTokenClaimsSet;
 import com.nimbusds.openid.connect.sdk.token.OIDCTokens;
 
 /**
@@ -120,8 +120,9 @@ public class TokenOIDCEndpoint implements OIDCEndpoint
             // Get rid of the temporary authorization code and associated metadata
             this.store.removeAuthorizationCode(grant.getAuthorizationCode());
 
-            JWT idToken = this.manager.createdIdToken(clientID, consent.getUserReference(), nonce, consent.getClaims());
-            OIDCTokens tokens = new OIDCTokens(idToken, accessToken, null);
+            IDTokenClaimsSet idToken =
+                this.manager.createdIdToken(clientID, consent.getUserReference(), nonce, consent.getClaims());
+            OIDCTokens tokens = new OIDCTokens(this.manager.signToken(idToken), accessToken, null);
 
             return new OIDCTokenResponse(tokens);
         }

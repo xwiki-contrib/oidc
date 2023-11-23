@@ -33,14 +33,18 @@ import javax.inject.Singleton;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.xwiki.component.annotation.Component;
+import org.xwiki.contrib.oidc.provider.internal.OIDCProviderConfiguration;
+import org.xwiki.contrib.oidc.provider.internal.OIDCProviderConfiguration.SubFormat;
 import org.xwiki.model.EntityType;
 import org.xwiki.model.reference.DocumentReference;
 import org.xwiki.model.reference.DocumentReferenceResolver;
 import org.xwiki.model.reference.EntityReference;
 import org.xwiki.model.reference.EntityReferenceResolver;
+import org.xwiki.model.reference.EntityReferenceSerializer;
 
 import com.nimbusds.oauth2.sdk.AuthorizationCode;
 import com.nimbusds.oauth2.sdk.id.ClientID;
+import com.nimbusds.oauth2.sdk.id.Subject;
 import com.nimbusds.openid.connect.sdk.Nonce;
 import com.xpn.xwiki.XWikiContext;
 import com.xpn.xwiki.XWikiException;
@@ -63,9 +67,15 @@ public class OIDCStore
     private EntityReferenceResolver<String> entityResolver;
 
     @Inject
+    private EntityReferenceSerializer<String> referenceSerializer;
+
+    @Inject
+    private OIDCProviderConfiguration configuration;
+
+    @Inject
     private Logger logger;
 
-    private Map<AuthorizationCode, AuthorizationSession> sessionMap = new ConcurrentHashMap<>();
+    private Map<AuthorizationCode, AuthorizationSession> authorizationSessionMap = new ConcurrentHashMap<>();
 
     private class AuthorizationSession
     {
@@ -213,7 +223,7 @@ public class OIDCStore
 
     public DocumentReference getUserReference(AuthorizationCode code)
     {
-        AuthorizationSession session = this.sessionMap.get(code);
+        AuthorizationSession session = this.authorizationSessionMap.get(code);
 
         return session != null ? session.userReference : null;
     }
@@ -223,9 +233,30 @@ public class OIDCStore
      */
     public Nonce getNonce(AuthorizationCode code)
     {
-        AuthorizationSession session = this.sessionMap.get(code);
+        AuthorizationSession session = this.authorizationSessionMap.get(code);
 
         return session != null ? session.nonce : null;
+    }
+
+    /**
+     * @param userReference the reference of the user
+     * @return the OIDC subject
+     * @since 2.4.0
+     */
+    public Subject getSubject(DocumentReference userReference)
+    {
+        return new Subject(this.configuration.getSubMode() == SubFormat.LOCAL ? userReference.getName()
+            : this.referenceSerializer.serialize(userReference));
+    }
+
+    /**
+     * @param subject the OIDC subject
+     * @return the reference of the user
+     * @since 2.4.0
+     */
+    public DocumentReference getUserReference(Subject subject)
+    {
+        return this.resolver.resolve(subject.getValue());
     }
 
     /**
@@ -233,11 +264,11 @@ public class OIDCStore
      */
     public void setAuthorizationCode(AuthorizationCode code, DocumentReference userReference, Nonce nonce)
     {
-        this.sessionMap.put(code, new AuthorizationSession(userReference, nonce));
+        this.authorizationSessionMap.put(code, new AuthorizationSession(userReference, nonce));
     }
 
     public void removeAuthorizationCode(AuthorizationCode code)
     {
-        this.sessionMap.remove(code);
+        this.authorizationSessionMap.remove(code);
     }
 }
