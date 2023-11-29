@@ -785,6 +785,7 @@ public class OIDCUserManager
 
         // Inject the whole JSON
         addJSON("oidc.user.", userInfo.toJSONObject(), formatMap);
+        addJSON("oidc.idtoken.", idToken.toJSONObject(), formatMap);
 
         return formatMap;
     }

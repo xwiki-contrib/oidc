@@ -484,6 +484,29 @@ class OIDCUserManagerTest
     }
 
     @Test
+    void updateUserWithCustomNameFromIdToken()
+        throws XWikiException, QueryException, OIDCException, URISyntaxException
+    {
+        this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_USER_NAMEFORMATER,
+            "custom-${oidc.idtoken.employeeName}");
+
+        Issuer issuer = new Issuer("http://issuer");
+        Subject subject = new Subject("subject");
+        IDTokenClaimsSet idToken =
+            new IDTokenClaimsSet(issuer, subject, Collections.emptyList(), new Date(), new Date());
+        idToken.setClaim("employeeName", "Azul");
+        UserInfo userInfo = new UserInfo(subject);
+
+        Principal principal = this.manager.updateUser(idToken, userInfo, new BearerAccessToken());
+
+        XWikiDocument userDocument =
+            this.oldcore.getSpyXWiki().getDocument(new DocumentReference(this.oldcore.getXWikiContext().getWikiId(),
+                "XWiki", "custom-Azul"), this.oldcore.getXWikiContext());
+
+        assertFalse(userDocument.isNew());
+    }
+
+    @Test
     void updateUserInfoWithAllowedGroup() throws XWikiException, QueryException, OIDCException
     {
         this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_GROUPS_ALLOWED,
