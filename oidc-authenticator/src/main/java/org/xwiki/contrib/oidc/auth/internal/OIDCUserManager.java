@@ -750,7 +750,7 @@ public class OIDCUserManager
     {
         Map<String, String> formatMap = new HashMap<>();
 
-        // User informations
+        // User information
         putVariable(formatMap, "oidc.user.subject", userInfo.getSubject().getValue());
         if (userInfo.getPreferredUsername() != null) {
             putVariable(formatMap, "oidc.user.preferredUsername", userInfo.getPreferredUsername());
