@@ -94,7 +94,7 @@
           <analysisConfiguration>
             <revapi.filter>
               <archives>
-                <!-- We don't care about breakages comming from XWiki Standard. -->
+                <!-- We don't care about breakages coming from XWiki Standard. -->
                 <exclude>
                   <item>org\.xwiki\.commons:.*:.*</item>
                   <item>org\.xwiki\.rendering:.*:.*</item>
