@@ -132,6 +132,8 @@ class OIDCUserManagerTest
     @InjectMockitoOldcore
     MockitoOldcore oldcore;
 
+    private DocumentReference xwikiallgroupReference;
+
     private DocumentReference oidcClassReference;
 
     private DocumentReference group1Reference;
@@ -148,6 +150,8 @@ class OIDCUserManagerTest
     public void beforeEach() throws Exception
     {
         when(queryManager.createQuery(Mockito.anyString(), Mockito.anyString())).thenReturn(mock(Query.class));
+
+        this.xwikiallgroupReference = new DocumentReference("xwiki", "XWiki", "XWikiAllGroup");
 
         this.oidcClassReference =
             new DocumentReference(OIDCUser.CLASS_REFERENCE, this.oldcore.getXWikiContext().getWikiReference());
@@ -343,11 +347,13 @@ class OIDCUserManagerTest
 
         when(this.oldcore.getMockGroupService().getAllGroupsNamesForMember(userFullName, 0, 0,
             this.oldcore.getXWikiContext())).thenReturn(Arrays.asList("XWiki.existinggroup"));
-        addMember(this.existinggroupReference, "XWiki.issuer-subject");
+        addMember(this.existinggroupReference, userFullName);
+        addMember(this.xwikiallgroupReference, userFullName);
 
         assertFalse(groupContains(this.group1Reference, userFullName));
         assertFalse(groupContains(this.group2Reference, userFullName));
         assertTrue(groupContains(this.existinggroupReference, userFullName));
+        assertTrue(groupContains(this.xwikiallgroupReference, userFullName));
 
         Principal principal = this.manager.updateUser(idToken, userInfo, new BearerAccessToken());
 
@@ -373,6 +379,7 @@ class OIDCUserManagerTest
         assertTrue(groupContains(this.pgroup1Reference, userDocument.getFullName()));
         assertTrue(groupContains(this.pgroup2Reference, userDocument.getFullName()));
         assertFalse(groupContains(this.existinggroupReference, userDocument.getFullName()));
+        assertTrue(groupContains(this.xwikiallgroupReference, userFullName));
     }
 
     @Test

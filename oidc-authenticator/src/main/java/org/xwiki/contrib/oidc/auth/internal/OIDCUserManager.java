@@ -629,7 +629,12 @@ public class OIDCUserManager
         // Remove group membership
         for (String xwikiGroupName : xwikiUserGroupList) {
             if (groupMapping == null) {
-                if (!providerGroups.contains(xwikiGroupName)
+                // Remove the user if:
+                // * the user is not part of the associated oidc groups returned by the provided
+                // * and the group is not part of configured initial groups (it would
+                // be inconsistent with the fact that all new users are supposed to be in them)
+                if (!this.configuration.getInitialXWikiGroups().contains(xwikiGroupName)
+                    && !providerGroups.contains(xwikiGroupName)
                     && !providerGroups.contains(xwikiGroupName.substring(XWIKI_GROUP_PREFIX.length()))) {
                     removeUserFromXWikiGroup(xwikiUserName, xwikiGroupName, context);
                     userUpdated = true;

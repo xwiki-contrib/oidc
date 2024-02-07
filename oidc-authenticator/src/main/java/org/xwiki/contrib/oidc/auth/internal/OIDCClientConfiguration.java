@@ -35,6 +35,7 @@ import java.util.Map;
 import java.util.Set;
 
 import javax.inject.Inject;
+import javax.inject.Named;
 import javax.inject.Provider;
 import javax.inject.Singleton;
 import javax.servlet.http.Cookie;
@@ -46,6 +47,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.joda.time.LocalDateTime;
 import org.slf4j.Logger;
 import org.xwiki.component.annotation.Component;
+import org.xwiki.configuration.ConfigurationSource;
 import org.xwiki.container.Container;
 import org.xwiki.container.Request;
 import org.xwiki.container.Session;
@@ -314,6 +316,12 @@ public class OIDCClientConfiguration extends OIDCConfiguration
 
     @Inject
     private OIDCClientConfigurationStore oidcClientConfigurationStore;
+
+    @Inject
+    @Named("xwikicfg")
+    private ConfigurationSource xwikicfg;
+
+    private Set<String> mandatoryXWikiGroups;
 
     private HttpSession getHttpSession()
     {
@@ -776,6 +784,32 @@ public class OIDCClientConfiguration extends OIDCConfiguration
         List<String> groups = getListProperty(PROP_GROUPS_ALLOWED);
 
         return groups != null && !groups.isEmpty() ? groups : null;
+    }
+
+    private boolean isAllGroupImplicit()
+    {
+        return "1".equals(this.xwikicfg.getProperty("xwiki.authentication.group.allgroupimplicit"));
+    }
+
+    /**
+     * @since 2.4.0
+     */
+    public Set<String> getInitialXWikiGroups()
+    {
+        if (this.mandatoryXWikiGroups == null) {
+            String groupsPreference = isAllGroupImplicit() ? this.xwikicfg.getProperty("xwiki.users.initialGroups")
+                : this.xwikicfg.getProperty("xwiki.users.initialGroups", "XWiki.XWikiAllGroup");
+
+            if (groupsPreference != null) {
+                String[] groups = groupsPreference.split(",");
+
+                this.mandatoryXWikiGroups = new HashSet<>(Arrays.asList(groups));
+            } else {
+                this.mandatoryXWikiGroups = Collections.emptySet();
+            }
+        }
+
+        return this.mandatoryXWikiGroups;
     }
 
     /**
