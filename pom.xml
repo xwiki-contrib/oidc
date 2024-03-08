@@ -145,14 +145,6 @@
               </differences>
             </revapi.differences>
             -->
-            <revapi.ignore>
-              <item>
-                <ignore>true</ignore>
-                <code>java.class.removed</code>
-                <old>interface org.xwiki.contrib.oidc.auth.OIDCLogoutMechanism</old>
-              <justification>Did not really made any sense</justification>
-              </item>
-            </revapi.ignore>
           </analysisConfiguration>
         </configuration>
       </plugin>
