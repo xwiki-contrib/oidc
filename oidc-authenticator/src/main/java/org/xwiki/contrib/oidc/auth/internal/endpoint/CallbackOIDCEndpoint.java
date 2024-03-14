@@ -42,6 +42,7 @@ import org.xwiki.contrib.oidc.provider.internal.OIDCException;
 import org.xwiki.contrib.oidc.provider.internal.OIDCManager;
 import org.xwiki.contrib.oidc.provider.internal.OIDCResourceReference;
 import org.xwiki.contrib.oidc.provider.internal.endpoint.OIDCEndpoint;
+import org.xwiki.contrib.oidc.provider.internal.util.ErrorResponse;
 import org.xwiki.contrib.oidc.provider.internal.util.RedirectResponse;
 import org.xwiki.observation.ObservationManager;
 import org.xwiki.security.authentication.UserAuthenticatedEvent;
@@ -120,16 +121,32 @@ public class CallbackOIDCEndpoint implements OIDCEndpoint
         // Parse the request
         AuthorizationResponse authorizationResponse = AuthorizationResponse.parse(httpRequest);
 
-        // Validate state
-        State state = authorizationResponse.getState();
-        if (!Objects.equals(state != null ? state.getValue() : null, this.configuration.getSessionState())) {
-            this.logger.debug("OIDC callback: Invalid state (was expecting [{}] and got [{}])",
-                this.configuration.getSessionState(), state);
-
-            throw new OIDCException(
-                "Invalid state: was expecting [" + this.configuration.getSessionState() + "] and got [" + state + "]");
+        // Make sure we still have the OpenID Connect session
+        if (this.configuration.getOIDCSession(false) == null) {
+            return new ErrorResponse(HTTPResponse.SC_BAD_REQUEST,
+                "There is no OpenID Connection information in the current session (anymore?)");
         }
-        // TODO: remove the state from the session ?
+
+        // Validate state
+        String sessionState = this.configuration.removeSessionState();
+        if (sessionState == null) {
+            return new ErrorResponse(HTTPResponse.SC_BAD_REQUEST,
+                "No state could be found in the current OpenID Connection session"
+                    + " which suggest it was lost of that this callback endpoint was called directly");
+        } else {
+            State providerState = authorizationResponse.getState();
+            if (providerState == null) {
+                return new ErrorResponse(HTTPResponse.SC_BAD_REQUEST,
+                    "No state could be found in the current OpenID Connection session"
+                        + " which suggest it was lost of that this callback endpoint was called directly");
+            } else if (!Objects.equals(providerState.getValue(), sessionState)) {
+                this.logger.debug("OIDC callback: Invalid state (was expecting [{}] and got [{}])",
+                    this.configuration.getSessionState(), providerState);
+
+                return new ErrorResponse(HTTPResponse.SC_BAD_REQUEST, "Invalid state: was expecting ["
+                    + this.configuration.getSessionState() + "] and got [" + providerState + "]");
+            }
+        }
 
         // Deal with errors
         if (!authorizationResponse.indicatesSuccess()) {

@@ -19,6 +19,7 @@
  */
 package org.xwiki.contrib.oidc.provider.internal.util;
 
+import com.nimbusds.common.contenttype.ContentType;
 import com.nimbusds.oauth2.sdk.Response;
 import com.nimbusds.oauth2.sdk.http.HTTPResponse;
 
@@ -30,24 +31,18 @@ import com.nimbusds.oauth2.sdk.http.HTTPResponse;
  */
 public class ErrorResponse implements Response
 {
-    /**
-     * Indicate the request succeeded.
-     */
-    public static final ErrorResponse OK = new ErrorResponse(HTTPResponse.SC_OK);
-
-    /**
-     * Indicate a bad request.
-     */
-    public static final ErrorResponse BAD_REQUEST = new ErrorResponse(HTTPResponse.SC_BAD_REQUEST);
-
     private final HTTPResponse httpResponse;
 
     /**
-     * @param statusCode the status code to return
+     * @param code the code of the error
+     * @param description the description of the error
+     * @since 2.4.1
      */
-    public ErrorResponse(int statusCode)
+    public ErrorResponse(int code, String description)
     {
-        this.httpResponse = new HTTPResponse(statusCode);
+        this.httpResponse = new HTTPResponse(code);
+        this.httpResponse.setBody(description);
+        this.httpResponse.setEntityContentType(ContentType.TEXT_PLAIN);
     }
 
     @Override
@@ -59,6 +54,6 @@ public class ErrorResponse implements Response
     @Override
     public boolean indicatesSuccess()
     {
-        return true;
+        return false;
     }
 }

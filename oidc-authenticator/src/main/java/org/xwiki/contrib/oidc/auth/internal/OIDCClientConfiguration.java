@@ -777,6 +777,11 @@ public class OIDCClientConfiguration extends OIDCConfiguration
         setSessionAttribute(PROP_STATE, state);
     }
 
+    public String removeSessionState()
+    {
+        return removeSessionAttribute(PROP_STATE);
+    }
+
     public boolean isSkipped()
     {
         return getProperty(PROP_SKIPPED, false);
