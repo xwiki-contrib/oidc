@@ -22,8 +22,6 @@ package org.xwiki.contrib.oidc.auth.store;
 import java.util.Arrays;
 import java.util.List;
 
-import org.apache.commons.lang3.StringUtils;
-import org.xwiki.contrib.oidc.auth.UserProfileActivationStrategy;
 import org.xwiki.model.reference.LocalDocumentReference;
 
 import com.xpn.xwiki.XWiki;
@@ -183,11 +181,11 @@ public class OIDCClientConfiguration
     public static final String FIELD_LOGOUT_MECHANISM = "logoutMechanism";
 
     /**
-     * The name of the user profile activation strategy to use. Refer to {@link UserProfileActivationStrategy}.
+     * The name of the property defining if users should be enabled by default or not.
      *
-     * @since 1.5.0
+     * @since 2.5.0
      */
-    public static final String FIELD_USER_PROFILE_ACTIVATION_STRATEGY = "userProfileActivationStrategy";
+    public static final String FIELD_ENABLE_USER = "enableUser";
 
     private static final String LIST_SPLIT_REGEX = "(\\r?\\n|,|\\|)";
 
@@ -625,31 +623,20 @@ public class OIDCClientConfiguration
     }
 
     /**
-     * @return the user activation policy
+     * @return true if the user should be enabled at creation
      * @since 2.5.0
      */
-    public UserProfileActivationStrategy getUserProfileActivationStrategy()
+    public boolean getEnableUser()
     {
-        String activationStrategy = this.xobject.getStringValue(FIELD_USER_PROFILE_ACTIVATION_STRATEGY);
-
-        if (StringUtils.isNotBlank(activationStrategy)) {
-            try {
-                return UserProfileActivationStrategy.valueOf(activationStrategy);
-            } catch (IllegalArgumentException e) {
-                return UserProfileActivationStrategy.NONE;
-            }
-        } else {
-            // Use ENABLE_ALWAYS for backward compatibility in case no property is defined.
-            return UserProfileActivationStrategy.ENABLE_ALWAYS;
-        }
+        return (this.xobject.getIntValue(FIELD_ENABLE_USER, 1) == 1);
     }
 
     /**
-     * @param userProfileActivationStrategy the user activation strategy
+     * @param enableUser true if the user should be enabled at creation
      * @since 2.5.0
      */
-    public void setUserProfileActivationStrategy(UserProfileActivationStrategy userProfileActivationStrategy)
+    public void setEnableUser(boolean enableUser)
     {
-        this.xobject.setStringValue(FIELD_USER_PROFILE_ACTIVATION_STRATEGY, userProfileActivationStrategy.toString());
+        this.xobject.setIntValue(FIELD_ENABLE_USER, enableUser ? 1 : 0);
     }
 }

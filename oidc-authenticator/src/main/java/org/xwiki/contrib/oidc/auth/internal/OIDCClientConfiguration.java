@@ -57,7 +57,6 @@ import org.xwiki.container.Session;
 import org.xwiki.container.servlet.ServletSession;
 import org.xwiki.contrib.oidc.OIDCIdToken;
 import org.xwiki.contrib.oidc.OIDCUserInfo;
-import org.xwiki.contrib.oidc.auth.UserProfileActivationStrategy;
 import org.xwiki.contrib.oidc.auth.internal.endpoint.BackChannelLogoutOIDCEndpoint;
 import org.xwiki.contrib.oidc.auth.internal.endpoint.CallbackOIDCEndpoint;
 import org.xwiki.contrib.oidc.auth.internal.session.ClientProviders;
@@ -324,12 +323,11 @@ public class OIDCClientConfiguration extends OIDCConfiguration
         OIDCConfiguration.PREFIX_PROP + "defaultClientConfiguration";
 
     /**
-     * The name of the property which defines the user profile activation strategy.
+     * The name of the property which defines if users should be enabled by default
      *
      * @since 2.5.0
      */
-    public static final String PROP_USER_PROFILE_ACTIVATION_STRATEGY = OIDCConfiguration.PREFIX_PROP +
-        "userProfileActivationStrategy";
+    public static final String PROP_ENABLE_USER = OIDCConfiguration.PREFIX_PROP + "enableUser";
 
     /**
      * Default client configuration to use when no configuration is defined.
@@ -1122,20 +1120,12 @@ public class OIDCClientConfiguration extends OIDCConfiguration
     }
 
     /**
-     *
-     * @return
+     * @return true if the user profile should be enabled on first login
      * @since 2.5.0
      */
-    public UserProfileActivationStrategy getUserProfileActivationStrategy()
+    public boolean getEnableUser()
     {
-        UserProfileActivationStrategy property =
-            getProperty(PROP_USER_PROFILE_ACTIVATION_STRATEGY, UserProfileActivationStrategy.class);
-
-        if (property == null) {
-            return UserProfileActivationStrategy.ENABLE_ALWAYS;
-        }
-
-        return property;
+        return getProperty(PROP_ENABLE_USER, true);
     }
 
     /**
@@ -1276,8 +1266,8 @@ public class OIDCClientConfiguration extends OIDCConfiguration
             case PROP_LOGOUT_MECHANISM:
                 returnValue = clientConfiguration.getLogoutMechanism();
                 break;
-            case PROP_USER_PROFILE_ACTIVATION_STRATEGY:
-                returnValue = clientConfiguration.getUserProfileActivationStrategy();
+            case PROP_ENABLE_USER:
+                returnValue = clientConfiguration.getEnableUser();
                 break;
         }
 

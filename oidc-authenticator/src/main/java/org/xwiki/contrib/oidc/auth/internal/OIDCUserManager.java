@@ -56,7 +56,6 @@ import org.xwiki.component.annotation.Component;
 import org.xwiki.component.manager.ComponentManager;
 import org.xwiki.context.concurrent.ExecutionContextRunnable;
 import org.xwiki.contrib.oidc.OIDCUserInfo;
-import org.xwiki.contrib.oidc.auth.UserProfileActivationStrategy;
 import org.xwiki.contrib.oidc.auth.internal.OIDCClientConfiguration.GroupMapping;
 import org.xwiki.contrib.oidc.auth.internal.session.ClientHttpSessions;
 import org.xwiki.contrib.oidc.auth.store.OIDCUserStore;
@@ -327,14 +326,6 @@ public class OIDCUserManager
         // Set user fields
         BaseClass userClass = xcontext.getWiki().getUserClass(xcontext);
         BaseObject userObject = modifiableDocument.getXObject(userClass.getDocumentReference(), true, xcontext);
-
-        // Make sure the user is active by default
-        if (UserProfileActivationStrategy.ENABLE_ALWAYS.equals(configuration.getUserProfileActivationStrategy())
-            || (newUser && UserProfileActivationStrategy.ENABLE_ON_CREATE.equals(configuration.getUserProfileActivationStrategy()))) {
-            userObject.set(XWIKI_USER_ACTIVEFIELD, 1, xcontext);
-        } else if (newUser && UserProfileActivationStrategy.DISABLE_ON_CREATE.equals(configuration.getUserProfileActivationStrategy())) {
-            userObject.set(XWIKI_USER_ACTIVEFIELD, 0, xcontext);
-        }
 
         // Address
         Address address = userInfo.getAddress();
@@ -715,6 +706,7 @@ public class OIDCUserManager
     private XWikiDocument getNewUserDocument(StringSubstitutor substitutor) throws XWikiException
     {
         XWikiContext xcontext = this.xcontextProvider.get();
+        BaseClass userClass = xcontext.getWiki().getUserClass(xcontext);
 
         // TODO: add support for subwikis
         SpaceReference spaceReference = new SpaceReference(xcontext.getMainXWiki(), "XWiki");
@@ -737,6 +729,9 @@ public class OIDCUserManager
         document.setContentAuthorReference(document.getCreatorReference());
         xcontext.getWiki().protectUserPage(document.getFullName(), this.configuration.getUserOwnProfileRights(),
             document, xcontext);
+
+        BaseObject userObject = document.getXObject(userClass.getDocumentReference(), true, xcontext);
+        userObject.setIntValue(XWIKI_USER_ACTIVEFIELD, configuration.getEnableUser() ? 1 : 0);
 
         return document;
     }
