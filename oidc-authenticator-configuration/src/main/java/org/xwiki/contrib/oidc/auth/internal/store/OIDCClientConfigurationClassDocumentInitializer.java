@@ -42,6 +42,8 @@ public class OIDCClientConfigurationClassDocumentInitializer extends AbstractMan
 {
     private static final String INPUT = "input";
 
+    private static final String SELECT = "select";
+
     private static final String SEPARATORS = "|,";
 
     /**
@@ -82,7 +84,7 @@ public class OIDCClientConfigurationClassDocumentInitializer extends AbstractMan
             50, 10, TextAreaClass.EditorType.PURE_TEXT, TextAreaClass.ContentType.PURE_TEXT);
         xclass.addTextField(OIDCClientConfiguration.FIELD_ENDPOINT_LOGOUT_METHOD, "Logout endpoint method", 255);
         xclass.addTextField(OIDCClientConfiguration.FIELD_LOGOUT_MECHANISM, "Logout mechanism", 255);
-        xclass.addBooleanField(OIDCClientConfiguration.FIELD_SKIPPED, "Is authentication skipped ?", "select");
+        xclass.addBooleanField(OIDCClientConfiguration.FIELD_SKIPPED, "Is authentication skipped ?", SELECT);
         xclass.addTextField(OIDCClientConfiguration.FIELD_SCOPE, "Scope", 255);
         xclass.addTextAreaField(OIDCClientConfiguration.FIELD_CLAIMS_ID_TOKEN, "ID Token Claims", 50, 10,
             TextAreaClass.EditorType.PURE_TEXT, TextAreaClass.ContentType.PURE_TEXT);
@@ -90,5 +92,7 @@ public class OIDCClientConfigurationClassDocumentInitializer extends AbstractMan
             TextAreaClass.EditorType.PURE_TEXT, TextAreaClass.ContentType.PURE_TEXT);
         xclass.addNumberField(OIDCClientConfiguration.FIELD_USER_INFO_REFRESH_RATE, "User info refresh rate", 5,
             "integer");
+        xclass.addBooleanField(OIDCClientConfiguration.FIELD_ENABLE_USER,
+            "Should user profiles be enabled on first login ?", SELECT, true);
     }
 }

@@ -180,6 +180,13 @@ public class OIDCClientConfiguration
      */
     public static final String FIELD_LOGOUT_MECHANISM = "logoutMechanism";
 
+    /**
+     * The name of the property defining if users should be enabled by default or not.
+     *
+     * @since 2.5.0
+     */
+    public static final String FIELD_ENABLE_USER = "enableUser";
+
     private static final String LIST_SPLIT_REGEX = "(\\r?\\n|,|\\|)";
 
     private static final String JOIN_CHAR = "\n";
@@ -613,5 +620,23 @@ public class OIDCClientConfiguration
     public void setLogoutMechanism(String logoutMechanism)
     {
         this.xobject.setStringValue(FIELD_LOGOUT_MECHANISM, logoutMechanism);
+    }
+
+    /**
+     * @return true if the user should be enabled at creation
+     * @since 2.5.0
+     */
+    public boolean getEnableUser()
+    {
+        return (this.xobject.getIntValue(FIELD_ENABLE_USER, 1) == 1);
+    }
+
+    /**
+     * @param enableUser true if the user should be enabled at creation
+     * @since 2.5.0
+     */
+    public void setEnableUser(boolean enableUser)
+    {
+        this.xobject.setIntValue(FIELD_ENABLE_USER, enableUser ? 1 : 0);
     }
 }

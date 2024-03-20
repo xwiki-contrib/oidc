@@ -323,6 +323,13 @@ public class OIDCClientConfiguration extends OIDCConfiguration
         OIDCConfiguration.PREFIX_PROP + "defaultClientConfiguration";
 
     /**
+     * The name of the property which defines if users should be enabled by default
+     *
+     * @since 2.5.0
+     */
+    public static final String PROP_ENABLE_USER = OIDCConfiguration.PREFIX_PROP + "enableUser";
+
+    /**
      * Default client configuration to use when no configuration is defined.
      * 
      * @since 1.30
@@ -1118,6 +1125,15 @@ public class OIDCClientConfiguration extends OIDCConfiguration
     }
 
     /**
+     * @return true if the user profile should be enabled on first login
+     * @since 2.5.0
+     */
+    public boolean getEnableUser()
+    {
+        return getProperty(PROP_ENABLE_USER, true);
+    }
+
+    /**
      * @return the OIDC provider specified by the client for the authentication.
      */
     private String getOIDCProviderName()
@@ -1254,6 +1270,9 @@ public class OIDCClientConfiguration extends OIDCConfiguration
                 break;
             case PROP_LOGOUT_MECHANISM:
                 returnValue = clientConfiguration.getLogoutMechanism();
+                break;
+            case PROP_ENABLE_USER:
+                returnValue = clientConfiguration.getEnableUser();
                 break;
         }
 
