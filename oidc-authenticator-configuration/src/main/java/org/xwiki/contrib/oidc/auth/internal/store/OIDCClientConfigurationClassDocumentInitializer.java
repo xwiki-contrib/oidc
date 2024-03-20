@@ -90,5 +90,7 @@ public class OIDCClientConfigurationClassDocumentInitializer extends AbstractMan
             TextAreaClass.EditorType.PURE_TEXT, TextAreaClass.ContentType.PURE_TEXT);
         xclass.addNumberField(OIDCClientConfiguration.FIELD_USER_INFO_REFRESH_RATE, "User info refresh rate", 5,
             "integer");
+        xclass.addTextField(OIDCClientConfiguration.FIELD_USER_PROFILE_ACTIVATION_STRATEGY,
+            "User profile activation strategy", 255);
     }
 }

@@ -22,6 +22,8 @@ package org.xwiki.contrib.oidc.auth.store;
 import java.util.Arrays;
 import java.util.List;
 
+import org.apache.commons.lang3.StringUtils;
+import org.xwiki.contrib.oidc.auth.UserProfileActivationStrategy;
 import org.xwiki.model.reference.LocalDocumentReference;
 
 import com.xpn.xwiki.XWiki;
@@ -179,6 +181,13 @@ public class OIDCClientConfiguration
      * @since 1.31
      */
     public static final String FIELD_LOGOUT_MECHANISM = "logoutMechanism";
+
+    /**
+     * The name of the user profile activation strategy to use. Refer to {@link UserProfileActivationStrategy}.
+     *
+     * @since 1.5.0
+     */
+    public static final String FIELD_USER_PROFILE_ACTIVATION_STRATEGY = "userProfileActivationStrategy";
 
     private static final String LIST_SPLIT_REGEX = "(\\r?\\n|,|\\|)";
 
@@ -613,5 +622,34 @@ public class OIDCClientConfiguration
     public void setLogoutMechanism(String logoutMechanism)
     {
         this.xobject.setStringValue(FIELD_LOGOUT_MECHANISM, logoutMechanism);
+    }
+
+    /**
+     * @return the user activation policy
+     * @since 2.5.0
+     */
+    public UserProfileActivationStrategy getUserProfileActivationStrategy()
+    {
+        String activationStrategy = this.xobject.getStringValue(FIELD_USER_PROFILE_ACTIVATION_STRATEGY);
+
+        if (StringUtils.isNotBlank(activationStrategy)) {
+            try {
+                return UserProfileActivationStrategy.valueOf(activationStrategy);
+            } catch (IllegalArgumentException e) {
+                return UserProfileActivationStrategy.NONE;
+            }
+        } else {
+            // Use ENABLE_ALWAYS for backward compatibility in case no property is defined.
+            return UserProfileActivationStrategy.ENABLE_ALWAYS;
+        }
+    }
+
+    /**
+     * @param userProfileActivationStrategy the user activation strategy
+     * @since 2.5.0
+     */
+    public void setUserProfileActivationStrategy(UserProfileActivationStrategy userProfileActivationStrategy)
+    {
+        this.xobject.setStringValue(FIELD_USER_PROFILE_ACTIVATION_STRATEGY, userProfileActivationStrategy.toString());
     }
 }

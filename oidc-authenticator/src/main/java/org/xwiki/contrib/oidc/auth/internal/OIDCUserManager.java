@@ -56,6 +56,7 @@ import org.xwiki.component.annotation.Component;
 import org.xwiki.component.manager.ComponentManager;
 import org.xwiki.context.concurrent.ExecutionContextRunnable;
 import org.xwiki.contrib.oidc.OIDCUserInfo;
+import org.xwiki.contrib.oidc.auth.UserProfileActivationStrategy;
 import org.xwiki.contrib.oidc.auth.internal.OIDCClientConfiguration.GroupMapping;
 import org.xwiki.contrib.oidc.auth.internal.session.ClientHttpSessions;
 import org.xwiki.contrib.oidc.auth.store.OIDCUserStore;
@@ -130,6 +131,8 @@ public class OIDCUserManager
     private Executor executor = Executors.newFixedThreadPool(1);
 
     private static final String XWIKI_GROUP_MEMBERFIELD = "member";
+
+    private static final String XWIKI_USER_ACTIVEFIELD = "active";
 
     private static final String XWIKI_GROUP_PREFIX = "XWiki.";
 
@@ -326,7 +329,12 @@ public class OIDCUserManager
         BaseObject userObject = modifiableDocument.getXObject(userClass.getDocumentReference(), true, xcontext);
 
         // Make sure the user is active by default
-        userObject.set("active", 1, xcontext);
+        if (UserProfileActivationStrategy.ENABLE_ALWAYS.equals(configuration.getUserProfileActivationStrategy())
+            || (newUser && UserProfileActivationStrategy.ENABLE_ON_CREATE.equals(configuration.getUserProfileActivationStrategy()))) {
+            userObject.set(XWIKI_USER_ACTIVEFIELD, 1, xcontext);
+        } else if (newUser && UserProfileActivationStrategy.DISABLE_ON_CREATE.equals(configuration.getUserProfileActivationStrategy())) {
+            userObject.set(XWIKI_USER_ACTIVEFIELD, 0, xcontext);
+        }
 
         // Address
         Address address = userInfo.getAddress();

@@ -57,6 +57,7 @@ import org.xwiki.container.Session;
 import org.xwiki.container.servlet.ServletSession;
 import org.xwiki.contrib.oidc.OIDCIdToken;
 import org.xwiki.contrib.oidc.OIDCUserInfo;
+import org.xwiki.contrib.oidc.auth.UserProfileActivationStrategy;
 import org.xwiki.contrib.oidc.auth.internal.endpoint.BackChannelLogoutOIDCEndpoint;
 import org.xwiki.contrib.oidc.auth.internal.endpoint.CallbackOIDCEndpoint;
 import org.xwiki.contrib.oidc.auth.internal.session.ClientProviders;
@@ -321,6 +322,14 @@ public class OIDCClientConfiguration extends OIDCConfiguration
      */
     public static final String DEFAULT_CLIENT_CONFIGURATION_PROPERTY =
         OIDCConfiguration.PREFIX_PROP + "defaultClientConfiguration";
+
+    /**
+     * The name of the property which defines the user profile activation strategy.
+     *
+     * @since 2.5.0
+     */
+    public static final String PROP_USER_PROFILE_ACTIVATION_STRATEGY = OIDCConfiguration.PREFIX_PROP +
+        "userProfileActivationStrategy";
 
     /**
      * Default client configuration to use when no configuration is defined.
@@ -1113,6 +1122,23 @@ public class OIDCClientConfiguration extends OIDCConfiguration
     }
 
     /**
+     *
+     * @return
+     * @since 2.5.0
+     */
+    public UserProfileActivationStrategy getUserProfileActivationStrategy()
+    {
+        UserProfileActivationStrategy property =
+            getProperty(PROP_USER_PROFILE_ACTIVATION_STRATEGY, UserProfileActivationStrategy.class);
+
+        if (property == null) {
+            return UserProfileActivationStrategy.ENABLE_ALWAYS;
+        }
+
+        return property;
+    }
+
+    /**
      * @return the OIDC provider specified by the client for the authentication.
      */
     private String getOIDCProviderName()
@@ -1249,6 +1275,9 @@ public class OIDCClientConfiguration extends OIDCConfiguration
                 break;
             case PROP_LOGOUT_MECHANISM:
                 returnValue = clientConfiguration.getLogoutMechanism();
+                break;
+            case PROP_USER_PROFILE_ACTIVATION_STRATEGY:
+                returnValue = clientConfiguration.getUserProfileActivationStrategy();
                 break;
         }
 
