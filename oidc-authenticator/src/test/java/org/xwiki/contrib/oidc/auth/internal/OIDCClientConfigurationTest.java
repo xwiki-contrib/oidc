@@ -286,7 +286,7 @@ class OIDCClientConfigurationTest
     @Test
     void getClaimsRequestFromWikiConfigJson() throws Exception
     {
-        // using the example string from the OIDCClaimsRequest javadoc
+        // Using the example string from the OIDCClaimsRequest javadoc
         String userInfoClaimJson = "{\"given_name\":{\"essential\":true},\"nickname\":null,\"email\":"
                 + "{\"essential\":true},\"email_verified\":{\"essential\":true},\"picture\":null,"
                 + "\"http://example.info/claims/groups\":null}";

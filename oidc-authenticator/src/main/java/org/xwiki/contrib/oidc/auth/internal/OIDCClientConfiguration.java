@@ -804,7 +804,7 @@ public class OIDCClientConfiguration extends OIDCConfiguration
      */
     public OIDCClaimsRequest getClaimsRequest()
     {
-        // parse the complete claims JSON if configured
+        // Parse the complete claims JSON if configured
         String claimsJson = getProperty(PROP_CLAIMS, String.class);
         OIDCClaimsRequest claimsRequest = null;
         if (claimsJson != null && claimsJson.trim().length() > 0) {
@@ -815,7 +815,7 @@ public class OIDCClientConfiguration extends OIDCConfiguration
             }
         }
         
-        // use idtokenclaims + userinfoclaims if json was not specified or if there was a parser error
+        // Use idtokenclaims + userinfoclaims if json was not specified or if there was a parser error
         if (claimsRequest == null) {
             claimsRequest = new OIDCClaimsRequest();
             
