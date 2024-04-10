@@ -811,7 +811,7 @@ public class OIDCClientConfiguration extends OIDCConfiguration
             try {
                 claimsRequest = OIDCClaimsRequest.parse(claimsJson);
             } catch (ParseException e) {
-                this.logger.warn("Parsing claims JSON failed: ", e.getMessage());
+                this.logger.warn("Parsing claims JSON " + claimsJson + "failed with message:" + e.getMessage());
             }
         }
         
