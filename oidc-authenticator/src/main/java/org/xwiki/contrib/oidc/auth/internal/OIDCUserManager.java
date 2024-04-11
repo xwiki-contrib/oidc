@@ -232,8 +232,13 @@ public class OIDCUserManager
         if (providerGroups != null) {
             // Check allowed groups
             List<String> allowedGroups = this.configuration.getAllowedGroups();
+
             if (allowedGroups != null) {
+                this.logger.debug("Configured allowed groups: [{}]", allowedGroups);
+
                 if (!CollectionUtils.containsAny(providerGroups, allowedGroups)) {
+                    this.logger.debug("User is not allowed");
+
                     // Allowed groups have priority over forbidden groups
                     throw new OIDCException(
                         "The user is not allowed to authenticate because it's not a member of the following groups: "
@@ -241,14 +246,24 @@ public class OIDCUserManager
                 }
 
                 return;
+            } else {
+                this.logger.debug("No allowed group configured");
             }
 
             // Check forbidden groups
             List<String> forbiddenGroups = this.configuration.getForbiddenGroups();
-            if (forbiddenGroups != null && CollectionUtils.containsAny(providerGroups, forbiddenGroups)) {
-                throw new OIDCException(
-                    "The user is not allowed to authenticate because it's a member of one of the following groups: "
-                        + forbiddenGroups);
+            if (forbiddenGroups != null) {
+                this.logger.debug("Configured forbidden groups: [{}]", allowedGroups);
+
+                if (CollectionUtils.containsAny(providerGroups, forbiddenGroups)) {
+                    this.logger.debug("User is not allowed");
+
+                    throw new OIDCException(
+                        "The user is not allowed to authenticate because it's a member of one of the following groups: "
+                            + forbiddenGroups);
+                }
+            } else {
+                this.logger.debug("No forbidden group configured");
             }
         }
     }
