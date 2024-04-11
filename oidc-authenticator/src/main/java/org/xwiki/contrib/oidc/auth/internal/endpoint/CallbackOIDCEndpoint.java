@@ -263,7 +263,7 @@ public class CallbackOIDCEndpoint implements OIDCEndpoint
                 // If any ACR was requested, fail if the ACR value in the id token is not present or does not match
                 if (!requestedAcrValues.isEmpty()) {
                     ACR idTokenAcr = idToken.getACR();
-                    if (idTokenAcr == null || !requestedAcrValues.contains(idToken.getACR().getValue())) {
+                    if (idTokenAcr == null || !requestedAcrValues.contains(idTokenAcr.getValue())) {
                         throw new OIDCException("Invalid ACR in id token. Requested: " 
                             + String.join(", ", requestedAcrValues) + " Received: " + idTokenAcr);
                     }
