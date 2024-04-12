@@ -47,6 +47,7 @@ import javax.servlet.http.HttpSession;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.collections4.SetUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.joda.time.LocalDateTime;
 import org.slf4j.Logger;
 import org.xwiki.component.annotation.Component;
@@ -811,7 +812,7 @@ public class OIDCClientConfiguration extends OIDCConfiguration
             try {
                 claimsRequest = OIDCClaimsRequest.parse(claimsJson);
             } catch (ParseException e) {
-                this.logger.warn("Parsing claims JSON " + claimsJson + "failed with message:" + e.getMessage());
+                this.logger.warn("Parsing claims JSON [{}] failed with message: {}", claimsJson, ExceptionUtils.getRootCauseMessage(e));
             }
         }
         
