@@ -46,13 +46,13 @@ import org.xwiki.test.junit5.mockito.MockComponent;
 
 import com.nimbusds.oauth2.sdk.GeneralException;
 import com.nimbusds.openid.connect.sdk.OIDCClaimsRequest;
+import com.nimbusds.openid.connect.sdk.claims.ClaimRequirement;
 import com.nimbusds.openid.connect.sdk.claims.ClaimsSetRequest;
 import com.xpn.xwiki.web.XWikiServletRequestStub;
 
-import net.minidev.json.JSONObject;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -295,19 +295,23 @@ class OIDCClientConfigurationTest
         when(this.sourceConfiguration.getProperty(OIDCClientConfiguration.PROP_CLAIMS, String.class)).thenReturn(claimsJson);
 
         OIDCClaimsRequest claimsRequest = this.configuration.getClaimsRequest();
-        JSONObject finalJsonObject = claimsRequest.toJSONObject();
-        JSONObject finalUserInfoObject = (JSONObject) finalJsonObject.get("userinfo");
-        JSONObject finalIdTokenObject = (JSONObject) finalJsonObject.get("id_token");
-
-        assertEquals("{\"essential\":true}", finalUserInfoObject.getAsString("given_name"));
-        assertEquals(null, finalUserInfoObject.getAsString("nickname"));
-        assertEquals("{\"essential\":true}", finalUserInfoObject.getAsString("email"));
-        assertEquals("{\"essential\":true}", finalUserInfoObject.getAsString("email_verified"));
-        assertEquals(null, finalUserInfoObject.getAsString("picture"));
-        assertEquals(null, finalUserInfoObject.getAsString("http://example.info/claims/groups"));
+        ClaimsSetRequest userInfoClaimsRequest = claimsRequest.getUserInfoClaimsRequest();
+        ClaimsSetRequest idTokenClaimsRequest = claimsRequest.getIDTokenClaimsRequest();
         
-        assertEquals("{\"essential\":true}", finalIdTokenObject.getAsString("auth_time"));
-        assertEquals("{\"values\":[\"urn:mace:incommon:iap:silver\"]}", finalIdTokenObject.getAsString("acr"));
+        assertNotNull(userInfoClaimsRequest.get("given_name"));
+        assertEquals(ClaimRequirement.ESSENTIAL, userInfoClaimsRequest.get("given_name").getClaimRequirement());
+        assertNotNull(userInfoClaimsRequest.get("nickname"));
+        assertNotNull(userInfoClaimsRequest.get("email"));
+        assertEquals(ClaimRequirement.ESSENTIAL, userInfoClaimsRequest.get("email").getClaimRequirement());
+        assertNotNull(userInfoClaimsRequest.get("email_verified"));
+        assertEquals(ClaimRequirement.ESSENTIAL, userInfoClaimsRequest.get("email_verified").getClaimRequirement());
+        assertNotNull(userInfoClaimsRequest.get("picture"));
+        assertNotNull(userInfoClaimsRequest.get("http://example.info/claims/groups"));
+        
+        assertNotNull(idTokenClaimsRequest.get("auth_time"));
+        assertEquals(ClaimRequirement.ESSENTIAL, idTokenClaimsRequest.get("auth_time").getClaimRequirement());
+        assertNotNull(idTokenClaimsRequest.get("acr"));
+        assertEquals(Arrays.asList("urn:mace:incommon:iap:silver"), idTokenClaimsRequest.get("acr").getValuesAsListOfStrings());
     }
 
     @Test
