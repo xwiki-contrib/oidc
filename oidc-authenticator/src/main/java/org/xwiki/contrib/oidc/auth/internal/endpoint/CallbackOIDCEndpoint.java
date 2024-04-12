@@ -20,6 +20,8 @@
 package org.xwiki.contrib.oidc.auth.internal.endpoint;
 
 import java.net.URI;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 
 import javax.inject.Inject;
@@ -68,8 +70,12 @@ import com.nimbusds.oauth2.sdk.id.ClientID;
 import com.nimbusds.oauth2.sdk.id.Issuer;
 import com.nimbusds.oauth2.sdk.id.State;
 import com.nimbusds.oauth2.sdk.token.BearerAccessToken;
+import com.nimbusds.openid.connect.sdk.OIDCClaimsRequest;
 import com.nimbusds.openid.connect.sdk.OIDCError;
 import com.nimbusds.openid.connect.sdk.OIDCTokenResponse;
+import com.nimbusds.openid.connect.sdk.claims.ACR;
+import com.nimbusds.openid.connect.sdk.claims.ClaimsSetRequest;
+import com.nimbusds.openid.connect.sdk.claims.ClaimsSetRequest.Entry;
 import com.nimbusds.openid.connect.sdk.claims.IDTokenClaimsSet;
 import com.nimbusds.openid.connect.sdk.validators.IDTokenValidator;
 
@@ -234,6 +240,30 @@ public class CallbackOIDCEndpoint implements OIDCEndpoint
         } else {
             // TODO: add support for null ClientProvider
             idToken = new IDTokenClaimsSet(tokenResponse.getOIDCTokens().getIDToken().getJWTClaimsSet());
+        }
+        
+        // Check if ACR is specified and if yes, if value from config matches value returned in id token
+        OIDCClaimsRequest claimsRequest = this.configuration.getClaimsRequest();
+        ClaimsSetRequest idTokenClaimsRequest = claimsRequest.getIDTokenClaimsRequest();
+        if (idTokenClaimsRequest != null) {
+            Entry acrClaim = idTokenClaimsRequest.get("acr");
+            if (acrClaim != null) {
+                // ACR can take either a single 'value' or an array of 'values'
+                List<String> claimsAcrValues = acrClaim.getValuesAsListOfStrings();
+                String claimsAcrValue = acrClaim.getValueAsString();
+                List<String> requestedAcrValues = new ArrayList<>();
+                if (claimsAcrValues != null) requestedAcrValues.addAll(claimsAcrValues);
+                if (claimsAcrValue != null) requestedAcrValues.add(claimsAcrValue);
+                
+                // If any ACR was requested, fail if the ACR value in the id token is not present or does not match
+                if (!requestedAcrValues.isEmpty()) {
+                    ACR idTokenAcr = idToken.getACR();
+                    if (idTokenAcr == null || !requestedAcrValues.contains(idTokenAcr.getValue())) {
+                        throw new OIDCException("Invalid ACR in id token. Requested: " 
+                            + String.join(", ", requestedAcrValues) + " Received: " + idTokenAcr);
+                    }
+                }
+            }
         }
 
         BearerAccessToken accessToken = tokenResponse.getTokens().getBearerAccessToken();

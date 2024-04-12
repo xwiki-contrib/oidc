@@ -46,10 +46,13 @@ import org.xwiki.test.junit5.mockito.MockComponent;
 
 import com.nimbusds.oauth2.sdk.GeneralException;
 import com.nimbusds.openid.connect.sdk.OIDCClaimsRequest;
+import com.nimbusds.openid.connect.sdk.claims.ClaimRequirement;
+import com.nimbusds.openid.connect.sdk.claims.ClaimsSetRequest;
 import com.xpn.xwiki.web.XWikiServletRequestStub;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -279,6 +282,37 @@ class OIDCClientConfigurationTest
         assertEquals(idTokenClaims, foundIdTokenClaims);
         assertEquals(userInfoClaims, foundUserInfoClaims);
     }
+    
+    @Test
+    void getClaimsRequestFromWikiConfigJson() throws Exception
+    {
+        // Using the example string from the OIDCClaimsRequest javadoc
+        String userInfoClaimJson = "{\"given_name\":{\"essential\":true},\"nickname\":null,\"email\":"
+                + "{\"essential\":true},\"email_verified\":{\"essential\":true},\"picture\":null,"
+                + "\"http://example.info/claims/groups\":null}";
+        String idTokenClaimJson = "{\"auth_time\":{\"essential\":true},\"acr\": {\"values\":[\"urn:mace:incommon:iap:silver\"]}}";
+        String claimsJson = "{\"userinfo\":" + userInfoClaimJson + ", \"id_token\":" + idTokenClaimJson + "}";
+        when(this.sourceConfiguration.getProperty(OIDCClientConfiguration.PROP_CLAIMS, String.class)).thenReturn(claimsJson);
+
+        OIDCClaimsRequest claimsRequest = this.configuration.getClaimsRequest();
+        ClaimsSetRequest userInfoClaimsRequest = claimsRequest.getUserInfoClaimsRequest();
+        ClaimsSetRequest idTokenClaimsRequest = claimsRequest.getIDTokenClaimsRequest();
+        
+        assertNotNull(userInfoClaimsRequest.get("given_name"));
+        assertEquals(ClaimRequirement.ESSENTIAL, userInfoClaimsRequest.get("given_name").getClaimRequirement());
+        assertNotNull(userInfoClaimsRequest.get("nickname"));
+        assertNotNull(userInfoClaimsRequest.get("email"));
+        assertEquals(ClaimRequirement.ESSENTIAL, userInfoClaimsRequest.get("email").getClaimRequirement());
+        assertNotNull(userInfoClaimsRequest.get("email_verified"));
+        assertEquals(ClaimRequirement.ESSENTIAL, userInfoClaimsRequest.get("email_verified").getClaimRequirement());
+        assertNotNull(userInfoClaimsRequest.get("picture"));
+        assertNotNull(userInfoClaimsRequest.get("http://example.info/claims/groups"));
+        
+        assertNotNull(idTokenClaimsRequest.get("auth_time"));
+        assertEquals(ClaimRequirement.ESSENTIAL, idTokenClaimsRequest.get("auth_time").getClaimRequirement());
+        assertNotNull(idTokenClaimsRequest.get("acr"));
+        assertEquals(Arrays.asList("urn:mace:incommon:iap:silver"), idTokenClaimsRequest.get("acr").getValuesAsListOfStrings());
+    }
 
     @Test
     void getClaimsRequestWithEmptyClaims()
@@ -287,6 +321,16 @@ class OIDCClientConfigurationTest
             OIDCClientConfiguration.DEFAULT_IDTOKENCLAIMS)).thenReturn(Collections.singletonList(""));
         when(this.sourceConfiguration.getProperty(OIDCClientConfiguration.PROP_USERINFOCLAIMS,
             OIDCClientConfiguration.DEFAULT_USERINFOCLAIMS)).thenReturn(Collections.singletonList(""));
+
+        OIDCClaimsRequest claimsRequest = this.configuration.getClaimsRequest();
+
+        assertEquals("{}", claimsRequest.toJSONString());
+    }
+    
+    @Test
+    void getClaimsRequestWithEmptyClaimsJson()
+    {
+        when(this.sourceConfiguration.getProperty(OIDCClientConfiguration.PROP_CLAIMS, String.class)).thenReturn("");
 
         OIDCClaimsRequest claimsRequest = this.configuration.getClaimsRequest();
 

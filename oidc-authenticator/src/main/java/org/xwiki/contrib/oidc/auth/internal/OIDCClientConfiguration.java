@@ -47,6 +47,7 @@ import javax.servlet.http.HttpSession;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.collections4.SetUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.joda.time.LocalDateTime;
 import org.slf4j.Logger;
 import org.xwiki.component.annotation.Component;
@@ -242,6 +243,11 @@ public class OIDCClientConfiguration extends OIDCConfiguration
      * @since 1.16
      */
     public static final String PROP_SCOPE = "oidc.scope";
+    
+    /**
+     * @since 2.6.0
+     */
+    public static final String PROP_CLAIMS = "oidc.claims";
 
     public static final String PROP_USERINFOCLAIMS = "oidc.userinfoclaims";
 
@@ -799,31 +805,44 @@ public class OIDCClientConfiguration extends OIDCConfiguration
      */
     public OIDCClaimsRequest getClaimsRequest()
     {
-        // TODO: allow passing the complete JSON as configuration
-        OIDCClaimsRequest claimsRequest = new OIDCClaimsRequest();
-
-        // ID Token claims
-        List<String> idtokenclaims = getIDTokenClaims();
-        if (idtokenclaims != null && !idtokenclaims.isEmpty()) {
-            ClaimsSetRequest idtokenclaimsRequest = new ClaimsSetRequest();
-
-            for (String claim : idtokenclaims) {
-                idtokenclaimsRequest = idtokenclaimsRequest.add(claim);
+        // Parse the complete claims JSON if configured
+        String claimsJson = getProperty(PROP_CLAIMS, String.class);
+        OIDCClaimsRequest claimsRequest = null;
+        if (claimsJson != null && claimsJson.trim().length() > 0) {
+            try {
+                claimsRequest = OIDCClaimsRequest.parse(claimsJson);
+            } catch (ParseException e) {
+                this.logger.warn("Parsing claims JSON [{}] failed with message: {}", claimsJson, ExceptionUtils.getRootCauseMessage(e));
             }
-
-            claimsRequest = claimsRequest.withIDTokenClaimsRequest(idtokenclaimsRequest);
         }
-
-        // UserInfo claims
-        List<String> userinfoclaims = getUserInfoClaims();
-        if (userinfoclaims != null && !userinfoclaims.isEmpty()) {
-            ClaimsSetRequest userinfoclaimsRequest = new ClaimsSetRequest();
-
-            for (String claim : userinfoclaims) {
-                userinfoclaimsRequest = userinfoclaimsRequest.add(claim);
+        
+        // Use idtokenclaims + userinfoclaims if json was not specified or if there was a parser error
+        if (claimsRequest == null) {
+            claimsRequest = new OIDCClaimsRequest();
+            
+            // ID Token claims
+            List<String> idtokenclaims = getIDTokenClaims();
+            if (idtokenclaims != null && !idtokenclaims.isEmpty()) {
+                ClaimsSetRequest idtokenclaimsRequest = new ClaimsSetRequest();
+                
+                for (String claim : idtokenclaims) {
+                    idtokenclaimsRequest = idtokenclaimsRequest.add(claim);
+                }
+                
+                claimsRequest = claimsRequest.withIDTokenClaimsRequest(idtokenclaimsRequest);
             }
-
-            claimsRequest = claimsRequest.withUserInfoClaimsRequest(userinfoclaimsRequest);
+            
+            // UserInfo claims
+            List<String> userinfoclaims = getUserInfoClaims();
+            if (userinfoclaims != null && !userinfoclaims.isEmpty()) {
+                ClaimsSetRequest userinfoclaimsRequest = new ClaimsSetRequest();
+                
+                for (String claim : userinfoclaims) {
+                    userinfoclaimsRequest = userinfoclaimsRequest.add(claim);
+                }
+                
+                claimsRequest = claimsRequest.withUserInfoClaimsRequest(userinfoclaimsRequest);
+            }
         }
 
         return claimsRequest;
