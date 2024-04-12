@@ -244,7 +244,7 @@ public class OIDCClientConfiguration extends OIDCConfiguration
     public static final String PROP_SCOPE = "oidc.scope";
     
     /**
-     * @since 2.5.2
+     * @since 2.6.0
      */
     public static final String PROP_CLAIMS = "oidc.claims";
 
