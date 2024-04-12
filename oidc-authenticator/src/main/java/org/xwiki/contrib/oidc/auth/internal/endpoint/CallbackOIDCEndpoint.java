@@ -70,14 +70,14 @@ import com.nimbusds.oauth2.sdk.id.ClientID;
 import com.nimbusds.oauth2.sdk.id.Issuer;
 import com.nimbusds.oauth2.sdk.id.State;
 import com.nimbusds.oauth2.sdk.token.BearerAccessToken;
+import com.nimbusds.openid.connect.sdk.OIDCClaimsRequest;
 import com.nimbusds.openid.connect.sdk.OIDCError;
 import com.nimbusds.openid.connect.sdk.OIDCTokenResponse;
 import com.nimbusds.openid.connect.sdk.claims.ACR;
+import com.nimbusds.openid.connect.sdk.claims.ClaimsSetRequest;
+import com.nimbusds.openid.connect.sdk.claims.ClaimsSetRequest.Entry;
 import com.nimbusds.openid.connect.sdk.claims.IDTokenClaimsSet;
 import com.nimbusds.openid.connect.sdk.validators.IDTokenValidator;
-
-import net.minidev.json.JSONArray;
-import net.minidev.json.JSONObject;
 
 /**
  * Callback endpoint for OpenID Connect.
@@ -243,21 +243,16 @@ public class CallbackOIDCEndpoint implements OIDCEndpoint
         }
         
         // Check if ACR is specified and if yes, if value from config matches value returned in id token
-        JSONObject claimsJsonObject = this.configuration.getClaimsRequest().toJSONObject();
-        JSONObject claimsIdTokenObject = (JSONObject) claimsJsonObject.get("id_token");
-        if (claimsIdTokenObject != null) {
-            JSONObject claimsAcrObject = (JSONObject) claimsIdTokenObject.get("acr");
-            if (claimsAcrObject != null) {
+        OIDCClaimsRequest claimsRequest = this.configuration.getClaimsRequest();
+        ClaimsSetRequest idTokenClaimsRequest = claimsRequest.getIDTokenClaimsRequest();
+        if (idTokenClaimsRequest != null) {
+            Entry acrClaim = idTokenClaimsRequest.get("acr");
+            if (acrClaim != null) {
                 // ACR can take either a single 'value' or an array of 'values'
-                JSONArray claimsAcrValues = (JSONArray) claimsAcrObject.get("values");
-                String claimsAcrValue = claimsAcrObject.getAsString("value");
-                
+                List<String> claimsAcrValues = acrClaim.getValuesAsListOfStrings();
+                String claimsAcrValue = acrClaim.getValueAsString();
                 List<String> requestedAcrValues = new ArrayList<>();
-                if (claimsAcrValues != null) {
-                    for (Object acrValueObject : claimsAcrValues) {
-                        requestedAcrValues.add(acrValueObject.toString());
-                    }
-                }
+                if (claimsAcrValues != null) requestedAcrValues.addAll(claimsAcrValues);
                 if (claimsAcrValue != null) requestedAcrValues.add(claimsAcrValue);
                 
                 // If any ACR was requested, fail if the ACR value in the id token is not present or does not match
