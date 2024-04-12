@@ -213,21 +213,9 @@ public class OIDCUserManager
         return updateUser(idToken, userInfo, accessToken);
     }
 
-    private void checkAllowedGroups(UserInfo userInfo) throws OIDCException
+    private void checkAllowedGroups(List<String> providerGroups) throws OIDCException
     {
-        List<String> providerGroups = null;
-        Object providerGroupsObj = getClaim(this.configuration.getGroupClaim(), userInfo);
-        if (this.configuration.getGroupSeparator() != null) {
-            providerGroups =
-                Arrays.asList(StringUtils.split(providerGroupsObj.toString(), this.configuration.getGroupSeparator()));
-        } else {
-            providerGroups = (List<String>) providerGroupsObj;
-        }
-        String groupPrefix = this.configuration.getGroupPrefix();
-        if (!StringUtils.isEmpty(groupPrefix)) {
-            providerGroups = providerGroups.stream().filter(item -> item.startsWith(groupPrefix))
-                .map(item -> StringUtils.replace(item, groupPrefix, "")).collect(Collectors.toList());
-        }
+        this.logger.debug("Checking allowed groups");
 
         if (providerGroups != null) {
             // Check allowed groups
@@ -310,8 +298,11 @@ public class OIDCUserManager
     public SimplePrincipal updateUser(IDTokenClaimsSet idToken, UserInfo userInfo, BearerAccessToken accessToken)
         throws XWikiException, QueryException, OIDCException, MalformedURLException
     {
+        // Get provider groups
+        List<String> providerGroups = getProviderGroups(idToken, userInfo);
+
         // Check allowed/forbidden groups
-        checkAllowedGroups(userInfo);
+        checkAllowedGroups(providerGroups);
 
         Map<String, String> formatMap = createFormatMap(idToken, userInfo);
         // Change the default StringSubstitutor behavior to produce an empty String instead of an unresolved pattern by
@@ -458,7 +449,7 @@ public class OIDCUserManager
 
         // Sync user groups with the provider
         if (this.configuration.isGroupSync()) {
-            userUpdated |= updateGroupMembership(idToken, userInfo, userDocument, xcontext);
+            userUpdated |= updateGroupMembership(providerGroups, userDocument, xcontext);
         }
 
         // Notify
@@ -485,8 +476,7 @@ public class OIDCUserManager
         }
     }
 
-    private boolean updateGroupMembership(IDTokenClaimsSet idToken, UserInfo userInfo, XWikiDocument userDocument,
-        XWikiContext xcontext) throws XWikiException
+    private List<String> getProviderGroups(IDTokenClaimsSet idToken, UserInfo userInfo)
     {
         String groupClaim = this.configuration.getGroupClaim();
 
@@ -498,27 +488,36 @@ public class OIDCUserManager
         if (providerGroupsObj == null) {
             // Group claim not found in userInfo Token; try idToken (Azure AD)
             this.logger.debug("Groups claim not found in userInfo token. Trying idToken");
+
             providerGroupsObj = getClaim(groupClaim, idToken);
         }
 
-        if (this.configuration.getGroupSeparator() != null) {
-            providerGroups =
-                Arrays.asList(StringUtils.split(providerGroupsObj.toString(), this.configuration.getGroupSeparator()));
-        } else {
-            providerGroups = (List<String>) providerGroupsObj;
-        }
-        String groupPrefix = this.configuration.getGroupPrefix();
-        if (!StringUtils.isEmpty(groupPrefix)) {
-            providerGroups = providerGroups.stream().filter(item -> item.startsWith(groupPrefix))
-                .map(item -> StringUtils.replace(item, groupPrefix, "")).collect(Collectors.toList());
-        }
+        if (providerGroupsObj != null) {
+            if (this.configuration.getGroupSeparator() != null) {
+                providerGroups = Arrays
+                    .asList(StringUtils.split(providerGroupsObj.toString(), this.configuration.getGroupSeparator()));
+            } else {
+                providerGroups = (List<String>) providerGroupsObj;
+            }
+            String groupPrefix = this.configuration.getGroupPrefix();
+            if (!StringUtils.isEmpty(groupPrefix)) {
+                providerGroups = providerGroups.stream().filter(item -> item.startsWith(groupPrefix))
+                    .map(item -> StringUtils.replace(item, groupPrefix, "")).collect(Collectors.toList());
+            }
 
-        if (providerGroups != null) {
             this.logger.debug("The provider sent the following groups: {}", providerGroups);
-
-            return syncXWikiGroupsMembership(userDocument.getFullName(), providerGroups, xcontext);
         } else {
             this.logger.debug("The provider did not sent any group");
+        }
+
+        return providerGroups;
+    }
+
+    private boolean updateGroupMembership(List<String> providerGroups, XWikiDocument userDocument,
+        XWikiContext xcontext) throws XWikiException
+    {
+        if (providerGroups != null) {
+            return syncXWikiGroupsMembership(userDocument.getFullName(), providerGroups, xcontext);
         }
 
         return false;
