@@ -85,6 +85,7 @@ import com.nimbusds.oauth2.sdk.http.HTTPRequest;
 import com.nimbusds.oauth2.sdk.http.HTTPResponse;
 import com.nimbusds.oauth2.sdk.id.ClientID;
 import com.nimbusds.oauth2.sdk.id.Issuer;
+import com.nimbusds.oauth2.sdk.token.AccessToken;
 import com.nimbusds.oauth2.sdk.token.BearerAccessToken;
 import com.nimbusds.openid.connect.sdk.OIDCClaimsRequest;
 import com.nimbusds.openid.connect.sdk.OIDCScopeValue;
@@ -1087,7 +1088,7 @@ public class OIDCClientConfiguration extends OIDCConfiguration
     /**
      * @since 1.2
      */
-    public BearerAccessToken getAccessToken()
+    public AccessToken getAccessToken()
     {
         String accessTokenValue = getSessionAttribute(PROP_SESSION_ACCESSTOKEN);
 
@@ -1097,7 +1098,7 @@ public class OIDCClientConfiguration extends OIDCConfiguration
     /**
      * @since 1.2
      */
-    public void setAccessToken(BearerAccessToken accessToken)
+    public void setAccessToken(AccessToken accessToken)
     {
         // Don't store the BearerAccessToken object directly as it could cause classloader problems when an extension is
         // upgraded

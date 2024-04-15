@@ -74,7 +74,7 @@ import com.nimbusds.oauth2.sdk.GeneralException;
 import com.nimbusds.oauth2.sdk.http.HTTPRequest;
 import com.nimbusds.oauth2.sdk.http.HTTPResponse;
 import com.nimbusds.oauth2.sdk.id.ClientID;
-import com.nimbusds.oauth2.sdk.token.BearerAccessToken;
+import com.nimbusds.oauth2.sdk.token.AccessToken;
 import com.nimbusds.openid.connect.sdk.LogoutRequest;
 import com.nimbusds.openid.connect.sdk.UserInfoErrorResponse;
 import com.nimbusds.openid.connect.sdk.UserInfoRequest;
@@ -137,7 +137,7 @@ public class OIDCUserManager
     public void updateUserInfoAsync()
     {
         final IDTokenClaimsSet idToken = this.configuration.getIdToken();
-        final BearerAccessToken accessToken = this.configuration.getAccessToken();
+        final AccessToken accessToken = this.configuration.getAccessToken();
 
         this.executor.execute(new ExecutionContextRunnable(() -> {
             try {
@@ -172,7 +172,7 @@ public class OIDCUserManager
         }
     }
 
-    public UserInfo getUserInfo(BearerAccessToken accessToken)
+    public UserInfo getUserInfo(AccessToken accessToken)
         throws OIDCException, IOException, URISyntaxException, GeneralException
     {
         Endpoint userInfoEndpoint = this.configuration.getUserInfoOIDCEndpoint();
@@ -202,7 +202,7 @@ public class OIDCUserManager
         return userinfoSuccessResponse.getUserInfo();
     }
 
-    public SimplePrincipal updateUser(IDTokenClaimsSet idToken, BearerAccessToken accessToken)
+    public SimplePrincipal updateUser(IDTokenClaimsSet idToken, AccessToken accessToken)
         throws IOException, OIDCException, XWikiException, QueryException, URISyntaxException, GeneralException
     {
         // Update/Create XWiki user
@@ -291,7 +291,7 @@ public class OIDCUserManager
         return (T) value;
     }
 
-    public SimplePrincipal updateUser(IDTokenClaimsSet idToken, UserInfo userInfo, BearerAccessToken accessToken)
+    public SimplePrincipal updateUser(IDTokenClaimsSet idToken, UserInfo userInfo, AccessToken accessToken)
         throws XWikiException, QueryException, OIDCException, MalformedURLException
     {
         // Get provider groups

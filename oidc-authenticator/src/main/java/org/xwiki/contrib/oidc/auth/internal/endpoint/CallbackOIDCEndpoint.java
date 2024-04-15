@@ -19,7 +19,10 @@
  */
 package org.xwiki.contrib.oidc.auth.internal.endpoint;
 
+import java.io.IOException;
 import java.net.URI;
+import java.net.URISyntaxException;
+import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -50,12 +53,14 @@ import org.xwiki.observation.ObservationManager;
 import org.xwiki.security.authentication.UserAuthenticatedEvent;
 import org.xwiki.user.UserReferenceResolver;
 
-import com.nimbusds.oauth2.sdk.AuthorizationCode;
+import com.nimbusds.jose.JOSEException;
+import com.nimbusds.jose.proc.BadJOSEException;
+import com.nimbusds.jwt.JWT;
 import com.nimbusds.oauth2.sdk.AuthorizationCodeGrant;
 import com.nimbusds.oauth2.sdk.AuthorizationErrorResponse;
 import com.nimbusds.oauth2.sdk.AuthorizationGrant;
 import com.nimbusds.oauth2.sdk.AuthorizationResponse;
-import com.nimbusds.oauth2.sdk.AuthorizationSuccessResponse;
+import com.nimbusds.oauth2.sdk.GeneralException;
 import com.nimbusds.oauth2.sdk.Response;
 import com.nimbusds.oauth2.sdk.ResponseType;
 import com.nimbusds.oauth2.sdk.ResponseType.Value;
@@ -71,7 +76,8 @@ import com.nimbusds.oauth2.sdk.http.HTTPResponse;
 import com.nimbusds.oauth2.sdk.id.ClientID;
 import com.nimbusds.oauth2.sdk.id.Issuer;
 import com.nimbusds.oauth2.sdk.id.State;
-import com.nimbusds.oauth2.sdk.token.BearerAccessToken;
+import com.nimbusds.oauth2.sdk.token.AccessToken;
+import com.nimbusds.openid.connect.sdk.AuthenticationSuccessResponse;
 import com.nimbusds.openid.connect.sdk.OIDCClaimsRequest;
 import com.nimbusds.openid.connect.sdk.OIDCError;
 import com.nimbusds.openid.connect.sdk.OIDCTokenResponse;
@@ -173,127 +179,101 @@ public class CallbackOIDCEndpoint implements OIDCEndpoint
             }
 
             // Unknown error
-            throw new OIDCException("Unexpected error [" + errorResponse.getErrorObject().getCode() + "] : "
-                + errorResponse.getErrorObject().getDescription());
+            return new ErrorResponse(HTTPResponse.SC_SERVER_ERROR, "Unexpected error ["
+                + errorResponse.getErrorObject().getCode() + "] : " + errorResponse.getErrorObject().getDescription());
         }
 
-        // Cast to success response
-        AuthorizationSuccessResponse successResponse = (AuthorizationSuccessResponse) authorizationResponse;
+        // Get the authentication response
+        // TODO: it's a bit strange that there is not a more natural way to directly parse a AuthenticationResponse
+        // or convert a AuthorizationSuccessResponse
+        AuthenticationSuccessResponse authenticationResponse = AuthenticationSuccessResponse.parse(httpRequest);
 
-        // Get authorization code
-        AuthorizationCode code = successResponse.getAuthorizationCode();
+        ResponseType responseType = authenticationResponse.impliedResponseType();
 
-        // Generate callback URL
-        URI callback = this.oidc.createEndPointURI(CallbackOIDCEndpoint.HINT);
+        // Validate the id token, if provided
+        IDTokenClaimsSet idToken = null;
+        if (authenticationResponse.getIDToken() != null) {
+            idToken = parseIdToken(authenticationResponse.getIDToken(), authenticationResponse.getIssuer());
+        }
 
-        // Get access token
-        AuthorizationGrant authorizationGrant = new AuthorizationCodeGrant(code, callback);
+        // Get the access token
+        AccessToken accessToken = authenticationResponse.getAccessToken();
+        if (responseType.impliesCodeFlow()) {
+            this.logger.debug("Getting the access token from the code [{}]",
+                authenticationResponse.getAuthorizationCode());
 
-        Issuer issuer = authorizationResponse.getIssuer();
-        ClientID clientID = this.configuration.getClientID(issuer);
+            // Generate callback URL
+            URI callback = this.oidc.createEndPointURI(CallbackOIDCEndpoint.HINT);
 
-        TokenRequest tokeRequest;
-        Secret secret = this.configuration.getSecret();
-        Endpoint tokenEndpoint = this.configuration.getTokenOIDCEndpoint();
-        if (secret != null) {
-            this.logger.debug("OIDC callback: adding secret ({} {})", clientID, secret.getValue());
+            // Get access token
+            AuthorizationGrant authorizationGrant =
+                new AuthorizationCodeGrant(authenticationResponse.getAuthorizationCode(), callback);
 
-            ClientAuthentication clientSecret;
-            if (this.configuration.getTokenEndPointAuthMethod() == ClientAuthenticationMethod.CLIENT_SECRET_POST) {
-                clientSecret = new ClientSecretPost(clientID, secret);
+            TokenRequest tokeRequest;
+            Secret secret = this.configuration.getSecret();
+            Endpoint tokenEndpoint = this.configuration.getTokenOIDCEndpoint();
+            ClientID clientID = this.configuration.getClientID(authenticationResponse.getIssuer());
+            if (secret != null) {
+                this.logger.debug("OIDC callback: adding secret ({} {})", clientID, secret.getValue());
+
+                ClientAuthentication clientSecret;
+                if (this.configuration.getTokenEndPointAuthMethod() == ClientAuthenticationMethod.CLIENT_SECRET_POST) {
+                    clientSecret = new ClientSecretPost(clientID, secret);
+                } else {
+                    clientSecret = new ClientSecretBasic(clientID, secret);
+                }
+                tokeRequest = new TokenRequest(tokenEndpoint.getURI(), clientSecret, authorizationGrant);
             } else {
-                clientSecret = new ClientSecretBasic(clientID, secret);
+                tokeRequest = new TokenRequest(tokenEndpoint.getURI(), clientID, authorizationGrant);
             }
-            tokeRequest = new TokenRequest(tokenEndpoint.getURI(), clientSecret, authorizationGrant);
-        } else {
-            tokeRequest = new TokenRequest(tokenEndpoint.getURI(), clientID, authorizationGrant);
-        }
 
-        HTTPRequest tokenHTTP = tokeRequest.toHTTPRequest();
-        tokenEndpoint.prepare(httpRequest);
+            HTTPRequest tokenHTTP = tokeRequest.toHTTPRequest();
+            tokenEndpoint.prepare(httpRequest);
 
-        this.logger.debug("OIDC Token request ({}?{},{},{})", tokenHTTP.getURL(), tokenHTTP.getURL(),
-            tokenHTTP.getAuthorization(), tokenHTTP.getHeaderMap());
+            this.logger.debug("OIDC Token request ({}?{},{},{})", tokenHTTP.getURL(), tokenHTTP.getURL(),
+                tokenHTTP.getAuthorization(), tokenHTTP.getHeaderMap());
 
-        HTTPResponse httpResponse = tokenHTTP.send();
-        this.logger.debug("OIDC Token response ({})", httpResponse.getBody());
+            HTTPResponse httpResponse = tokenHTTP.send();
+            this.logger.debug("OIDC Token response ({})", httpResponse.getBody());
 
-        if (httpResponse.getStatusCode() != HTTPResponse.SC_OK) {
-            TokenErrorResponse error = TokenErrorResponse.parse(httpResponse);
+            if (httpResponse.getStatusCode() != HTTPResponse.SC_OK) {
+                TokenErrorResponse error = TokenErrorResponse.parse(httpResponse);
 
-            this.logger.debug("OIDC callback: Failed to get access token ([{}])",
-                error.getErrorObject() != null ? error.getErrorObject() : httpResponse.getStatusCode());
+                this.logger.debug("OIDC callback: Failed to get access token ([{}])",
+                    error.getErrorObject() != null ? error.getErrorObject() : httpResponse.getStatusCode());
 
-            if (error.getErrorObject() != null) {
-                throw new OIDCException("Failed to get access token", error.getErrorObject());
-            } else {
-                throw new OIDCException("Failed to get access token (" + httpResponse.getStatusCode() + ')');
-            }
-        }
-
-        OIDCTokenResponse tokenResponse = OIDCTokenResponse.parse(httpResponse);
-
-        // Parse and validate the id token
-        ClientProvider clientProvider = this.configuration.getClientProvider(issuer);
-        IDTokenClaimsSet idToken;
-        if (clientProvider != null) {
-            idToken = IDTokenValidator.create(clientProvider.getMetadata(),
-                this.configuration.createClientInformation(issuer), this.oidc.getJWKSource())
-                .validate(tokenResponse.getOIDCTokens().getIDToken(), null);
-        } else {
-            // TODO: add support for null ClientProvider
-            idToken = new IDTokenClaimsSet(tokenResponse.getOIDCTokens().getIDToken().getJWTClaimsSet());
-        }
-
-        // Store the id token in the session
-        this.configuration.setIdToken(idToken);
-
-        HttpSession session = ((ServletSession) this.container.getSession()).getHttpSession();
-
-        UserInfo userInfo = null;
-        BearerAccessToken accessToken = null;
-
-        ResponseType responseType = this.configuration.getResponseType();
-        // Get the token only if it's a code flow (because it needs the token to access the userinfo endpoint) or if
-        // explicitly required
-        if (responseType.contains(Value.CODE) || responseType.contains(Value.TOKEN)) {
-            // Check if ACR is specified and if yes, if value from config matches value returned in id token
-            OIDCClaimsRequest claimsRequest = this.configuration.getClaimsRequest();
-            ClaimsSetRequest idTokenClaimsRequest = claimsRequest.getIDTokenClaimsRequest();
-            if (idTokenClaimsRequest != null) {
-                Entry acrClaim = idTokenClaimsRequest.get("acr");
-                if (acrClaim != null) {
-                    // ACR can take either a single 'value' or an array of 'values'
-                    List<String> claimsAcrValues = acrClaim.getValuesAsListOfStrings();
-                    String claimsAcrValue = acrClaim.getValueAsString();
-                    List<String> requestedAcrValues = new ArrayList<>();
-                    if (claimsAcrValues != null)
-                        requestedAcrValues.addAll(claimsAcrValues);
-                    if (claimsAcrValue != null)
-                        requestedAcrValues.add(claimsAcrValue);
-
-                    // If any ACR was requested, fail if the ACR value in the id token is not present or does not match
-                    if (!requestedAcrValues.isEmpty()) {
-                        ACR idTokenAcr = idToken.getACR();
-                        if (idTokenAcr == null || !requestedAcrValues.contains(idTokenAcr.getValue())) {
-                            throw new OIDCException("Invalid ACR in id token. Requested: "
-                                + String.join(", ", requestedAcrValues) + " Received: " + idTokenAcr);
-                        }
-                    }
+                if (error.getErrorObject() != null) {
+                    throw new OIDCException("Failed to get access token", error.getErrorObject());
+                } else {
+                    throw new OIDCException("Failed to get access token (" + httpResponse.getStatusCode() + ')');
                 }
             }
+
+            OIDCTokenResponse tokenResponse = OIDCTokenResponse.parse(httpResponse);
 
             accessToken = tokenResponse.getTokens().getBearerAccessToken();
 
             // Store the access token in the session
             this.configuration.setAccessToken(accessToken);
 
-            if (responseType.contains(Value.CODE)) {
-                userInfo = this.users.getUserInfo(accessToken);
+            // Also parse and validate the id token if we don't already have it
+            if (idToken == null) {
+                idToken = parseIdToken(tokenResponse.getOIDCTokens().getIDToken(), authenticationResponse.getIssuer());
             }
         }
 
-        if (userInfo == null) {
+        // Make sure there is an id token
+        if (idToken == null) {
+            return new ErrorResponse(HTTPResponse.SC_BAD_REQUEST, "No id token provided");
+        }
+
+        HttpSession session = ((ServletSession) this.container.getSession()).getHttpSession();
+
+        UserInfo userInfo = null;
+        if (responseType.contains(Value.CODE)) {
+            // Request the user info from a dedicated endpoint if it's a code (or hybrid) flow
+            userInfo = this.users.getUserInfo(accessToken);
+        } else {
             // Simulate a UserInfo based on the id token
             userInfo = new UserInfo(idToken.toJSONObject());
         }
@@ -318,5 +298,54 @@ public class CallbackOIDCEndpoint implements OIDCEndpoint
 
         // Redirect to original request
         return new RedirectResponse(this.configuration.getSuccessRedirectURI());
+    }
+
+    private IDTokenClaimsSet parseIdToken(JWT token, Issuer issuer) throws GeneralException, IOException,
+        URISyntaxException, BadJOSEException, JOSEException, ParseException, OIDCException
+    {
+        // Parse and validate the id token
+        ClientProvider clientProvider = this.configuration.getClientProvider(issuer);
+
+        IDTokenClaimsSet idToken;
+        if (clientProvider != null) {
+            idToken = IDTokenValidator.create(clientProvider.getMetadata(),
+                this.configuration.createClientInformation(issuer), this.oidc.getJWKSource()).validate(token, null);
+        } else {
+            // TODO: add support for null ClientProvider
+            idToken = new IDTokenClaimsSet(token.getJWTClaimsSet());
+        }
+
+        // Check if ACR is specified and if yes, if value from config matches value returned in id token
+        OIDCClaimsRequest claimsRequest = this.configuration.getClaimsRequest();
+        ClaimsSetRequest idTokenClaimsRequest = claimsRequest.getIDTokenClaimsRequest();
+        if (idTokenClaimsRequest != null) {
+            Entry acrClaim = idTokenClaimsRequest.get("acr");
+            if (acrClaim != null) {
+                // ACR can take either a single 'value' or an array of 'values'
+                List<String> claimsAcrValues = acrClaim.getValuesAsListOfStrings();
+                String claimsAcrValue = acrClaim.getValueAsString();
+                List<String> requestedAcrValues = new ArrayList<>();
+                if (claimsAcrValues != null)
+                    requestedAcrValues.addAll(claimsAcrValues);
+                if (claimsAcrValue != null)
+                    requestedAcrValues.add(claimsAcrValue);
+
+                // If any ACR was requested, fail if the ACR value in the id token is not present or does not match
+                if (!requestedAcrValues.isEmpty()) {
+                    ACR idTokenAcr = idToken.getACR();
+                    if (idTokenAcr == null || !requestedAcrValues.contains(idTokenAcr.getValue())) {
+                        throw new OIDCException("Invalid ACR in id token. Requested: "
+                            + String.join(", ", requestedAcrValues) + " Received: " + idTokenAcr);
+                    }
+                }
+            }
+        }
+
+        // Store the id token in the session
+        this.configuration.setIdToken(idToken);
+
+        this.logger.debug("OIDC Id Token: {}", idToken);
+
+        return idToken;
     }
 }
