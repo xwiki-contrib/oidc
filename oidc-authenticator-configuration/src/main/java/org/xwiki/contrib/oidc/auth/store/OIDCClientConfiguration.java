@@ -82,6 +82,13 @@ public class OIDCClientConfiguration
     public static final String FIELD_CLAIMS_USER_INFO = "userInfoClaims";
 
     /**
+     * Name of the property containing the id token and user info claims in a single json.
+     * 
+     * @since 2.8.0
+     */
+    public static final String FIELD_CLAIMS = "claims";
+
+    /**
      * Name of the property containing the user name formatter.
      */
     public static final String FIELD_FORMATTER_USER_NAME = "userNameFormatter";
@@ -611,6 +618,24 @@ public class OIDCClientConfiguration
     public void setUserInfoClaims(List<String> userInfoClaims)
     {
         this.xobject.setLargeStringValue(FIELD_CLAIMS_USER_INFO, String.join(JOIN_CHAR, userInfoClaims));
+    }
+
+    /**
+     * @return the id token and user info claims in a single json
+     * @since 2.8.0
+     */
+    public String getClaims()
+    {
+        return this.xobject.getLargeStringValue(FIELD_CLAIMS);
+    }
+
+    /**
+     * @param claims the id token and user info claims in a single json
+     * @since 2.8.0
+     */
+    public void setClaims(String claims)
+    {
+        this.xobject.setLargeStringValue(FIELD_CLAIMS, claims);
     }
 
     /**

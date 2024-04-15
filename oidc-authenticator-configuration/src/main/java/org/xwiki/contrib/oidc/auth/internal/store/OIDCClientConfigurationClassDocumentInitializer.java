@@ -87,6 +87,8 @@ public class OIDCClientConfigurationClassDocumentInitializer extends AbstractMan
             TextAreaClass.EditorType.PURE_TEXT, TextAreaClass.ContentType.PURE_TEXT);
         xclass.addTextAreaField(OIDCClientConfiguration.FIELD_CLAIMS_USER_INFO, "User info Claims", 50, 10,
             TextAreaClass.EditorType.PURE_TEXT, TextAreaClass.ContentType.PURE_TEXT);
+        xclass.addTextAreaField(OIDCClientConfiguration.FIELD_CLAIMS, "Claims", 120, 25,
+            TextAreaClass.EditorType.PURE_TEXT, TextAreaClass.ContentType.PURE_TEXT);
         xclass.addNumberField(OIDCClientConfiguration.FIELD_USER_INFO_REFRESH_RATE, "User info refresh rate", 5,
             "integer");
         xclass.addBooleanField(OIDCClientConfiguration.FIELD_ENABLE_USER,

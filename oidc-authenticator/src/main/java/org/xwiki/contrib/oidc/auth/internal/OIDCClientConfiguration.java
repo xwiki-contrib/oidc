@@ -1309,6 +1309,9 @@ public class OIDCClientConfiguration extends OIDCConfiguration
             case PROP_USERINFOCLAIMS:
                 returnValue = Arrays.asList(clientConfiguration.getUserInfoClaims().toArray());
                 break;
+            case PROP_CLAIMS:
+                returnValue = clientConfiguration.getClaims();
+                break;
             case PROP_USERINFOREFRESHRATE:
                 returnValue = clientConfiguration.getUserInfoRefreshRate();
                 break;
