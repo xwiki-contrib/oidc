@@ -295,7 +295,7 @@ public class CallbackOIDCEndpoint implements OIDCEndpoint
 
         if (userInfo == null) {
             // Simulate a UserInfo based on the id token
-            userInfo = new UserInfo(idToken.toJWTClaimsSet());
+            userInfo = new UserInfo(idToken.toJSONObject());
         }
 
         // Update/Create XWiki user
