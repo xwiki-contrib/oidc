@@ -57,6 +57,8 @@ import com.nimbusds.oauth2.sdk.AuthorizationGrant;
 import com.nimbusds.oauth2.sdk.AuthorizationResponse;
 import com.nimbusds.oauth2.sdk.AuthorizationSuccessResponse;
 import com.nimbusds.oauth2.sdk.Response;
+import com.nimbusds.oauth2.sdk.ResponseType;
+import com.nimbusds.oauth2.sdk.ResponseType.Value;
 import com.nimbusds.oauth2.sdk.TokenErrorResponse;
 import com.nimbusds.oauth2.sdk.TokenRequest;
 import com.nimbusds.oauth2.sdk.auth.ClientAuthentication;
@@ -77,6 +79,7 @@ import com.nimbusds.openid.connect.sdk.claims.ACR;
 import com.nimbusds.openid.connect.sdk.claims.ClaimsSetRequest;
 import com.nimbusds.openid.connect.sdk.claims.ClaimsSetRequest.Entry;
 import com.nimbusds.openid.connect.sdk.claims.IDTokenClaimsSet;
+import com.nimbusds.openid.connect.sdk.claims.UserInfo;
 import com.nimbusds.openid.connect.sdk.validators.IDTokenValidator;
 
 /**
@@ -241,41 +244,62 @@ public class CallbackOIDCEndpoint implements OIDCEndpoint
             // TODO: add support for null ClientProvider
             idToken = new IDTokenClaimsSet(tokenResponse.getOIDCTokens().getIDToken().getJWTClaimsSet());
         }
-        
-        // Check if ACR is specified and if yes, if value from config matches value returned in id token
-        OIDCClaimsRequest claimsRequest = this.configuration.getClaimsRequest();
-        ClaimsSetRequest idTokenClaimsRequest = claimsRequest.getIDTokenClaimsRequest();
-        if (idTokenClaimsRequest != null) {
-            Entry acrClaim = idTokenClaimsRequest.get("acr");
-            if (acrClaim != null) {
-                // ACR can take either a single 'value' or an array of 'values'
-                List<String> claimsAcrValues = acrClaim.getValuesAsListOfStrings();
-                String claimsAcrValue = acrClaim.getValueAsString();
-                List<String> requestedAcrValues = new ArrayList<>();
-                if (claimsAcrValues != null) requestedAcrValues.addAll(claimsAcrValues);
-                if (claimsAcrValue != null) requestedAcrValues.add(claimsAcrValue);
-                
-                // If any ACR was requested, fail if the ACR value in the id token is not present or does not match
-                if (!requestedAcrValues.isEmpty()) {
-                    ACR idTokenAcr = idToken.getACR();
-                    if (idTokenAcr == null || !requestedAcrValues.contains(idTokenAcr.getValue())) {
-                        throw new OIDCException("Invalid ACR in id token. Requested: " 
-                            + String.join(", ", requestedAcrValues) + " Received: " + idTokenAcr);
-                    }
-                }
-            }
-        }
 
-        BearerAccessToken accessToken = tokenResponse.getTokens().getBearerAccessToken();
+        // Store the id token in the session
+        this.configuration.setIdToken(idToken);
 
         HttpSession session = ((ServletSession) this.container.getSession()).getHttpSession();
 
-        // Store the access token in the session
-        this.configuration.setIdToken(idToken);
-        this.configuration.setAccessToken(accessToken);
+        UserInfo userInfo = null;
+        BearerAccessToken accessToken = null;
+
+        ResponseType responseType = this.configuration.getResponseType();
+        // Get the token only if it's a code flow (because it needs the token to access the userinfo endpoint) or if
+        // explicitly required
+        if (responseType.contains(Value.CODE) || responseType.contains(Value.TOKEN)) {
+            // Check if ACR is specified and if yes, if value from config matches value returned in id token
+            OIDCClaimsRequest claimsRequest = this.configuration.getClaimsRequest();
+            ClaimsSetRequest idTokenClaimsRequest = claimsRequest.getIDTokenClaimsRequest();
+            if (idTokenClaimsRequest != null) {
+                Entry acrClaim = idTokenClaimsRequest.get("acr");
+                if (acrClaim != null) {
+                    // ACR can take either a single 'value' or an array of 'values'
+                    List<String> claimsAcrValues = acrClaim.getValuesAsListOfStrings();
+                    String claimsAcrValue = acrClaim.getValueAsString();
+                    List<String> requestedAcrValues = new ArrayList<>();
+                    if (claimsAcrValues != null)
+                        requestedAcrValues.addAll(claimsAcrValues);
+                    if (claimsAcrValue != null)
+                        requestedAcrValues.add(claimsAcrValue);
+
+                    // If any ACR was requested, fail if the ACR value in the id token is not present or does not match
+                    if (!requestedAcrValues.isEmpty()) {
+                        ACR idTokenAcr = idToken.getACR();
+                        if (idTokenAcr == null || !requestedAcrValues.contains(idTokenAcr.getValue())) {
+                            throw new OIDCException("Invalid ACR in id token. Requested: "
+                                + String.join(", ", requestedAcrValues) + " Received: " + idTokenAcr);
+                        }
+                    }
+                }
+            }
+
+            accessToken = tokenResponse.getTokens().getBearerAccessToken();
+
+            // Store the access token in the session
+            this.configuration.setAccessToken(accessToken);
+
+            if (responseType.contains(Value.CODE)) {
+                userInfo = this.users.getUserInfo(accessToken);
+            }
+        }
+
+        if (userInfo == null) {
+            // Simulate a UserInfo based on the id token
+            userInfo = new UserInfo(idToken.toJWTClaimsSet());
+        }
 
         // Update/Create XWiki user
-        SimplePrincipal principal = this.users.updateUserInfo(accessToken);
+        SimplePrincipal principal = this.users.updateUser(idToken, userInfo, accessToken);
 
         // Remember user in the session
         session.setAttribute(SecurityRequestWrapper.PRINCIPAL_SESSION_KEY, principal);

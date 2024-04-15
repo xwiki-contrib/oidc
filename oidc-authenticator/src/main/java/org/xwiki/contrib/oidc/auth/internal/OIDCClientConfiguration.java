@@ -77,6 +77,7 @@ import org.xwiki.query.QueryException;
 import com.nimbusds.jose.JWSAlgorithm;
 import com.nimbusds.oauth2.sdk.GeneralException;
 import com.nimbusds.oauth2.sdk.ParseException;
+import com.nimbusds.oauth2.sdk.ResponseType;
 import com.nimbusds.oauth2.sdk.Scope;
 import com.nimbusds.oauth2.sdk.auth.ClientAuthenticationMethod;
 import com.nimbusds.oauth2.sdk.auth.Secret;
@@ -243,7 +244,12 @@ public class OIDCClientConfiguration extends OIDCConfiguration
      * @since 1.16
      */
     public static final String PROP_SCOPE = "oidc.scope";
-    
+
+    /**
+     * @since 2.7.0
+     */
+    public static final String PROP_RESPONSE_TYPE = "oidc.response_type";
+
     /**
      * @since 2.6.0
      */
@@ -812,35 +818,36 @@ public class OIDCClientConfiguration extends OIDCConfiguration
             try {
                 claimsRequest = OIDCClaimsRequest.parse(claimsJson);
             } catch (ParseException e) {
-                this.logger.warn("Parsing claims JSON [{}] failed with message: {}", claimsJson, ExceptionUtils.getRootCauseMessage(e));
+                this.logger.warn("Parsing claims JSON [{}] failed with message: {}", claimsJson,
+                    ExceptionUtils.getRootCauseMessage(e));
             }
         }
-        
+
         // Use idtokenclaims + userinfoclaims if json was not specified or if there was a parser error
         if (claimsRequest == null) {
             claimsRequest = new OIDCClaimsRequest();
-            
+
             // ID Token claims
             List<String> idtokenclaims = getIDTokenClaims();
             if (idtokenclaims != null && !idtokenclaims.isEmpty()) {
                 ClaimsSetRequest idtokenclaimsRequest = new ClaimsSetRequest();
-                
+
                 for (String claim : idtokenclaims) {
                     idtokenclaimsRequest = idtokenclaimsRequest.add(claim);
                 }
-                
+
                 claimsRequest = claimsRequest.withIDTokenClaimsRequest(idtokenclaimsRequest);
             }
-            
+
             // UserInfo claims
             List<String> userinfoclaims = getUserInfoClaims();
             if (userinfoclaims != null && !userinfoclaims.isEmpty()) {
                 ClaimsSetRequest userinfoclaimsRequest = new ClaimsSetRequest();
-                
+
                 for (String claim : userinfoclaims) {
                     userinfoclaimsRequest = userinfoclaimsRequest.add(claim);
                 }
-                
+
                 claimsRequest = claimsRequest.withUserInfoClaimsRequest(userinfoclaimsRequest);
             }
         }
@@ -901,6 +908,21 @@ public class OIDCClientConfiguration extends OIDCConfiguration
         }
 
         return new Scope(scopeValues.toArray(new String[0]));
+    }
+
+    /**
+     * @return the OIDC response type to use
+     * @since 2.7.0
+     */
+    public ResponseType getResponseType()
+    {
+        List<String> scopeValues = getProperty(PROP_RESPONSE_TYPE, List.class);
+
+        if (CollectionUtils.isEmpty(scopeValues)) {
+            return ResponseType.CODE;
+        }
+
+        return new ResponseType(scopeValues.toArray(new String[0]));
     }
 
     /**
@@ -1277,6 +1299,9 @@ public class OIDCClientConfiguration extends OIDCConfiguration
                 break;
             case PROP_SCOPE:
                 returnValue = clientConfiguration.getScope();
+                break;
+            case PROP_RESPONSE_TYPE:
+                returnValue = clientConfiguration.getResponseType();
                 break;
             case PROP_IDTOKENCLAIMS:
                 returnValue = Arrays.asList(clientConfiguration.getIdTokenClaims().toArray());

@@ -68,9 +68,9 @@ import org.xwiki.model.reference.DocumentReference;
 import org.xwiki.model.reference.SpaceReference;
 import org.xwiki.observation.ObservationManager;
 import org.xwiki.query.QueryException;
+import org.xwiki.user.SuperAdminUserReference;
 
 import com.nimbusds.oauth2.sdk.GeneralException;
-import com.nimbusds.oauth2.sdk.ParseException;
 import com.nimbusds.oauth2.sdk.http.HTTPRequest;
 import com.nimbusds.oauth2.sdk.http.HTTPResponse;
 import com.nimbusds.oauth2.sdk.id.ClientID;
@@ -90,7 +90,6 @@ import com.xpn.xwiki.doc.XWikiAttachment;
 import com.xpn.xwiki.doc.XWikiDocument;
 import com.xpn.xwiki.objects.BaseObject;
 import com.xpn.xwiki.objects.classes.BaseClass;
-import com.xpn.xwiki.user.api.XWikiRightService;
 import com.xpn.xwiki.web.XWikiRequest;
 
 /**
@@ -135,15 +134,14 @@ public class OIDCUserManager
 
     private static final String XWIKI_GROUP_PREFIX = "XWiki.";
 
-    public void updateUserInfoAsync() throws URISyntaxException, GeneralException, IOException
+    public void updateUserInfoAsync()
     {
-        final Endpoint userInfoEndpoint = this.configuration.getUserInfoOIDCEndpoint();
         final IDTokenClaimsSet idToken = this.configuration.getIdToken();
         final BearerAccessToken accessToken = this.configuration.getAccessToken();
 
         this.executor.execute(new ExecutionContextRunnable(() -> {
             try {
-                updateUserInfo(userInfoEndpoint, idToken, accessToken);
+                updateUser(idToken, accessToken);
             } catch (Exception e) {
                 logger.error("Failed to update user informations", e);
             }
@@ -174,21 +172,11 @@ public class OIDCUserManager
         }
     }
 
-    public SimplePrincipal updateUserInfo(BearerAccessToken accessToken)
-        throws URISyntaxException, IOException, OIDCException, XWikiException, QueryException, GeneralException
+    public UserInfo getUserInfo(BearerAccessToken accessToken)
+        throws OIDCException, IOException, URISyntaxException, GeneralException
     {
-        SimplePrincipal principal =
-            updateUserInfo(this.configuration.getUserInfoOIDCEndpoint(), this.configuration.getIdToken(), accessToken);
+        Endpoint userInfoEndpoint = this.configuration.getUserInfoOIDCEndpoint();
 
-        // Restart user information expiration counter
-        this.configuration.resetUserInfoExpirationDate();
-
-        return principal;
-    }
-
-    public SimplePrincipal updateUserInfo(Endpoint userInfoEndpoint, IDTokenClaimsSet idToken,
-        BearerAccessToken accessToken) throws IOException, ParseException, OIDCException, XWikiException, QueryException
-    {
         // Get OIDC user info
         this.logger.debug("OIDC user info request ({},{})", userInfoEndpoint, accessToken);
         UserInfoRequest userinfoRequest =
@@ -206,11 +194,19 @@ public class OIDCUserManager
             throw new OIDCException("Failed to get user info", error.getErrorObject());
         }
 
-        UserInfoSuccessResponse userinfoSuccessResponse = (UserInfoSuccessResponse) userinfoResponse;
-        UserInfo userInfo = userinfoSuccessResponse.getUserInfo();
+        // Restart user information expiration counter
+        this.configuration.resetUserInfoExpirationDate();
 
+        UserInfoSuccessResponse userinfoSuccessResponse = (UserInfoSuccessResponse) userinfoResponse;
+
+        return userinfoSuccessResponse.getUserInfo();
+    }
+
+    public SimplePrincipal updateUser(IDTokenClaimsSet idToken, BearerAccessToken accessToken)
+        throws IOException, OIDCException, XWikiException, QueryException, URISyntaxException, GeneralException
+    {
         // Update/Create XWiki user
-        return updateUser(idToken, userInfo, accessToken);
+        return updateUser(idToken, getUserInfo(accessToken), accessToken);
     }
 
     private void checkAllowedGroups(List<String> providerGroups) throws OIDCException
@@ -379,7 +375,9 @@ public class OIDCUserManager
             try {
                 String filename = FilenameUtils.getName(userInfo.getPicture().toString());
                 URLConnection connection = userInfo.getPicture().toURL().openConnection();
-                connection.setRequestProperty("Authorization", accessToken.toAuthorizationHeader());
+                if (accessToken != null) {
+                    connection.setRequestProperty("Authorization", accessToken.toAuthorizationHeader());
+                }
                 connection.setRequestProperty("User-Agent", this.getClass().getPackage().getImplementationTitle() + '/'
                     + this.getClass().getPackage().getImplementationVersion());
 
@@ -738,9 +736,10 @@ public class OIDCUserManager
         }
 
         // Initialize document
-        document.setCreator(XWikiRightService.SUPERADMIN_USER);
-        document.setAuthorReference(document.getCreatorReference());
-        document.setContentAuthorReference(document.getCreatorReference());
+        document.getAuthors().setCreator(SuperAdminUserReference.INSTANCE);
+        document.getAuthors().setContentAuthor(SuperAdminUserReference.INSTANCE);
+        document.getAuthors().setEffectiveMetadataAuthor(SuperAdminUserReference.INSTANCE);
+        document.getAuthors().setOriginalMetadataAuthor(SuperAdminUserReference.INSTANCE);
         xcontext.getWiki().protectUserPage(document.getFullName(), this.configuration.getUserOwnProfileRights(),
             document, xcontext);
 
@@ -850,7 +849,6 @@ public class OIDCUserManager
 
         // Remember a few information before cleaning the session
         Endpoint logoutEndpoint = this.configuration.getLogoutOIDCEndpoint();
-        IDTokenClaimsSet idToken = this.configuration.getIdToken();
         ClientID clientID = this.configuration.getClientID();
 
         // TODO: remove cookies
@@ -860,17 +858,16 @@ public class OIDCUserManager
         this.sessions.logout(request.getSession());
 
         // Logout the provider if configured, otherwise just logout locally
-        if (logoutEndpoint != null && idToken != null && clientID != null) {
+        if (logoutEndpoint != null && clientID != null) {
             try {
-                logoutProvider(logoutEndpoint, idToken, clientID);
+                logoutProvider(logoutEndpoint, clientID);
             } catch (Exception e) {
                 this.logger.error("Failed to perform OIDC RP-initiated log-out.", e);
             }
         }
     }
 
-    private void logoutProvider(Endpoint logoutEndpoint, IDTokenClaimsSet idToken, ClientID clientID)
-        throws URISyntaxException, IOException, ParseException
+    private void logoutProvider(Endpoint logoutEndpoint, ClientID clientID) throws URISyntaxException, IOException
     {
         XWikiContext context = this.xcontextProvider.get();
 

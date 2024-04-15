@@ -169,6 +169,13 @@ public class OIDCClientConfiguration
     public static final String FIELD_SCOPE = "scope";
 
     /**
+     * Name of the property containing the scope.
+     * 
+     * @since 2.7.0
+     */
+    public static final String FIELD_RESPONSE_TYPE = "responseType";
+
+    /**
      * Name of the property containing the user info refresh rate.
      */
     public static final String FIELD_USER_INFO_REFRESH_RATE = "userInfoRefreshRate";
@@ -554,6 +561,24 @@ public class OIDCClientConfiguration
     public void setScope(List<String> scope)
     {
         this.xobject.setLargeStringValue(FIELD_SCOPE, String.join(JOIN_CHAR, scope));
+    }
+
+    /**
+     * @return the response type
+     * @since 2.7.0
+     */
+    public List<String> getResponseType()
+    {
+        return Arrays.asList(this.xobject.getLargeStringValue(FIELD_RESPONSE_TYPE).split(LIST_SPLIT_REGEX));
+    }
+
+    /**
+     * @param responseType the response type
+     * @since 2.7.0
+     */
+    public void setResponseType(List<String> responseType)
+    {
+        this.xobject.setLargeStringValue(FIELD_RESPONSE_TYPE, String.join(JOIN_CHAR, responseType));
     }
 
     /**

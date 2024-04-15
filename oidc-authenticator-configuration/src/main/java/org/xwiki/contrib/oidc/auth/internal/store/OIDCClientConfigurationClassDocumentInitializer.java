@@ -40,11 +40,7 @@ import com.xpn.xwiki.objects.classes.TextAreaClass;
 @Singleton
 public class OIDCClientConfigurationClassDocumentInitializer extends AbstractMandatoryClassInitializer
 {
-    private static final String INPUT = "input";
-
     private static final String SELECT = "select";
-
-    private static final String SEPARATORS = "|,";
 
     /**
      * Builds a new {@link OIDCClientConfigurationClassDocumentInitializer}.
@@ -76,16 +72,17 @@ public class OIDCClientConfigurationClassDocumentInitializer extends AbstractMan
         xclass.addTextField(OIDCClientConfiguration.FIELD_ENDPOINT_LOGOUT, "Logout OIDC endpoint", 255);
         xclass.addTextField(OIDCClientConfiguration.FIELD_CLIENT_ID, "Client ID", 255);
         xclass.addTextField(OIDCClientConfiguration.FIELD_CLIENT_SECRET, "Secret", 255);
-        xclass.addTextField(OIDCClientConfiguration.FIELD_ENDPOINT_TOKEN_METHOD,
-            "Token endpoint authentication method", 255);
-        xclass.addTextField(OIDCClientConfiguration.FIELD_ENDPOINT_USERINFO_METHOD,
-            "User information endpoint method", 255);
+        xclass.addTextField(OIDCClientConfiguration.FIELD_ENDPOINT_TOKEN_METHOD, "Token endpoint authentication method",
+            255);
+        xclass.addTextField(OIDCClientConfiguration.FIELD_ENDPOINT_USERINFO_METHOD, "User information endpoint method",
+            255);
         xclass.addTextAreaField(OIDCClientConfiguration.FIELD_ENDPOINT_USERINFO_HEADERS, "User info endpoint headers",
             50, 10, TextAreaClass.EditorType.PURE_TEXT, TextAreaClass.ContentType.PURE_TEXT);
         xclass.addTextField(OIDCClientConfiguration.FIELD_ENDPOINT_LOGOUT_METHOD, "Logout endpoint method", 255);
         xclass.addTextField(OIDCClientConfiguration.FIELD_LOGOUT_MECHANISM, "Logout mechanism", 255);
         xclass.addBooleanField(OIDCClientConfiguration.FIELD_SKIPPED, "Is authentication skipped ?", SELECT);
         xclass.addTextField(OIDCClientConfiguration.FIELD_SCOPE, "Scope", 255);
+        xclass.addTextField(OIDCClientConfiguration.FIELD_RESPONSE_TYPE, "Response type", 255);
         xclass.addTextAreaField(OIDCClientConfiguration.FIELD_CLAIMS_ID_TOKEN, "ID Token Claims", 50, 10,
             TextAreaClass.EditorType.PURE_TEXT, TextAreaClass.ContentType.PURE_TEXT);
         xclass.addTextAreaField(OIDCClientConfiguration.FIELD_CLAIMS_USER_INFO, "User info Claims", 50, 10,

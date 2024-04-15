@@ -42,7 +42,6 @@ import org.xwiki.properties.ConverterManager;
 import org.xwiki.script.ScriptContextManager;
 
 import com.nimbusds.oauth2.sdk.GeneralException;
-import com.nimbusds.oauth2.sdk.ResponseType;
 import com.nimbusds.oauth2.sdk.id.State;
 import com.nimbusds.openid.connect.sdk.AuthenticationRequest;
 import com.xpn.xwiki.XWikiContext;
@@ -242,9 +241,9 @@ public class OIDCAuthServiceImpl extends XWikiAuthServiceImpl
         maybeStoreRequestParameterInSession(request, OIDCClientConfiguration.PROP_ENDPOINT_USERINFO);
 
         // Create the request URL
-        ResponseType responseType = ResponseType.getDefault();
-        AuthenticationRequest.Builder requestBuilder = new AuthenticationRequest.Builder(responseType,
-            this.configuration.getScope(), this.configuration.getClientID(), callback);
+        AuthenticationRequest.Builder requestBuilder =
+            new AuthenticationRequest.Builder(this.configuration.getResponseType(), this.configuration.getScope(),
+                this.configuration.getClientID(), callback);
         requestBuilder.endpointURI(this.configuration.getAuthorizationOIDCEndpoint().getURI());
 
         // Claims
