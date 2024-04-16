@@ -190,15 +190,19 @@ public class CallbackOIDCEndpoint implements OIDCEndpoint
 
         ResponseType responseType = authenticationResponse.impliedResponseType();
 
+        this.logger.debug("The provider sent back the response type [{}]", responseType);
+
         // Validate the id token, if provided
         IDTokenClaimsSet idToken = null;
         if (authenticationResponse.getIDToken() != null) {
             idToken = parseIdToken(authenticationResponse.getIDToken(), authenticationResponse.getIssuer());
+
+            this.logger.debug("The provider sent back the id token [{}]", idToken);
         }
 
         // Get the access token
         AccessToken accessToken = authenticationResponse.getAccessToken();
-        if (responseType.impliesCodeFlow()) {
+        if (accessToken == null && authenticationResponse.getAuthorizationCode() != null) {
             this.logger.debug("Getting the access token from the code [{}]",
                 authenticationResponse.getAuthorizationCode());
 
@@ -267,10 +271,8 @@ public class CallbackOIDCEndpoint implements OIDCEndpoint
             return new ErrorResponse(HTTPResponse.SC_BAD_REQUEST, "No id token provided");
         }
 
-        HttpSession session = ((ServletSession) this.container.getSession()).getHttpSession();
-
         UserInfo userInfo = null;
-        if (responseType.contains(Value.CODE)) {
+        if (accessToken != null && responseType.contains(Value.CODE)) {
             // Request the user info from a dedicated endpoint if it's a code (or hybrid) flow
             userInfo = this.users.getUserInfo(accessToken);
         } else {
@@ -282,6 +284,7 @@ public class CallbackOIDCEndpoint implements OIDCEndpoint
         SimplePrincipal principal = this.users.updateUser(idToken, userInfo, accessToken);
 
         // Remember user in the session
+        HttpSession session = ((ServletSession) this.container.getSession()).getHttpSession();
         session.setAttribute(SecurityRequestWrapper.PRINCIPAL_SESSION_KEY, principal);
 
         // Indicate that the user is now authenticated

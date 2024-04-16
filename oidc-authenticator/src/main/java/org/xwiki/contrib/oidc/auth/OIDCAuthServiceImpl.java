@@ -253,7 +253,9 @@ public class OIDCAuthServiceImpl extends XWikiAuthServiceImpl
         requestBuilder.state(state);
 
         // Redirect the user to the provider
-        this.manager.redirect(requestBuilder.build().toURI().toString(), true);
+        String redirectURL = requestBuilder.build().toURI().toString();
+        LOGGER.debug("Redirecting the user to ");
+        this.manager.redirect(redirectURL, true);
     }
 
     private void maybeStoreRequestParameterInSession(XWikiRequest request, String key)
