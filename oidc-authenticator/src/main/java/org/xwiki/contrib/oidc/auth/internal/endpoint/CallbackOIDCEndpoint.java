@@ -56,6 +56,7 @@ import org.xwiki.user.UserReferenceResolver;
 import com.nimbusds.jose.JOSEException;
 import com.nimbusds.jose.proc.BadJOSEException;
 import com.nimbusds.jwt.JWT;
+import com.nimbusds.oauth2.sdk.AuthorizationCode;
 import com.nimbusds.oauth2.sdk.AuthorizationCodeGrant;
 import com.nimbusds.oauth2.sdk.AuthorizationErrorResponse;
 import com.nimbusds.oauth2.sdk.AuthorizationGrant;
@@ -171,7 +172,7 @@ public class CallbackOIDCEndpoint implements OIDCEndpoint
             // If impossible to authenticate without prompt, just ignore and redirect
             if (OIDCError.INTERACTION_REQUIRED.getCode().equals(errorResponse.getErrorObject().getCode())
                 || OIDCError.LOGIN_REQUIRED.getCode().equals(errorResponse.getErrorObject().getCode())) {
-                this.logger.debug("OIDC callback: Impossible to authenticate, redirect to ([{}])",
+                this.logger.debug("Impossible to authenticate, redirect to ([{}])",
                     authorizationResponse.getState().getValue());
 
                 // Redirect to original request
@@ -190,92 +191,56 @@ public class CallbackOIDCEndpoint implements OIDCEndpoint
 
         ResponseType responseType = authenticationResponse.impliedResponseType();
 
-        this.logger.debug("The provider sent back the response type [{}]", responseType);
+        this.logger.debug("Auth response: the provider sent back the response type [{}]", responseType);
 
         // Validate the id token, if provided
         IDTokenClaimsSet idToken = null;
         if (authenticationResponse.getIDToken() != null) {
             idToken = parseIdToken(authenticationResponse.getIDToken(), authenticationResponse.getIssuer());
-
-            this.logger.debug("The provider sent back the id token [{}]", idToken);
         }
+        this.logger.debug("Auth response: the provider sent back the id token [{}]", idToken);
 
         // Get the access token
         AccessToken accessToken = authenticationResponse.getAccessToken();
-        if (accessToken == null && authenticationResponse.getAuthorizationCode() != null) {
-            this.logger.debug("Getting the access token from the code [{}]",
+        this.logger.debug("Auth response: the provider sent back the access token [{}]", accessToken);
+        if (accessToken == null) {
+            this.logger.debug("Auth response: the provider did not sent back the authorization code [{}]",
                 authenticationResponse.getAuthorizationCode());
 
-            // Generate callback URL
-            URI callback = this.oidc.createEndPointURI(CallbackOIDCEndpoint.HINT);
+            if (authenticationResponse.getAuthorizationCode() != null) {
+                OIDCTokenResponse tokenResponse =
+                    requestToken(authenticationResponse.getAuthorizationCode(), authenticationResponse.getIssuer());
 
-            // Get access token
-            AuthorizationGrant authorizationGrant =
-                new AuthorizationCodeGrant(authenticationResponse.getAuthorizationCode(), callback);
+                accessToken = tokenResponse.getTokens().getBearerAccessToken();
 
-            TokenRequest tokeRequest;
-            Secret secret = this.configuration.getSecret();
-            Endpoint tokenEndpoint = this.configuration.getTokenOIDCEndpoint();
-            ClientID clientID = this.configuration.getClientID(authenticationResponse.getIssuer());
-            if (secret != null) {
-                this.logger.debug("OIDC callback: adding secret ({} {})", clientID, secret.getValue());
+                // Store the access token in the session
+                this.configuration.setAccessToken(accessToken);
 
-                ClientAuthentication clientSecret;
-                if (this.configuration.getTokenEndPointAuthMethod() == ClientAuthenticationMethod.CLIENT_SECRET_POST) {
-                    clientSecret = new ClientSecretPost(clientID, secret);
-                } else {
-                    clientSecret = new ClientSecretBasic(clientID, secret);
-                }
-                tokeRequest = new TokenRequest(tokenEndpoint.getURI(), clientSecret, authorizationGrant);
-            } else {
-                tokeRequest = new TokenRequest(tokenEndpoint.getURI(), clientID, authorizationGrant);
-            }
-
-            HTTPRequest tokenHTTP = tokeRequest.toHTTPRequest();
-            tokenEndpoint.prepare(httpRequest);
-
-            this.logger.debug("OIDC Token request ({}?{},{},{})", tokenHTTP.getURL(), tokenHTTP.getURL(),
-                tokenHTTP.getAuthorization(), tokenHTTP.getHeaderMap());
-
-            HTTPResponse httpResponse = tokenHTTP.send();
-            this.logger.debug("OIDC Token response ({})", httpResponse.getBody());
-
-            if (httpResponse.getStatusCode() != HTTPResponse.SC_OK) {
-                TokenErrorResponse error = TokenErrorResponse.parse(httpResponse);
-
-                this.logger.debug("OIDC callback: Failed to get access token ([{}])",
-                    error.getErrorObject() != null ? error.getErrorObject() : httpResponse.getStatusCode());
-
-                if (error.getErrorObject() != null) {
-                    throw new OIDCException("Failed to get access token", error.getErrorObject());
-                } else {
-                    throw new OIDCException("Failed to get access token (" + httpResponse.getStatusCode() + ')');
+                // Also parse and validate the id token if we don't already have it
+                if (idToken == null) {
+                    idToken =
+                        parseIdToken(tokenResponse.getOIDCTokens().getIDToken(), authenticationResponse.getIssuer());
                 }
             }
-
-            OIDCTokenResponse tokenResponse = OIDCTokenResponse.parse(httpResponse);
-
-            accessToken = tokenResponse.getTokens().getBearerAccessToken();
-
+        } else {
             // Store the access token in the session
             this.configuration.setAccessToken(accessToken);
-
-            // Also parse and validate the id token if we don't already have it
-            if (idToken == null) {
-                idToken = parseIdToken(tokenResponse.getOIDCTokens().getIDToken(), authenticationResponse.getIssuer());
-            }
         }
 
         // Make sure there is an id token
         if (idToken == null) {
-            return new ErrorResponse(HTTPResponse.SC_BAD_REQUEST, "No id token provided");
+            return new ErrorResponse(HTTPResponse.SC_BAD_REQUEST, "No id token could be found");
         }
 
         UserInfo userInfo = null;
         if (accessToken != null && responseType.contains(Value.CODE)) {
+            this.logger.debug("Requesting the userinfo from a dedicated endpoint");
+
             // Request the user info from a dedicated endpoint if it's a code (or hybrid) flow
             userInfo = this.users.getUserInfo(accessToken);
         } else {
+            this.logger.debug("Using the id token as userinfo");
+
             // Simulate a UserInfo based on the id token
             userInfo = new UserInfo(idToken.toJSONObject());
         }
@@ -301,6 +266,60 @@ public class CallbackOIDCEndpoint implements OIDCEndpoint
 
         // Redirect to original request
         return new RedirectResponse(this.configuration.getSuccessRedirectURI());
+    }
+
+    private OIDCTokenResponse requestToken(AuthorizationCode code, Issuer issuer)
+        throws URISyntaxException, GeneralException, IOException, OIDCException
+    {
+        this.logger.debug("Getting the access token from the token endpoint");
+
+        // Generate callback URL
+        URI callback = this.oidc.createEndPointURI(CallbackOIDCEndpoint.HINT);
+
+        // Get access token
+        AuthorizationGrant authorizationGrant = new AuthorizationCodeGrant(code, callback);
+
+        TokenRequest tokeRequest;
+        Secret secret = this.configuration.getSecret();
+        Endpoint tokenEndpoint = this.configuration.getTokenOIDCEndpoint();
+        ClientID clientID = this.configuration.getClientID(issuer);
+        if (secret != null) {
+            this.logger.debug("Adding secret ({} {})", clientID, secret.getValue());
+
+            ClientAuthentication clientSecret;
+            if (this.configuration.getTokenEndPointAuthMethod() == ClientAuthenticationMethod.CLIENT_SECRET_POST) {
+                clientSecret = new ClientSecretPost(clientID, secret);
+            } else {
+                clientSecret = new ClientSecretBasic(clientID, secret);
+            }
+            tokeRequest = new TokenRequest(tokenEndpoint.getURI(), clientSecret, authorizationGrant);
+        } else {
+            tokeRequest = new TokenRequest(tokenEndpoint.getURI(), clientID, authorizationGrant);
+        }
+
+        HTTPRequest tokenHTTP = tokeRequest.toHTTPRequest();
+        tokenEndpoint.prepare(tokenHTTP);
+
+        this.logger.debug("OIDC Token request ({}?{},{},{})", tokenHTTP.getURL(), tokenHTTP.getURL(),
+            tokenHTTP.getAuthorization(), tokenHTTP.getHeaderMap());
+
+        HTTPResponse httpResponse = tokenHTTP.send();
+        this.logger.debug("OIDC Token response ({})", httpResponse.getBody());
+
+        if (httpResponse.getStatusCode() != HTTPResponse.SC_OK) {
+            TokenErrorResponse error = TokenErrorResponse.parse(httpResponse);
+
+            this.logger.debug("Failed to get access token ([{}])",
+                error.getErrorObject() != null ? error.getErrorObject() : httpResponse.getStatusCode());
+
+            if (error.getErrorObject() != null) {
+                throw new OIDCException("Failed to get access token", error.getErrorObject());
+            } else {
+                throw new OIDCException("Failed to get access token (" + httpResponse.getStatusCode() + ')');
+            }
+        }
+
+        return OIDCTokenResponse.parse(httpResponse);
     }
 
     private IDTokenClaimsSet parseIdToken(JWT token, Issuer issuer) throws GeneralException, IOException,
