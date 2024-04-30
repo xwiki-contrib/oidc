@@ -28,6 +28,7 @@ import java.net.URL;
 import java.net.URLConnection;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -478,34 +479,45 @@ public class OIDCUserManager
     {
         String groupClaim = this.configuration.getGroupClaim();
 
-        this.logger.debug("Getting groups sent by the provider associated with claim [{}]", groupClaim);
-
         List<String> providerGroups = null;
-        Object providerGroupsObj = getClaim(groupClaim, userInfo);
+        if (groupClaim != null) {
+            this.logger.debug("Getting groups sent by the provider associated with claim [{}]", groupClaim);
 
-        if (providerGroupsObj == null) {
-            // Group claim not found in userInfo Token; try idToken (Azure AD)
-            this.logger.debug("Groups claim not found in userInfo token. Trying idToken");
+            Object providerGroupsObj = getClaim(groupClaim, userInfo);
 
-            providerGroupsObj = getClaim(groupClaim, idToken);
-        }
+            if (providerGroupsObj == null) {
+                // Group claim not found in userInfo Token; try idToken (Azure AD)
+                this.logger.debug("Groups claim not found in userInfo token. Trying idToken");
 
-        if (providerGroupsObj != null) {
-            if (this.configuration.getGroupSeparator() != null) {
-                providerGroups = Arrays
-                    .asList(StringUtils.split(providerGroupsObj.toString(), this.configuration.getGroupSeparator()));
+                providerGroupsObj = getClaim(groupClaim, idToken);
+            }
+
+            if (providerGroupsObj != null) {
+                if (this.configuration.getGroupSeparator() != null) {
+                    providerGroups = Arrays.asList(
+                        StringUtils.split(providerGroupsObj.toString(), this.configuration.getGroupSeparator()));
+                } else {
+                    providerGroups = (List<String>) providerGroupsObj;
+                }
+                String groupPrefix = this.configuration.getGroupPrefix();
+                if (!StringUtils.isEmpty(groupPrefix)) {
+                    providerGroups = providerGroups.stream().filter(item -> item.startsWith(groupPrefix))
+                        .map(item -> StringUtils.replace(item, groupPrefix, "")).collect(Collectors.toList());
+                }
+
+                this.logger.debug("The provider sent the following groups: {}", providerGroups);
             } else {
-                providerGroups = (List<String>) providerGroupsObj;
-            }
-            String groupPrefix = this.configuration.getGroupPrefix();
-            if (!StringUtils.isEmpty(groupPrefix)) {
-                providerGroups = providerGroups.stream().filter(item -> item.startsWith(groupPrefix))
-                    .map(item -> StringUtils.replace(item, groupPrefix, "")).collect(Collectors.toList());
+                this.logger.debug(
+                    "The provider did not sent value for the group claim. Assuming the user belongs to no group.");
             }
 
-            this.logger.debug("The provider sent the following groups: {}", providerGroups);
+            // Some providers don't not make the distinction between empty list and no value so assuming that the
+            // minimum is empty list if the claim is enabled
+            if (providerGroups == null) {
+                providerGroups = Collections.emptyList();
+            }
         } else {
-            this.logger.debug("The provider did not sent any group");
+            this.logger.debug("Not group claim is configured");
         }
 
         return providerGroups;
