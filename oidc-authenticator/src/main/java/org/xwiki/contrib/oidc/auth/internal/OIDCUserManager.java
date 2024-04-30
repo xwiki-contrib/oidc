@@ -179,12 +179,11 @@ public class OIDCUserManager
         Endpoint userInfoEndpoint = this.configuration.getUserInfoOIDCEndpoint();
 
         // Get OIDC user info
-        this.logger.debug("OIDC user info request ({},{})", userInfoEndpoint, accessToken);
         UserInfoRequest userinfoRequest =
             new UserInfoRequest(userInfoEndpoint.getURI(), this.configuration.getUserInfoEndPointMethod(), accessToken);
         HTTPRequest userinfoHTTP = userinfoRequest.toHTTPRequest();
         userInfoEndpoint.prepare(userinfoHTTP);
-        this.logger.debug("OIDC user info request ({}?{},{})", userinfoHTTP.getURL(), userinfoHTTP.getURL(),
+        this.logger.debug("OIDC user info request ({}:{},{})", userinfoHTTP.getMethod(), userinfoHTTP.getURL(),
             userinfoHTTP.getHeaderMap());
         HTTPResponse httpResponse = userinfoHTTP.send();
         this.logger.debug("OIDC user info response ({})", httpResponse.getBody());
