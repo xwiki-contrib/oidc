@@ -470,10 +470,14 @@ public class OIDCClientConfiguration extends OIDCConfiguration
     @Override
     protected <T> T getProperty(String key, Class<T> valueClass)
     {
+        this.logger.debug("Getting property [{}]", key);
+
         if (SAFE_PROPERTIES.contains(key)) {
             // Get property from request
             String requestValue = getRequestParameter(key);
             if (requestValue != null) {
+                this.logger.debug("  -> request value: [{}]", requestValue);
+
                 return this.converter.convert(valueClass, requestValue);
             }
         }
@@ -481,6 +485,8 @@ public class OIDCClientConfiguration extends OIDCConfiguration
         // Get property from session
         T sessionValue = getSessionAttribute(key);
         if (sessionValue != null) {
+            this.logger.debug("  -> session value: [{}]", sessionValue);
+
             return sessionValue;
         }
 
@@ -490,12 +496,18 @@ public class OIDCClientConfiguration extends OIDCConfiguration
         if (wikiClientConfiguration != null) {
             T wikiValue = getWikiConfigurationAttribute(wikiClientConfiguration, key, valueClass);
             if (wikiValue != null) {
+                this.logger.debug("  -> wiki value: [{}]", wikiValue);
+
                 return wikiValue;
             }
         }
 
         // Get property from configuration
-        return this.configuration.getProperty(key, valueClass);
+        T value = this.configuration.getProperty(key, valueClass);
+
+        this.logger.debug("  -> xwiki.properties value: [{}]", value);
+
+        return value;
     }
 
     @Override
@@ -917,13 +929,13 @@ public class OIDCClientConfiguration extends OIDCConfiguration
      */
     public ResponseType getResponseType()
     {
-        List<String> scopeValues = getProperty(PROP_RESPONSE_TYPE, List.class);
+        List<String> responseTypeValues = getProperty(PROP_RESPONSE_TYPE, List.class);
 
-        if (CollectionUtils.isEmpty(scopeValues)) {
+        if (CollectionUtils.isEmpty(responseTypeValues)) {
             return ResponseType.CODE;
         }
 
-        return new ResponseType(scopeValues.toArray(new String[0]));
+        return new ResponseType(responseTypeValues.toArray(new String[0]));
     }
 
     /**
