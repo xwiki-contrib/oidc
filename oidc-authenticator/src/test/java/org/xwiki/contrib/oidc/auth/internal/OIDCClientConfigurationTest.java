@@ -33,6 +33,8 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.junit.jupiter.api.Test;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 import org.xwiki.configuration.ConfigurationSource;
 import org.xwiki.container.Container;
 import org.xwiki.container.servlet.ServletRequest;
@@ -45,6 +47,7 @@ import org.xwiki.test.junit5.mockito.InjectMockComponents;
 import org.xwiki.test.junit5.mockito.MockComponent;
 
 import com.nimbusds.oauth2.sdk.GeneralException;
+import com.nimbusds.oauth2.sdk.ResponseType;
 import com.nimbusds.openid.connect.sdk.OIDCClaimsRequest;
 import com.nimbusds.openid.connect.sdk.claims.ClaimRequirement;
 import com.nimbusds.openid.connect.sdk.claims.ClaimsSetRequest;
@@ -57,6 +60,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.same;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -282,7 +286,41 @@ class OIDCClientConfigurationTest
         assertEquals(idTokenClaims, foundIdTokenClaims);
         assertEquals(userInfoClaims, foundUserInfoClaims);
     }
-    
+
+    @Test
+    void getResponseTypeFromWikiConfig() throws Exception
+    {
+        when(this.converterManager.convert(same(List.class), any())).thenAnswer(new Answer<List>()
+        {
+            @Override
+            public List answer(InvocationOnMock invocation) throws Throwable
+            {
+                return invocation.getArgument(1);
+            }
+        });
+
+        // No response type is set
+        assertEquals(ResponseType.CODE, this.configuration.getResponseType());
+
+        when(this.sourceConfiguration.getProperty(OIDCClientConfiguration.PROP_RESPONSE_TYPE, List.class))
+            .thenReturn(List.of("token"));
+
+        // The response type is set in xwiki.properties
+        assertEquals(ResponseType.TOKEN, this.configuration.getResponseType());
+
+        org.xwiki.contrib.oidc.auth.store.OIDCClientConfiguration wikiConfiguration = setUpWikiConfig();
+
+        // The wiki configuration is initialized but the response type is still set only in xwiki.properties
+        when(wikiConfiguration.getResponseType()).thenReturn(List.of());
+
+        assertEquals(ResponseType.TOKEN, this.configuration.getResponseType());
+
+        // The response type is now set at wiki level and in xwiki.properties
+        when(wikiConfiguration.getResponseType()).thenReturn(List.of("id_token", "token"));
+
+        assertEquals(ResponseType.IDTOKEN_TOKEN, this.configuration.getResponseType());
+    }
+
     @Test
     void getClaimsRequestFromWikiConfigJson() throws Exception
     {

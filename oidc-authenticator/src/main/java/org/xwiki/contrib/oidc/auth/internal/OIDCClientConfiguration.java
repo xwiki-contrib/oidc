@@ -1317,10 +1317,10 @@ public class OIDCClientConfiguration extends OIDCConfiguration
                 returnValue = clientConfiguration.getResponseType();
                 break;
             case PROP_IDTOKENCLAIMS:
-                returnValue = Arrays.asList(clientConfiguration.getIdTokenClaims().toArray());
+                returnValue = clientConfiguration.getIdTokenClaims();
                 break;
             case PROP_USERINFOCLAIMS:
-                returnValue = Arrays.asList(clientConfiguration.getUserInfoClaims().toArray());
+                returnValue = clientConfiguration.getUserInfoClaims();
                 break;
             case PROP_CLAIMS:
                 returnValue = clientConfiguration.getClaims();
@@ -1338,7 +1338,12 @@ public class OIDCClientConfiguration extends OIDCConfiguration
 
         this.logger.debug("The value of configuration property [{}] is [{}]", key, returnValue);
 
-        if (returnValue != null && (!(returnValue instanceof String) || StringUtils.isNotBlank((String) returnValue))) {
+        // Consider as unset:
+        // * null values
+        // * empty strings
+        // * empty lists
+        if (returnValue != null && (!(returnValue instanceof String) || StringUtils.isNotBlank((String) returnValue))
+            && (!(returnValue instanceof List) || CollectionUtils.isNotEmpty((List) returnValue))) {
             T convertedValue = this.converter.convert(returnType, returnValue);
 
             this.logger.debug("  Converted to [{}]", returnValue);

@@ -559,7 +559,7 @@ public class OIDCClientConfiguration
      */
     public List<String> getScope()
     {
-        return Arrays.asList(this.xobject.getLargeStringValue(FIELD_SCOPE).split(LIST_SPLIT_REGEX));
+        return Arrays.asList(this.xobject.getStringValue(FIELD_SCOPE).split(LIST_SPLIT_REGEX));
     }
 
     /**
@@ -567,7 +567,7 @@ public class OIDCClientConfiguration
      */
     public void setScope(List<String> scope)
     {
-        this.xobject.setLargeStringValue(FIELD_SCOPE, String.join(JOIN_CHAR, scope));
+        this.xobject.setStringValue(FIELD_SCOPE, String.join(JOIN_CHAR, scope));
     }
 
     /**
@@ -576,7 +576,7 @@ public class OIDCClientConfiguration
      */
     public List<String> getResponseType()
     {
-        return Arrays.asList(this.xobject.getLargeStringValue(FIELD_RESPONSE_TYPE).split(LIST_SPLIT_REGEX));
+        return Arrays.asList(this.xobject.getStringValue(FIELD_RESPONSE_TYPE).split(LIST_SPLIT_REGEX));
     }
 
     /**
@@ -585,7 +585,7 @@ public class OIDCClientConfiguration
      */
     public void setResponseType(List<String> responseType)
     {
-        this.xobject.setLargeStringValue(FIELD_RESPONSE_TYPE, String.join(JOIN_CHAR, responseType));
+        this.xobject.setStringValue(FIELD_RESPONSE_TYPE, String.join(JOIN_CHAR, responseType));
     }
 
     /**
