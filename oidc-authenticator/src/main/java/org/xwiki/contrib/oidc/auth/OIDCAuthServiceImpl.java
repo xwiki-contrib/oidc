@@ -42,8 +42,10 @@ import org.xwiki.properties.ConverterManager;
 import org.xwiki.script.ScriptContextManager;
 
 import com.nimbusds.oauth2.sdk.GeneralException;
+import com.nimbusds.oauth2.sdk.ResponseType;
 import com.nimbusds.oauth2.sdk.id.State;
 import com.nimbusds.openid.connect.sdk.AuthenticationRequest;
+import com.nimbusds.openid.connect.sdk.Nonce;
 import com.xpn.xwiki.XWikiContext;
 import com.xpn.xwiki.XWikiException;
 import com.xpn.xwiki.user.api.XWikiUser;
@@ -226,6 +228,9 @@ public class OIDCAuthServiceImpl extends XWikiAuthServiceImpl
         // Remember various stuff in the session so that callback can access it
         XWikiRequest request = context.getRequest();
 
+        // Get configured response type
+        ResponseType responseType = this.configuration.getResponseType();
+
         // Generate unique state
         State state = new State();
         this.configuration.setSessionState(state.getValue());
@@ -241,10 +246,21 @@ public class OIDCAuthServiceImpl extends XWikiAuthServiceImpl
         maybeStoreRequestParameterInSession(request, OIDCClientConfiguration.PROP_ENDPOINT_USERINFO);
 
         // Create the request URL
-        AuthenticationRequest.Builder requestBuilder =
-            new AuthenticationRequest.Builder(this.configuration.getResponseType(), this.configuration.getScope(),
-                this.configuration.getClientID(), callback);
+        AuthenticationRequest.Builder requestBuilder = new AuthenticationRequest.Builder(responseType,
+            this.configuration.getScope(), this.configuration.getClientID(), callback);
         requestBuilder.endpointURI(this.configuration.getAuthorizationOIDCEndpoint().getURI());
+
+        // Nonce, if required
+        Nonce nonce;
+        if (Nonce.isRequired(responseType)) {
+            nonce = new Nonce();
+
+            // Set the nonce in the request
+            requestBuilder.nonce(nonce);
+
+            // Store the nonce in the session
+            this.configuration.setSessionNonce(nonce.getValue());
+        }
 
         // Claims
         requestBuilder.claims(this.configuration.getClaimsRequest());

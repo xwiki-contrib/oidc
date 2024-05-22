@@ -87,6 +87,7 @@ import com.nimbusds.oauth2.sdk.id.ClientID;
 import com.nimbusds.oauth2.sdk.id.Issuer;
 import com.nimbusds.oauth2.sdk.token.AccessToken;
 import com.nimbusds.oauth2.sdk.token.BearerAccessToken;
+import com.nimbusds.openid.connect.sdk.Nonce;
 import com.nimbusds.openid.connect.sdk.OIDCClaimsRequest;
 import com.nimbusds.openid.connect.sdk.OIDCScopeValue;
 import com.nimbusds.openid.connect.sdk.claims.ClaimsSetRequest;
@@ -294,6 +295,11 @@ public class OIDCClientConfiguration extends OIDCConfiguration
     public static final String PROP_INITIAL_REQUEST = "xwiki.initialRequest";
 
     public static final String PROP_STATE = "oidc.state";
+
+    /**
+     * @since 2.8.7
+     */
+    public static final String PROP_NONCE = "oidc.nonce";
 
     public static final String PROP_SESSION_ACCESSTOKEN = "oidc.accesstoken";
 
@@ -812,6 +818,34 @@ public class OIDCClientConfiguration extends OIDCConfiguration
     public String removeSessionState()
     {
         return removeSessionAttribute(PROP_STATE);
+    }
+
+    /**
+     * @since 2.8.7
+     */
+    public Nonce getSessionNonce()
+    {
+        String nonceString = getSessionAttribute(PROP_NONCE);
+
+        return nonceString != null ? new Nonce(nonceString) : null;
+    }
+
+    /**
+     * @since 2.8.7
+     */
+    public void setSessionNonce(String nonce)
+    {
+        setSessionAttribute(PROP_NONCE, nonce);
+    }
+
+    /**
+     * @since 2.8.7
+     */
+    public Nonce removeSessionNonce()
+    {
+        String nonceString = removeSessionAttribute(PROP_NONCE);
+
+        return nonceString != null ? new Nonce(nonceString) : null;
     }
 
     public boolean isSkipped()

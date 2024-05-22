@@ -79,6 +79,7 @@ import com.nimbusds.oauth2.sdk.id.Issuer;
 import com.nimbusds.oauth2.sdk.id.State;
 import com.nimbusds.oauth2.sdk.token.AccessToken;
 import com.nimbusds.openid.connect.sdk.AuthenticationSuccessResponse;
+import com.nimbusds.openid.connect.sdk.Nonce;
 import com.nimbusds.openid.connect.sdk.OIDCClaimsRequest;
 import com.nimbusds.openid.connect.sdk.OIDCError;
 import com.nimbusds.openid.connect.sdk.OIDCTokenResponse;
@@ -196,7 +197,8 @@ public class CallbackOIDCEndpoint implements OIDCEndpoint
         // Validate the id token, if provided
         IDTokenClaimsSet idToken = null;
         if (authenticationResponse.getIDToken() != null) {
-            idToken = parseIdToken(authenticationResponse.getIDToken(), authenticationResponse.getIssuer());
+            idToken = parseIdToken(this.configuration.removeSessionNonce(), authenticationResponse.getIDToken(),
+                authenticationResponse.getIssuer());
         }
         this.logger.debug("Auth response: the provider sent back the id token [{}]", idToken);
 
@@ -218,8 +220,8 @@ public class CallbackOIDCEndpoint implements OIDCEndpoint
 
                 // Also parse and validate the id token if we don't already have it
                 if (idToken == null) {
-                    idToken =
-                        parseIdToken(tokenResponse.getOIDCTokens().getIDToken(), authenticationResponse.getIssuer());
+                    idToken = parseIdToken(null, tokenResponse.getOIDCTokens().getIDToken(),
+                        authenticationResponse.getIssuer());
                 }
             }
         } else {
@@ -322,7 +324,7 @@ public class CallbackOIDCEndpoint implements OIDCEndpoint
         return OIDCTokenResponse.parse(httpResponse);
     }
 
-    private IDTokenClaimsSet parseIdToken(JWT token, Issuer issuer) throws GeneralException, IOException,
+    private IDTokenClaimsSet parseIdToken(Nonce nonce, JWT token, Issuer issuer) throws GeneralException, IOException,
         URISyntaxException, BadJOSEException, JOSEException, ParseException, OIDCException
     {
         // Parse and validate the id token
@@ -331,7 +333,7 @@ public class CallbackOIDCEndpoint implements OIDCEndpoint
         IDTokenClaimsSet idToken;
         if (clientProvider != null) {
             idToken = IDTokenValidator.create(clientProvider.getMetadata(),
-                this.configuration.createClientInformation(issuer), this.oidc.getJWKSource()).validate(token, null);
+                this.configuration.createClientInformation(issuer), this.oidc.getJWKSource()).validate(token, nonce);
         } else {
             // TODO: add support for null ClientProvider
             idToken = new IDTokenClaimsSet(token.getJWTClaimsSet());
