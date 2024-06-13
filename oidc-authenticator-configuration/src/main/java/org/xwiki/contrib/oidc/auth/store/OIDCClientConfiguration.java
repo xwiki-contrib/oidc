@@ -643,7 +643,9 @@ public class OIDCClientConfiguration
      */
     public Integer getUserInfoRefreshRate()
     {
-        return this.xobject.getIntValue(FIELD_USER_INFO_REFRESH_RATE);
+        int value = this.xobject.getIntValue(FIELD_USER_INFO_REFRESH_RATE, -1);
+
+        return value < 0 ? null : value;
     }
 
     /**
