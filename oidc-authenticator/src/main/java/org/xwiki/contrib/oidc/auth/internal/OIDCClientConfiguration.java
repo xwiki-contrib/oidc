@@ -259,6 +259,11 @@ public class OIDCClientConfiguration extends OIDCConfiguration
 
     public static final String PROP_USERINFOCLAIMS = "oidc.userinfoclaims";
 
+    /**
+     * @since 2.9.0
+     */
+    public static final String PROP_USERINFO_SKIP = "oidc.userinfo.skip";
+
     public static final List<String> DEFAULT_USERINFOCLAIMS = Arrays.asList(OIDCUserInfo.CLAIM_XWIKI_ACCESSIBILITY,
         OIDCUserInfo.CLAIM_XWIKI_COMPANY, OIDCUserInfo.CLAIM_XWIKI_DISPLAYHIDDENDOCUMENTS,
         OIDCUserInfo.CLAIM_XWIKI_EDITOR, OIDCUserInfo.CLAIM_XWIKI_USERTYPE);
@@ -943,6 +948,14 @@ public class OIDCClientConfiguration extends OIDCConfiguration
     }
 
     /**
+     * @since 2.9.0
+     */
+    public boolean isUserInfoSkipped()
+    {
+        return getProperty(PROP_USERINFO_SKIP, false);
+    }
+
+    /**
      * @since 1.2
      */
     public Scope getScope()
@@ -1361,6 +1374,9 @@ public class OIDCClientConfiguration extends OIDCConfiguration
                 break;
             case PROP_USERINFOREFRESHRATE:
                 returnValue = clientConfiguration.getUserInfoRefreshRate();
+                break;
+            case PROP_USERINFO_SKIP:
+                returnValue = clientConfiguration.getUserInfoSkip();
                 break;
             case PROP_LOGOUT_MECHANISM:
                 returnValue = clientConfiguration.getLogoutMechanism();

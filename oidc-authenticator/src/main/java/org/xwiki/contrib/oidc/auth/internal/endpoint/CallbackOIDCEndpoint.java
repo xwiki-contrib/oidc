@@ -235,7 +235,7 @@ public class CallbackOIDCEndpoint implements OIDCEndpoint
         }
 
         UserInfo userInfo = null;
-        if (accessToken != null && responseType.contains(Value.CODE)) {
+        if (accessToken != null && responseType.contains(Value.CODE) && !this.configuration.isUserInfoSkipped()) {
             this.logger.debug("Requesting the userinfo from a dedicated endpoint");
 
             // Request the user info from a dedicated endpoint if it's a code (or hybrid) flow

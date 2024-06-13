@@ -91,6 +91,7 @@ public class OIDCClientConfigurationClassDocumentInitializer extends AbstractMan
             TextAreaClass.EditorType.PURE_TEXT, TextAreaClass.ContentType.PURE_TEXT);
         xclass.addNumberField(OIDCClientConfiguration.FIELD_USER_INFO_REFRESH_RATE, "User info refresh rate", 5,
             "integer");
+        xclass.addBooleanField(OIDCClientConfiguration.FIELD_USER_INFO_SKIP, "Is user info skipped ?", SELECT);
         xclass.addBooleanField(OIDCClientConfiguration.FIELD_ENABLE_USER,
             "Should user profiles be enabled on first login ?", SELECT, true);
     }

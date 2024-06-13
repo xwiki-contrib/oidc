@@ -34,7 +34,9 @@ import com.xpn.xwiki.test.junit5.mockito.OldcoreTest;
 import com.xpn.xwiki.test.reference.ReferenceComponentList;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Validate {@link OIDCClientConfiguration}.
@@ -94,5 +96,23 @@ public class OIDCClientConfigurationTest
         this.xobject.setIntValue(OIDCClientConfiguration.FIELD_USER_INFO_REFRESH_RATE, 42);
 
         assertEquals(42, this.configuration.getUserInfoRefreshRate());
+    }
+
+    @Test
+    void getUserInfoSkip()
+    {
+        assertNull(this.configuration.getUserInfoSkip());
+
+        this.xobject.setIntValue(OIDCClientConfiguration.FIELD_USER_INFO_SKIP, -1);
+
+        assertNull(this.configuration.getUserInfoSkip());
+
+        this.xobject.setIntValue(OIDCClientConfiguration.FIELD_USER_INFO_SKIP, 0);
+
+        assertTrue(this.configuration.getUserInfoSkip());
+
+        this.xobject.setIntValue(OIDCClientConfiguration.FIELD_USER_INFO_SKIP, 1);
+
+        assertFalse(this.configuration.getUserInfoSkip());
     }
 }

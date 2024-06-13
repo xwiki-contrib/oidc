@@ -188,6 +188,13 @@ public class OIDCClientConfiguration
     public static final String FIELD_USER_INFO_REFRESH_RATE = "userInfoRefreshRate";
 
     /**
+     * Name of the property indicating if the userinfo should be skipped.
+     * 
+     * @since 2.9.0
+     */
+    public static final String FIELD_USER_INFO_SKIP = "userInfoSkip";
+
+    /**
      * The name of the logout mechanism to be used.
      * 
      * @since 1.31
@@ -646,6 +653,24 @@ public class OIDCClientConfiguration
         int value = this.xobject.getIntValue(FIELD_USER_INFO_REFRESH_RATE, -1);
 
         return value < 0 ? null : value;
+    }
+
+    /**
+     * @return true if the client configuration should be skipped
+     * @since 2.9.0
+     */
+    public Boolean getUserInfoSkip()
+    {
+        Integer userInfoSkip = this.xobject.getIntValue(FIELD_USER_INFO_SKIP, -1);
+
+        Boolean skip = null;
+        if (userInfoSkip == 0) {
+            skip = Boolean.TRUE;
+        } else if (userInfoSkip == 1) {
+            skip = Boolean.FALSE;
+        }
+
+        return skip;
     }
 
     /**
