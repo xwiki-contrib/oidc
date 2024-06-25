@@ -19,6 +19,8 @@
  */
 package org.xwiki.contrib.oidc.auth.store;
 
+import java.util.List;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.xwiki.contrib.oidc.auth.internal.store.OIDCClientConfigurationClassDocumentInitializer;
@@ -45,7 +47,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 @OldcoreTest
 @ReferenceComponentList
-public class OIDCClientConfigurationTest
+class OIDCClientConfigurationTest
 {
     @InjectMockitoOldcore
     private MockitoOldcore oldcore;
@@ -114,5 +116,23 @@ public class OIDCClientConfigurationTest
         this.xobject.setIntValue(OIDCClientConfiguration.FIELD_USER_INFO_SKIP, 1);
 
         assertFalse(this.configuration.getUserInfoSkip());
+    }
+
+    @Test
+    void getResponseType()
+    {
+        assertNull(this.configuration.getResponseType());
+
+        this.xobject.setStringValue(OIDCClientConfiguration.FIELD_RESPONSE_TYPE, "code");
+
+        assertEquals(List.of("code"), this.configuration.getResponseType());
+
+        this.xobject.setStringValue(OIDCClientConfiguration.FIELD_RESPONSE_TYPE, "");
+
+        assertNull(this.configuration.getResponseType());
+
+        this.xobject.setStringValue(OIDCClientConfiguration.FIELD_RESPONSE_TYPE, "code,token");
+
+        assertEquals(List.of("code", "token"), this.configuration.getResponseType());
     }
 }

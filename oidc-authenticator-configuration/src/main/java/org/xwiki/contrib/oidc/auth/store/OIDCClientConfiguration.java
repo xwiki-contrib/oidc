@@ -22,6 +22,7 @@ package org.xwiki.contrib.oidc.auth.store;
 import java.util.Arrays;
 import java.util.List;
 
+import org.apache.commons.lang3.StringUtils;
 import org.xwiki.model.reference.LocalDocumentReference;
 
 import com.xpn.xwiki.XWiki;
@@ -222,6 +223,17 @@ public class OIDCClientConfiguration
         this.xobject = xobject;
     }
 
+    private List<String> getList(String property)
+    {
+        String value = this.xobject.getStringValue(property);
+
+        if (StringUtils.isEmpty(value)) {
+            return null;
+        }
+
+        return Arrays.asList(value.split(LIST_SPLIT_REGEX));
+    }
+
     /**
      * @return the configuration name
      */
@@ -259,7 +271,7 @@ public class OIDCClientConfiguration
      */
     public List<String> getGroupMapping()
     {
-        return Arrays.asList(this.xobject.getLargeStringValue(FIELD_GROUP_MAPPING).split(LIST_SPLIT_REGEX));
+        return getList(FIELD_GROUP_MAPPING);
     }
 
     /**
@@ -275,7 +287,7 @@ public class OIDCClientConfiguration
      */
     public List<String> getAllowedGroups()
     {
-        return Arrays.asList(this.xobject.getLargeStringValue(FIELD_ALLOWED_GROUPS).split(LIST_SPLIT_REGEX));
+        return getList(FIELD_ALLOWED_GROUPS);
     }
 
     /**
@@ -291,7 +303,7 @@ public class OIDCClientConfiguration
      */
     public List<String> getForbiddenGroups()
     {
-        return Arrays.asList(this.xobject.getLargeStringValue(FIELD_FORBIDDEN_GROUPS).split(LIST_SPLIT_REGEX));
+        return getList(FIELD_FORBIDDEN_GROUPS);
     }
 
     /**
@@ -339,7 +351,7 @@ public class OIDCClientConfiguration
      */
     public List<String> getUserMapping()
     {
-        return Arrays.asList(this.xobject.getLargeStringValue(FIELD_USER_MAPPING).split(LIST_SPLIT_REGEX));
+        return getList(FIELD_USER_MAPPING);
     }
 
     /**
@@ -499,7 +511,7 @@ public class OIDCClientConfiguration
      */
     public List<String> getUserInfoEndpointHeaders()
     {
-        return Arrays.asList(this.xobject.getLargeStringValue(FIELD_ENDPOINT_USERINFO_HEADERS).split(LIST_SPLIT_REGEX));
+        return getList(FIELD_ENDPOINT_USERINFO_HEADERS);
     }
 
     /**
@@ -566,7 +578,7 @@ public class OIDCClientConfiguration
      */
     public List<String> getScope()
     {
-        return Arrays.asList(this.xobject.getStringValue(FIELD_SCOPE).split(LIST_SPLIT_REGEX));
+        return getList(FIELD_SCOPE);
     }
 
     /**
@@ -583,7 +595,7 @@ public class OIDCClientConfiguration
      */
     public List<String> getResponseType()
     {
-        return Arrays.asList(this.xobject.getStringValue(FIELD_RESPONSE_TYPE).split(LIST_SPLIT_REGEX));
+        return getList(FIELD_RESPONSE_TYPE);
     }
 
     /**
@@ -600,7 +612,7 @@ public class OIDCClientConfiguration
      */
     public List<String> getIdTokenClaims()
     {
-        return Arrays.asList(this.xobject.getLargeStringValue(FIELD_CLAIMS_ID_TOKEN).split(LIST_SPLIT_REGEX));
+        return getList(FIELD_CLAIMS_ID_TOKEN);
     }
 
     /**
@@ -616,7 +628,7 @@ public class OIDCClientConfiguration
      */
     public List<String> getUserInfoClaims()
     {
-        return Arrays.asList(this.xobject.getLargeStringValue(FIELD_CLAIMS_USER_INFO).split(LIST_SPLIT_REGEX));
+        return getList(FIELD_CLAIMS_USER_INFO);
     }
 
     /**
