@@ -41,13 +41,13 @@ import javax.servlet.http.HttpServletResponse;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.RandomStringUtils;
+import org.apache.commons.lang.time.DateUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.joda.time.LocalDateTime;
 import org.slf4j.Logger;
 import org.xwiki.component.annotation.Component;
 import org.xwiki.component.phase.Initializable;
 import org.xwiki.component.phase.InitializationException;
-import org.xwiki.container.Container;
 import org.xwiki.context.Execution;
 import org.xwiki.context.ExecutionContext;
 import org.xwiki.contrib.oidc.OIDCIdToken;
@@ -128,9 +128,6 @@ public class OIDCManager implements Initializable, JWKSetSource<SecurityContext>
 
     @Inject
     private ProviderOIDCSessions sessions;
-
-    @Inject
-    private Container container;
 
     @Inject
     private OIDCClients clients;
@@ -436,9 +433,12 @@ public class OIDCManager implements Initializable, JWKSetSource<SecurityContext>
         Set<ProviderOIDCSession> subjectSessions = this.sessions.removeSessions(subject);
         for (ProviderOIDCSession sessoin : subjectSessions) {
             try {
+                Date iat = new Date();
+                Date exp = DateUtils.addMonths(iat, 1);
+
                 // Create a logout token
                 LogoutTokenClaimsSet logoutToken = new LogoutTokenClaimsSet(getIssuer(), sessoin.getSubject(),
-                    Arrays.asList(new Audience(sessoin.getClientID())), new Date(), new JWTID(), null);
+                    Arrays.asList(new Audience(sessoin.getClientID())), new Date(), exp, new JWTID(), null);
 
                 // Send a logout notification
                 this.clients.logout(sessoin.getClientID(), signToken(logoutToken));

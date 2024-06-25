@@ -35,7 +35,6 @@ import org.slf4j.Logger;
 import org.xwiki.component.annotation.Component;
 import org.xwiki.contrib.oidc.OIDCUserInfo;
 import org.xwiki.contrib.oidc.internal.OIDCConfiguration;
-import org.xwiki.contrib.oidc.provider.internal.OIDCManager;
 import org.xwiki.contrib.oidc.provider.internal.OIDCResourceReference;
 import org.xwiki.contrib.oidc.provider.internal.store.OIDCConsent;
 import org.xwiki.contrib.oidc.provider.internal.store.OIDCStore;
@@ -78,9 +77,6 @@ public class UserInfoOIDCEndpoint implements OIDCEndpoint
 
     @Inject
     private OIDCStore store;
-
-    @Inject
-    private OIDCManager manager;
 
     @Inject
     private OIDCConfiguration configuration;

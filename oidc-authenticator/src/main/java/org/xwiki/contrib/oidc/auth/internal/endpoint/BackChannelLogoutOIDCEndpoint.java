@@ -119,8 +119,8 @@ public class BackChannelLogoutOIDCEndpoint implements OIDCEndpoint
             || logoutToken.getHeader().getType().equals(LogoutTokenValidator.TYPE)) {
             return tokenValidator.validate(logoutToken);
         } else {
-            ConfigurableJWTProcessor<?> jwtProcessor = new DefaultJWTProcessor<>();
-            jwtProcessor.setJWSTypeVerifier(new JOSEObjectTypeVerifier()
+            ConfigurableJWTProcessor<SecurityContext> jwtProcessor = new DefaultJWTProcessor<>();
+            jwtProcessor.setJWSTypeVerifier(new JOSEObjectTypeVerifier<SecurityContext>()
             {
                 @Override
                 public void verify(JOSEObjectType type, SecurityContext context) throws BadJOSEException
