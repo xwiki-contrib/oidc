@@ -234,7 +234,7 @@ public class CallbackOIDCEndpoint implements OIDCEndpoint
             return new ErrorResponse(HTTPResponse.SC_BAD_REQUEST, "No id token could be found");
         }
 
-        UserInfo userInfo = null;
+        UserInfo userInfo;
         if (accessToken != null && responseType.contains(Value.CODE) && !this.configuration.isUserInfoSkipped()) {
             this.logger.debug("Requesting the userinfo from a dedicated endpoint");
 

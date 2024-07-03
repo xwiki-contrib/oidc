@@ -760,6 +760,7 @@ public class OIDCClientConfiguration extends OIDCConfiguration
         metadata.setApplicationType(ApplicationType.WEB);
         metadata.setBackChannelLogoutURI(this.manager.createEndPointURI(BackChannelLogoutOIDCEndpoint.HINT));
         metadata.setIDTokenJWSAlg(JWSAlgorithm.RS256);
+        metadata.setUserInfoJWSAlg(JWSAlgorithm.RS256);
         metadata.setRedirectionURI(this.manager.createEndPointURI(CallbackOIDCEndpoint.HINT));
 
         return metadata;

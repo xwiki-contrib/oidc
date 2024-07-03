@@ -26,6 +26,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLConnection;
+import java.text.ParseException;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -59,6 +60,7 @@ import org.xwiki.context.concurrent.ExecutionContextRunnable;
 import org.xwiki.contrib.oidc.OIDCUserInfo;
 import org.xwiki.contrib.oidc.auth.internal.OIDCClientConfiguration.GroupMapping;
 import org.xwiki.contrib.oidc.auth.internal.session.ClientHttpSessions;
+import org.xwiki.contrib.oidc.auth.internal.session.ClientProviders.ClientProvider;
 import org.xwiki.contrib.oidc.auth.store.OIDCUserStore;
 import org.xwiki.contrib.oidc.event.OIDCUserEventData;
 import org.xwiki.contrib.oidc.event.OIDCUserUpdated;
@@ -71,6 +73,8 @@ import org.xwiki.observation.ObservationManager;
 import org.xwiki.query.QueryException;
 import org.xwiki.user.SuperAdminUserReference;
 
+import com.nimbusds.jose.JOSEException;
+import com.nimbusds.jose.proc.BadJOSEException;
 import com.nimbusds.oauth2.sdk.GeneralException;
 import com.nimbusds.oauth2.sdk.http.HTTPRequest;
 import com.nimbusds.oauth2.sdk.http.HTTPResponse;
@@ -125,6 +129,9 @@ public class OIDCUserManager
     private OIDCManager manager;
 
     @Inject
+    private OIDCManager oidc;
+
+    @Inject
     private Logger logger;
 
     private Executor executor = Executors.newFixedThreadPool(1);
@@ -173,8 +180,8 @@ public class OIDCUserManager
         }
     }
 
-    public UserInfo getUserInfo(AccessToken accessToken)
-        throws OIDCException, IOException, URISyntaxException, GeneralException
+    public UserInfo getUserInfo(AccessToken accessToken) throws OIDCException, IOException, URISyntaxException,
+        GeneralException, JOSEException, BadJOSEException, ParseException
     {
         Endpoint userInfoEndpoint = this.configuration.getUserInfoOIDCEndpoint();
 
@@ -199,11 +206,33 @@ public class OIDCUserManager
 
         UserInfoSuccessResponse userinfoSuccessResponse = (UserInfoSuccessResponse) userinfoResponse;
 
-        return userinfoSuccessResponse.getUserInfo();
+        UserInfo userinfo = userinfoSuccessResponse.getUserInfo();
+        // If userinfo is null, it means it was sent as a JWT
+        if (userinfo == null) {
+            ClientProvider clientProvider = this.configuration.getClientProvider();
+
+            if (clientProvider != null) {
+                userinfo =
+                    UserInfoValidator.create(clientProvider.getMetadata(), this.configuration.createClientInformation(),
+                        this.oidc.getJWKSource()).validate(userinfoSuccessResponse.getUserInfoJWT());
+            } else {
+                // TODO: add support for null ClientProvider
+                userinfo = new UserInfo(userinfoSuccessResponse.getUserInfoJWT().getJWTClaimsSet());
+            }
+        } else {
+            this.logger.debug("The OIDC user info is a JSON");
+        }
+
+        if (this.logger.isDebugEnabled()) {
+            this.logger.debug("The OIDC user info is: {}", userinfo);
+        }
+
+        return userinfo;
     }
 
     public SimplePrincipal updateUser(IDTokenClaimsSet idToken, AccessToken accessToken)
-        throws IOException, OIDCException, XWikiException, QueryException, URISyntaxException, GeneralException
+        throws IOException, OIDCException, XWikiException, QueryException, URISyntaxException, GeneralException,
+        JOSEException, BadJOSEException, ParseException
     {
         // Update/Create XWiki user
         return updateUser(idToken, getUserInfo(accessToken), accessToken);

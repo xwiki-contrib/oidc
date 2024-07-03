@@ -65,6 +65,8 @@ import com.xpn.xwiki.web.XWikiServletResponse;
 @Singleton
 public class OIDCResourceReferenceHandler extends AbstractResourceReferenceHandler<ResourceType>
 {
+    private static final String FAILED_HANDLER = "Failed to handle the OIDC endpoint";
+
     @Inject
     private Container container;
 
@@ -107,7 +109,9 @@ public class OIDCResourceReferenceHandler extends AbstractResourceReferenceHandl
         try {
             handle(reference, httpServletRequest, httpServletReponse);
         } catch (Exception e) {
-            throw new ResourceReferenceHandlerException("Failed to handle http servlet request", e);
+            this.logger.debug(FAILED_HANDLER, e);
+
+            throw new ResourceReferenceHandlerException(FAILED_HANDLER, e);
         }
 
         // Be a good citizen, continue the chain, in case some lower-priority Handler has something to do for this
