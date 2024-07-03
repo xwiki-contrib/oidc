@@ -1222,7 +1222,27 @@ public class OIDCClientConfiguration extends OIDCConfiguration
     {
         String groupClaim = getGroupClaim();
 
-        return getUserInfoClaims().contains(groupClaim);
+        // Trying the userinfo claims (it should be the most common way to request the user's membership)
+        if (getUserInfoClaims().contains(groupClaim)) {
+            return true;
+        }
+
+        // Trying the idtoken claims
+        if (getIDTokenClaims().contains(groupClaim)) {
+            return true;
+        }
+
+        // Checking if the group claim name is custom
+        if (!DEFAULT_GROUPSCLAIM.equals(groupClaim)) {
+            return true;
+        }
+
+        // Checking of the group mapping has been configured
+        if (getGroupMapping() != null) {
+            return true;
+        }
+
+        return false;
     }
 
     /**
