@@ -75,6 +75,7 @@ import org.xwiki.user.SuperAdminUserReference;
 
 import com.nimbusds.jose.JOSEException;
 import com.nimbusds.jose.proc.BadJOSEException;
+import com.nimbusds.jwt.PlainJWT;
 import com.nimbusds.oauth2.sdk.GeneralException;
 import com.nimbusds.oauth2.sdk.http.HTTPRequest;
 import com.nimbusds.oauth2.sdk.http.HTTPResponse;
@@ -907,7 +908,8 @@ public class OIDCUserManager
         }
     }
 
-    private void logoutProvider(Endpoint logoutEndpoint, ClientID clientID) throws URISyntaxException, IOException
+    private void logoutProvider(Endpoint logoutEndpoint, ClientID clientID)
+        throws URISyntaxException, IOException, com.nimbusds.oauth2.sdk.ParseException
     {
         XWikiContext context = this.xcontextProvider.get();
 
@@ -928,8 +930,8 @@ public class OIDCUserManager
             redirectURI = new URI(context.getWiki().getURL(context.getWikiReference(), "view", context));
         }
 
-        LogoutRequest logoutRequest =
-            new LogoutRequest(logoutEndpoint.getURI(), null, null, clientID, redirectURI, null, null);
+        LogoutRequest logoutRequest = new LogoutRequest(logoutEndpoint.getURI(),
+            new PlainJWT(this.configuration.getIdToken().toJWTClaimsSet()), null, clientID, redirectURI, null, null);
 
         // Redirect to the provider
         this.manager.redirect(logoutRequest.toURI().toString(), true);
