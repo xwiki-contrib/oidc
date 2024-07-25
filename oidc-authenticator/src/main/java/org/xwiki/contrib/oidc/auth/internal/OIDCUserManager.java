@@ -891,6 +891,7 @@ public class OIDCUserManager
         // Remember a few information before cleaning the session
         Endpoint logoutEndpoint = this.configuration.getLogoutOIDCEndpoint();
         ClientID clientID = this.configuration.getClientID();
+        IDTokenClaimsSet idToken = this.configuration.getIdToken();
 
         // TODO: remove cookies
 
@@ -901,14 +902,14 @@ public class OIDCUserManager
         // Logout the provider if configured, otherwise just logout locally
         if (logoutEndpoint != null && clientID != null) {
             try {
-                logoutProvider(logoutEndpoint, clientID);
+                logoutProvider(logoutEndpoint, clientID, idToken);
             } catch (Exception e) {
                 this.logger.error("Failed to perform OIDC RP-initiated log-out.", e);
             }
         }
     }
 
-    private void logoutProvider(Endpoint logoutEndpoint, ClientID clientID)
+    private void logoutProvider(Endpoint logoutEndpoint, ClientID clientID, IDTokenClaimsSet idToken)
         throws URISyntaxException, IOException, com.nimbusds.oauth2.sdk.ParseException
     {
         XWikiContext context = this.xcontextProvider.get();
@@ -930,8 +931,8 @@ public class OIDCUserManager
             redirectURI = new URI(context.getWiki().getURL(context.getWikiReference(), "view", context));
         }
 
-        LogoutRequest logoutRequest = new LogoutRequest(logoutEndpoint.getURI(),
-            new PlainJWT(this.configuration.getIdToken().toJWTClaimsSet()), null, clientID, redirectURI, null, null);
+        LogoutRequest logoutRequest = new LogoutRequest(logoutEndpoint.getURI(), new PlainJWT(idToken.toJWTClaimsSet()),
+            null, clientID, redirectURI, null, null);
 
         // Redirect to the provider
         this.manager.redirect(logoutRequest.toURI().toString(), true);
