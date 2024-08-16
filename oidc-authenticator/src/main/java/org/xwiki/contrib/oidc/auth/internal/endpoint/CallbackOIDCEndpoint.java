@@ -65,6 +65,7 @@ import com.nimbusds.oauth2.sdk.GeneralException;
 import com.nimbusds.oauth2.sdk.Response;
 import com.nimbusds.oauth2.sdk.ResponseType;
 import com.nimbusds.oauth2.sdk.ResponseType.Value;
+import com.nimbusds.oauth2.sdk.Scope;
 import com.nimbusds.oauth2.sdk.TokenErrorResponse;
 import com.nimbusds.oauth2.sdk.TokenRequest;
 import com.nimbusds.oauth2.sdk.auth.ClientAuthentication;
@@ -210,8 +211,8 @@ public class CallbackOIDCEndpoint implements OIDCEndpoint
                 authenticationResponse.getAuthorizationCode());
 
             if (authenticationResponse.getAuthorizationCode() != null) {
-                OIDCTokenResponse tokenResponse =
-                    requestToken(authenticationResponse.getAuthorizationCode(), authenticationResponse.getIssuer());
+                OIDCTokenResponse tokenResponse = requestToken(authenticationResponse.getAuthorizationCode(),
+                    authenticationResponse.getIssuer(), this.configuration.getScope());
 
                 accessToken = tokenResponse.getTokens().getBearerAccessToken();
 
@@ -270,7 +271,7 @@ public class CallbackOIDCEndpoint implements OIDCEndpoint
         return new RedirectResponse(this.configuration.getSuccessRedirectURI());
     }
 
-    private OIDCTokenResponse requestToken(AuthorizationCode code, Issuer issuer)
+    private OIDCTokenResponse requestToken(AuthorizationCode code, Issuer issuer, Scope scope)
         throws URISyntaxException, GeneralException, IOException, OIDCException
     {
         this.logger.debug("Getting the access token from the token endpoint");
@@ -294,9 +295,9 @@ public class CallbackOIDCEndpoint implements OIDCEndpoint
             } else {
                 clientSecret = new ClientSecretBasic(clientID, secret);
             }
-            tokeRequest = new TokenRequest(tokenEndpoint.getURI(), clientSecret, authorizationGrant);
+            tokeRequest = new TokenRequest(tokenEndpoint.getURI(), clientSecret, authorizationGrant, scope);
         } else {
-            tokeRequest = new TokenRequest(tokenEndpoint.getURI(), clientID, authorizationGrant);
+            tokeRequest = new TokenRequest(tokenEndpoint.getURI(), clientID, authorizationGrant, scope);
         }
 
         HTTPRequest tokenHTTP = tokeRequest.toHTTPRequest();

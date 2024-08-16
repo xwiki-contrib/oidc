@@ -34,7 +34,7 @@ import com.nimbusds.jose.jwk.JWKSet;
 import com.nimbusds.jose.jwk.source.ImmutableJWKSet;
 import com.nimbusds.jose.jwk.source.ImmutableSecret;
 import com.nimbusds.jose.jwk.source.JWKSource;
-import com.nimbusds.jose.jwk.source.RemoteJWKSet;
+import com.nimbusds.jose.jwk.source.JWKSourceBuilder;
 import com.nimbusds.jose.proc.BadJOSEException;
 import com.nimbusds.jose.proc.DefaultJOSEObjectTypeVerifier;
 import com.nimbusds.jose.proc.JWEDecryptionKeySelector;
@@ -157,8 +157,8 @@ public class UserInfoValidator extends AbstractJWTValidator implements ClockSkew
         final URL jwkSetURI, final ResourceRetriever resourceRetriever)
     {
 
-        this(expectedIssuer, clientID,
-            new JWSVerificationKeySelector(expectedJWSAlg, new RemoteJWKSet(jwkSetURI, resourceRetriever)), null);
+        this(expectedIssuer, clientID, new JWSVerificationKeySelector(expectedJWSAlg,
+            JWKSourceBuilder.create(jwkSetURI, resourceRetriever).build()), null);
     }
 
     /**
@@ -238,7 +238,6 @@ public class UserInfoValidator extends AbstractJWTValidator implements ClockSkew
      * Verifies the specified unsecured (plain) UserInfo token.
      *
      * @param userInfoToken The UserInfo token. Must not be {@code null}.
-     * @param expectedNonce The expected nonce, {@code null} if none.
      * @return The claims set of the verified UserInfo token.
      * @throws BadJOSEException If the UserInfo token is invalid or expired.
      * @throws JOSEException If an internal JOSE exception was encountered.
@@ -370,7 +369,7 @@ public class UserInfoValidator extends AbstractJWTValidator implements ClockSkew
             } catch (MalformedURLException e) {
                 throw new GeneralException("Invalid jwk set URI: " + e.getMessage(), e);
             }
-            JWKSource jwkSource = new RemoteJWKSet(jwkSetURL); // TODO specify HTTP response limits
+            JWKSource jwkSource = JWKSourceBuilder.create(jwkSetURL).build(); // TODO specify HTTP response limits
 
             return new JWSVerificationKeySelector(expectedJWSAlg, jwkSource);
 
