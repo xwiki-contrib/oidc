@@ -25,7 +25,6 @@ import java.net.URISyntaxException;
 import java.security.Principal;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -33,6 +32,7 @@ import java.util.Map;
 import javax.inject.Named;
 
 import org.apache.commons.collections4.ListUtils;
+import org.joda.time.LocalDateTime;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -62,6 +62,7 @@ import org.xwiki.test.annotation.ComponentList;
 import org.xwiki.test.junit5.mockito.InjectMockComponents;
 import org.xwiki.test.junit5.mockito.MockComponent;
 
+import com.nimbusds.oauth2.sdk.id.Audience;
 import com.nimbusds.oauth2.sdk.id.Issuer;
 import com.nimbusds.oauth2.sdk.id.Subject;
 import com.nimbusds.oauth2.sdk.token.BearerAccessToken;
@@ -215,6 +216,15 @@ class OIDCUserManagerTest
         return false;
     }
 
+    private IDTokenClaimsSet createIDTokenClaimsSet(Issuer issuer, Subject subject)
+    {
+        LocalDateTime iat = LocalDateTime.now();
+        LocalDateTime exp = iat.plusYears(1);
+
+        return new IDTokenClaimsSet(issuer, subject, Audience.create("aud"), exp.toDate(), iat.toDate());
+
+    }
+
     // Tests
 
     @Test
@@ -223,8 +233,7 @@ class OIDCUserManagerTest
     {
         Issuer issuer = new Issuer("http://issuer");
         Subject subject = new Subject("subject");
-        IDTokenClaimsSet idToken =
-            new IDTokenClaimsSet(issuer, subject, Collections.emptyList(), new Date(), new Date());
+        IDTokenClaimsSet idToken = createIDTokenClaimsSet(issuer, subject);
         UserInfo userInfo = new UserInfo(subject);
 
         Address address = new Address();
@@ -300,8 +309,7 @@ class OIDCUserManagerTest
     {
         Issuer issuer = new Issuer("http://issuer");
         Subject subject = new Subject("subject");
-        IDTokenClaimsSet idToken =
-            new IDTokenClaimsSet(issuer, subject, Collections.emptyList(), new Date(), new Date());
+        IDTokenClaimsSet idToken = createIDTokenClaimsSet(issuer, subject);
         UserInfo userInfo = new UserInfo(subject);
 
         this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_USERINFOCLAIMS,
@@ -346,8 +354,7 @@ class OIDCUserManagerTest
 
         Issuer issuer = new Issuer("http://issuer");
         Subject subject = new Subject("subject");
-        IDTokenClaimsSet idToken =
-            new IDTokenClaimsSet(issuer, subject, Collections.emptyList(), new Date(), new Date());
+        IDTokenClaimsSet idToken = createIDTokenClaimsSet(issuer, subject);
         UserInfo userInfo = new UserInfo(subject);
 
         userInfo.setClaim("groupclaim", Arrays.asList("pgroup1", "pgroup2"));
@@ -404,8 +411,7 @@ class OIDCUserManagerTest
 
         Issuer issuer = new Issuer("http://issuer");
         Subject subject = new Subject("subject");
-        IDTokenClaimsSet idToken =
-            new IDTokenClaimsSet(issuer, subject, Collections.emptyList(), new Date(), new Date());
+        IDTokenClaimsSet idToken = createIDTokenClaimsSet(issuer, subject);
         UserInfo userInfo = new UserInfo(subject);
 
         userInfo.setClaim("groupclaim", Arrays.asList("pgroup1", "pgroup2"));
@@ -457,8 +463,7 @@ class OIDCUserManagerTest
 
         Issuer issuer = new Issuer("http://issuer");
         Subject subject = new Subject("subject");
-        IDTokenClaimsSet idToken =
-            new IDTokenClaimsSet(issuer, subject, Collections.emptyList(), new Date(), new Date());
+        IDTokenClaimsSet idToken = createIDTokenClaimsSet(issuer, subject);
         UserInfo userInfo = new UserInfo(subject);
 
         Address address = new Address();
@@ -509,8 +514,7 @@ class OIDCUserManagerTest
 
         Issuer issuer = new Issuer("http://issuer");
         Subject subject = new Subject("subject");
-        IDTokenClaimsSet idToken =
-            new IDTokenClaimsSet(issuer, subject, Collections.emptyList(), new Date(), new Date());
+        IDTokenClaimsSet idToken = createIDTokenClaimsSet(issuer, subject);
         idToken.setClaim("employeeName", "Azul");
         UserInfo userInfo = new UserInfo(subject);
 
@@ -535,8 +539,7 @@ class OIDCUserManagerTest
 
         Issuer issuer = new Issuer("http://issuer");
         Subject subject = new Subject("subject");
-        IDTokenClaimsSet idToken =
-            new IDTokenClaimsSet(issuer, subject, Collections.emptyList(), new Date(), new Date());
+        IDTokenClaimsSet idToken = createIDTokenClaimsSet(issuer, subject);
         UserInfo userInfo = new UserInfo(subject);
 
         userInfo.setClaim("groupclaim", Arrays.asList("pgroup1", "pgroup3"));
@@ -558,8 +561,7 @@ class OIDCUserManagerTest
 
         Issuer issuer = new Issuer("http://issuer");
         Subject subject = new Subject("subject");
-        IDTokenClaimsSet idToken =
-            new IDTokenClaimsSet(issuer, subject, Collections.emptyList(), new Date(), new Date());
+        IDTokenClaimsSet idToken = createIDTokenClaimsSet(issuer, subject);
         UserInfo userInfo = new UserInfo(subject);
 
         userInfo.setClaim("groupclaim", Arrays.asList("pgroup2", "pgroup3"));
@@ -579,8 +581,7 @@ class OIDCUserManagerTest
 
         Issuer issuer = new Issuer("http://issuer");
         Subject subject = new Subject("subject");
-        IDTokenClaimsSet idToken =
-            new IDTokenClaimsSet(issuer, subject, Collections.emptyList(), new Date(), new Date());
+        IDTokenClaimsSet idToken = createIDTokenClaimsSet(issuer, subject);
         UserInfo userInfo = new UserInfo(subject);
 
         userInfo.setClaim("groupclaim", Arrays.asList("pgroup1", "pgroup3"));
@@ -601,8 +602,7 @@ class OIDCUserManagerTest
 
         Issuer issuer = new Issuer("http://issuer");
         Subject subject = new Subject("subject");
-        IDTokenClaimsSet idToken =
-            new IDTokenClaimsSet(issuer, subject, Collections.emptyList(), new Date(), new Date());
+        IDTokenClaimsSet idToken = createIDTokenClaimsSet(issuer, subject);
         UserInfo userInfo = new UserInfo(subject);
 
         userInfo.setClaim("groupclaim", Arrays.asList("pgroup2", "pgroup3"));
@@ -626,8 +626,7 @@ class OIDCUserManagerTest
 
         Issuer issuer = new Issuer("http://issuer");
         Subject subject = new Subject("subject");
-        IDTokenClaimsSet idToken =
-            new IDTokenClaimsSet(issuer, subject, Collections.emptyList(), new Date(), new Date());
+        IDTokenClaimsSet idToken = createIDTokenClaimsSet(issuer, subject);
         UserInfo userInfo = new UserInfo(subject);
         BearerAccessToken accessToken = new BearerAccessToken();
 
