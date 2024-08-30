@@ -150,13 +150,12 @@ public class CallbackOIDCEndpoint implements OIDCEndpoint
         if (sessionState == null) {
             return new ErrorResponse(HTTPResponse.SC_BAD_REQUEST,
                 "No state could be found in the current OpenID Connection session"
-                    + " which suggest it was lost of that this callback endpoint was called directly");
+                    + " which suggest it was lost or that this callback endpoint was called directly");
         } else {
             State providerState = authorizationResponse.getState();
             if (providerState == null) {
                 return new ErrorResponse(HTTPResponse.SC_BAD_REQUEST,
-                    "No state could be found in the current OpenID Connection session"
-                        + " which suggest it was lost of that this callback endpoint was called directly");
+                    "Invalid state: was expecting [" + sessionState + "] and got nothing");
             } else if (!Objects.equals(providerState.getValue(), sessionState)) {
                 this.logger.debug("OIDC callback: Invalid state (was expecting [{}] and got [{}])", sessionState,
                     providerState);
