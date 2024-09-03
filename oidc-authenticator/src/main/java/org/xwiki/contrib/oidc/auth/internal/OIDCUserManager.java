@@ -75,7 +75,7 @@ import org.xwiki.user.SuperAdminUserReference;
 
 import com.nimbusds.jose.JOSEException;
 import com.nimbusds.jose.proc.BadJOSEException;
-import com.nimbusds.jwt.PlainJWT;
+import com.nimbusds.jwt.JWT;
 import com.nimbusds.oauth2.sdk.GeneralException;
 import com.nimbusds.oauth2.sdk.http.HTTPRequest;
 import com.nimbusds.oauth2.sdk.http.HTTPResponse;
@@ -891,7 +891,7 @@ public class OIDCUserManager
         // Remember a few information before cleaning the session
         Endpoint logoutEndpoint = this.configuration.getLogoutOIDCEndpoint();
         ClientID clientID = this.configuration.getClientID();
-        IDTokenClaimsSet idToken = this.configuration.getIdToken();
+        JWT idToken = this.configuration.getIdTokenJWT();
 
         // TODO: remove cookies
 
@@ -909,8 +909,8 @@ public class OIDCUserManager
         }
     }
 
-    private void logoutProvider(Endpoint logoutEndpoint, ClientID clientID, IDTokenClaimsSet idToken)
-        throws URISyntaxException, IOException, com.nimbusds.oauth2.sdk.ParseException
+    private void logoutProvider(Endpoint logoutEndpoint, ClientID clientID, JWT idToken)
+        throws URISyntaxException, IOException
     {
         XWikiContext context = this.xcontextProvider.get();
 
@@ -931,8 +931,8 @@ public class OIDCUserManager
             redirectURI = new URI(context.getWiki().getURL(context.getWikiReference(), "view", context));
         }
 
-        LogoutRequest logoutRequest = new LogoutRequest(logoutEndpoint.getURI(), new PlainJWT(idToken.toJWTClaimsSet()),
-            null, clientID, redirectURI, null, null);
+        LogoutRequest logoutRequest =
+            new LogoutRequest(logoutEndpoint.getURI(), idToken, null, clientID, redirectURI, null, null);
 
         // Redirect to the provider
         this.manager.redirect(logoutRequest.toURI().toString(), true);

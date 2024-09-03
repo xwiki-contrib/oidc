@@ -75,6 +75,8 @@ import org.xwiki.properties.ConverterManager;
 import org.xwiki.query.QueryException;
 
 import com.nimbusds.jose.JWSAlgorithm;
+import com.nimbusds.jwt.JWT;
+import com.nimbusds.jwt.JWTParser;
 import com.nimbusds.oauth2.sdk.GeneralException;
 import com.nimbusds.oauth2.sdk.ParseException;
 import com.nimbusds.oauth2.sdk.ResponseType;
@@ -309,6 +311,11 @@ public class OIDCClientConfiguration extends OIDCConfiguration
     public static final String PROP_SESSION_ACCESSTOKEN = "oidc.accesstoken";
 
     public static final String PROP_SESSION_IDTOKEN = "oidc.idtoken";
+
+    /**
+     * @since 2.12.0
+     */
+    public static final String PROP_SESSION_IDTOKEN_JWT = "oidc.idtokenjwt";
 
     public static final String PROP_SESSION_USERINFO_EXPORATIONDATE = "oidc.session.userinfoexpirationdate";
 
@@ -1170,13 +1177,13 @@ public class OIDCClientConfiguration extends OIDCConfiguration
      */
     public IDTokenClaimsSet getIdToken()
     {
-        String idTokenValue = getSessionAttribute(PROP_SESSION_IDTOKEN);
+        String value = getSessionAttribute(PROP_SESSION_IDTOKEN);
 
         try {
-            return idTokenValue != null ? IDTokenClaimsSet.parse(idTokenValue) : null;
+            return value != null ? IDTokenClaimsSet.parse(value) : null;
         } catch (ParseException e) {
             // Should never happen since the value was serialized from a IDTokenClaimsSet
-            this.logger.error("Failed to parse the id token from the session with value [{}]", idTokenValue, e);
+            this.logger.error("Failed to parse the id token from the session with value [{}]", value, e);
 
             // Return null in that case
             return null;
@@ -1188,9 +1195,36 @@ public class OIDCClientConfiguration extends OIDCConfiguration
      */
     public void setIdToken(IDTokenClaimsSet idToken)
     {
-        // Don't store the IDTokenClaimsSet object directly as it could cause classloader problem when an extension is
-        // upgraded
+        // We don't store the IDTokenClaimsSet object directly as it could cause classloader problem when an extension
+        // is upgraded
         setSessionAttribute(PROP_SESSION_IDTOKEN, idToken.toJSONString());
+    }
+
+    /**
+     * @since 2.12.0
+     */
+    public JWT getIdTokenJWT()
+    {
+        String value = getSessionAttribute(PROP_SESSION_IDTOKEN_JWT);
+
+        try {
+            return value != null ? JWTParser.parse(value) : null;
+        } catch (java.text.ParseException e) {
+            // Should never happen since the value was serialized from a IDTokenClaimsSet
+            this.logger.error("Failed to parse the id token JWT from the session with value [{}]", value, e);
+
+            // Return null in that case
+            return null;
+        }
+    }
+
+    /**
+     * @since 2.12.0
+     */
+    public void setIdTokenJWT(JWT idToken)
+    {
+        // We don't store the JWT object directly as it could cause classloader problem when an extension is upgraded
+        setSessionAttribute(PROP_SESSION_IDTOKEN_JWT, idToken.serialize());
     }
 
     /**
