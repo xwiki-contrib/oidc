@@ -199,11 +199,6 @@ public class CallbackOIDCEndpoint implements OIDCEndpoint
         if (authenticationResponse.getIDToken() != null) {
             idToken = parseIdToken(this.configuration.removeSessionNonce(), authenticationResponse.getIDToken(),
                 authenticationResponse.getIssuer());
-
-            // Store the original id token as send by the provider
-            this.configuration.setIdTokenJWT(authenticationResponse.getIDToken());
-            // Store the id token in the session
-            this.configuration.setIdToken(idToken);
         }
         this.logger.debug("Auth response: the provider sent back the id token [{}]", idToken);
 
@@ -371,6 +366,11 @@ public class CallbackOIDCEndpoint implements OIDCEndpoint
         }
 
         this.logger.debug("OIDC Id Token: {}", idToken);
+
+        // Store the original id token as sent by the provider
+        this.configuration.setIdTokenJWT(token);
+        // Store the id token in the session
+        this.configuration.setIdToken(idToken);
 
         return idToken;
     }
