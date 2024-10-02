@@ -1,0 +1,153 @@
+## ---------------------------------------------------------------------------
+## See the NOTICE file distributed with this work for additional
+## information regarding copyright ownership.
+##
+## This is free software; you can redistribute it and/or modify it
+## under the terms of the GNU Lesser General Public License as
+## published by the Free Software Foundation; either version 2.1 of
+## the License, or (at your option) any later version.
+##
+## This software is distributed in the hope that it will be useful,
+## but WITHOUT ANY WARRANTY; without even the implied warranty of
+## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+## Lesser General Public License for more details.
+##
+## You should have received a copy of the GNU Lesser General Public
+## License along with this software; if not, write to the Free
+## Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
+## 02110-1301 USA, or see the FSF site: http://www.fsf.org.
+## ---------------------------------------------------------------------------
+##!source.syntax=xwiki/2.1
+{{velocity output="false"}}
+#macro(expirationOptionDays $days $expiration)
+  <option value="$days"#if($expiration == $days) selected#end>$escapetool.xml($services.localization.render('oidc.template.userapplications.expiration.days', [$days]))</option>
+#end
+{{/velocity}}
+
+{{velocity}}
+#set ($discard = $xwiki.jsrx.use('templates/oidc/provider/userapplications.js'))
+#set ($obj = $doc.getObject("XWiki.XWikiUsers"))
+#if (!$obj)
+  = {{translation key="xe.admin.users.sheet"/}} =
+
+  {{warning}}
+    {{translation key="xe.admin.users.applyonusers"/}}
+  {{/warning}}
+#elseif (!$xcontext.userReference.equals($doc.documentReference) && !$services.security.authorization.hasAcess('programming'))
+  {{error}}
+    {{translation key="notallowed"/}}
+  {{/error}}
+#else
+  {{translation key="oidc.template.userapplications.description"/}}
+
+  #set ($expiration = $request.expiration)
+  #if ($expiration == 'never')
+    #set ($expiration_date = $NULL)
+  #elseif ($expiration == 'date')
+    #set ($expiration_date = $datetool.toDate('yyyy-MM-dd', $request.expiration_date))
+  #else
+    #set ($expiration = $numbertool.toNumber($expiration))
+    #if (!$expiration)
+      #set ($expiration = 30)      
+    #end
+    ## Get a Calendar
+    #set ($expirationCalendar = $datetool.toCalendar($datetool.date))
+    ## Add the days
+    #set ($void = $expirationCalendar.add(5, $expiration))
+    ## Convert to a Date
+    #set ($expiration_date = $datetool.toDate($expirationCalendar))
+    ## Remove the time
+    #set ($expiration_date = $datetool.toDate('yyyy-MM-dd', $datetool.format('yyyy-MM-dd', $expiration_date)))
+  #end
+  #if ($request.form_token)
+    #if ($services.csrf.isTokenValid($request.form_token))
+      #if ($request.oidc_consent_create)
+        #set ($application_name = $request.application_name)
+        #if ("$!application_name" != '')
+          #set ($consent = $services.oidc.provider.addConsent($xcontext.userReference, $application_name, $expiration_date))
+          {{success title="$services.rendering.escape($consent.clientID, 'xwiki/2.1')"}}
+            $services.rendering.escape($services.localization.render('oidc.template.userapplications.newTokenCreated', [$xcontext.userReference]), 'xwiki/2.1')
+
+            {{translation key="oidc.template.userapplications.bearerAccessToken"/}}
+
+            {{code language="none" title="Authorization" source="string:Bearer $services.rendering.escape($consent.accessTokenValue, 'xwiki/2.1')"/}}
+          {{/success}}
+
+          {{warning}}
+            {{translation key="oidc.template.userapplications.tokenNotRecoverable"/}}
+          {{/warning}}
+        #else
+          {{error}}
+            {{translation key="oidc.template.userapplications.applicationNameNotEmpty"/}}          
+          {{/error}}
+        #end
+      #elseif ($request.oidc_consent_delete)      
+        $services.oidc.provider.deleteConsent($request.consent_id)
+      #end
+    #else
+      {{error}}
+        {{translation key="xe.admin.passwordReset.error.csrf"/}}
+      {{/error}}
+    #end
+  #end
+
+  {{html}}
+    <form method="post" class="xform>
+      <input type="hidden" name="form_token" value="$!{services.csrf.getToken()}" />
+
+      <label id="label_application_name">
+        $escapetool.xml($services.localization.render('oidc.template.userapplications.application_name'))
+        <input type="text" id="input_application_name" name="application_name"#if($request.application_name) value="$escapetool.xml($request.application_name)"#end/>
+      </label>
+
+      <label id="label_expiration">
+        $escapetool.xml($services.localization.render('oidc.template.userapplications.expiration.label'))
+        <select id="select_expiration" name="expiration">
+          #expirationOptionDays(7, $expiration)
+          #expirationOptionDays(30, $expiration)
+          #expirationOptionDays(60, $expiration)
+          #expirationOptionDays(90, $expiration)
+          <option value="date"#if($expiration == 'date') selected#end>$escapetool.xml($services.localization.render('oidc.template.userapplications.expiration.custom'))</option>
+          <option value="never"#if($expiration == 'never') selected#end>$escapetool.xml($services.localization.render('oidc.template.userapplications.expiration.never'))</option>
+        </select>
+      </label>
+
+      <label id="label_expiration_date">
+        $escapetool.xml($services.localization.render('oidc.template.userapplications.expiration_date.label'))
+        <input id="input_expiration_date" type="date" name="expiration_date"#if($expiration_date) value="$escapetool.xml($datetool.format('yyyy-MM-dd', $expiration_date))"#end#if ($expiration != 'date') disabled#end/>
+      </label>
+      ##TODO: add support for a scope
+
+      <button class="btn btn-primary" name="oidc_consent_create">$escapetool.xml($services.localization.render("oidc.template.userapplications.create"))</button>
+    </form>
+
+    #foreach ($consent in $services.oidc.provider.getConsents($xcontext.userReference))
+      <div class="box">
+        <div class="pull-left">
+          #if ($consent.clientID)
+            <strong>$escapetool.xml($consent.clientID)</strong>
+          #end
+          <br/>
+          <span class="date xHint">
+          #if ($consent.accessTokenExpiration)
+            #if ($consent.accessTokenExpiration.before($datetool.date))
+              $escapetool.xml($services.localization.render('oidc.template.userapplications.expiration_date.display.expired'))
+            #else
+              $escapetool.xml($services.localization.render('oidc.template.userapplications.expiration_date.display', [$!{xwiki.formatDate($consent.accessTokenExpiration)}]))
+            #end
+          #else
+            $escapetool.xml($services.localization.render('oidc.template.userapplications.expiration_date.display.none', [$!{xwiki.formatDate($consent.accessTokenExpiration)}]))
+          #end
+          </span>
+        </div>
+
+        <form method="post" class="xform pull-right">
+          <input type="hidden" name="form_token" value="$!{services.csrf.getToken()}" />
+          <input type="hidden" name="consent_id" value="$escapetool.xml($consent.id)"/>
+          <button class="btn btn-sm btn-danger" name="oidc_consent_delete">$escapetool.xml($services.localization.render("oidc.template.userapplications.delete"))</button>
+        </form>
+      </div>
+    #end
+  {{/html}}
+#end
+{{/velocity}}

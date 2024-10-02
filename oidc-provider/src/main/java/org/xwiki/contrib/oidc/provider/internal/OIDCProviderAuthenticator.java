@@ -25,7 +25,7 @@ import javax.inject.Singleton;
 
 import org.apache.commons.lang3.StringUtils;
 import org.xwiki.component.annotation.Component;
-import org.xwiki.contrib.oidc.provider.internal.store.OIDCConsent;
+import org.xwiki.contrib.oidc.provider.internal.store.BaseObjectOIDCConsent;
 import org.xwiki.contrib.oidc.provider.internal.store.OIDCStore;
 import org.xwiki.contrib.oidc.provider.internal.store.XWikiBearerAccessToken;
 import org.xwiki.model.reference.EntityReferenceSerializer;
@@ -63,7 +63,7 @@ public class OIDCProviderAuthenticator
             XWikiBearerAccessToken xwikiAccessToken = XWikiBearerAccessToken.parse(authorizationString);
 
             if (xwikiAccessToken != null) {
-                OIDCConsent consent = this.oidcStore.getConsent(xwikiAccessToken);
+                BaseObjectOIDCConsent consent = this.oidcStore.getConsent(xwikiAccessToken);
 
                 if (consent != null) {
                     return new XWikiUser(consent.getUserReference());

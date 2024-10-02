@@ -27,10 +27,9 @@ import org.slf4j.Logger;
 import org.xwiki.component.annotation.Component;
 import org.xwiki.contrib.oidc.provider.internal.OIDCManager;
 import org.xwiki.contrib.oidc.provider.internal.OIDCResourceReference;
-import org.xwiki.contrib.oidc.provider.internal.store.OIDCConsent;
+import org.xwiki.contrib.oidc.provider.internal.store.BaseObjectOIDCConsent;
 import org.xwiki.contrib.oidc.provider.internal.store.OIDCStore;
 import org.xwiki.contrib.oidc.provider.internal.store.XWikiBearerAccessToken;
-import org.xwiki.model.reference.EntityReferenceSerializer;
 
 import com.nimbusds.oauth2.sdk.AuthorizationCodeGrant;
 import com.nimbusds.oauth2.sdk.AuthorizationGrant;
@@ -69,9 +68,6 @@ public class TokenOIDCEndpoint implements OIDCEndpoint
     private OIDCManager manager;
 
     @Inject
-    private EntityReferenceSerializer<String> defaultReferenceSerializer;
-
-    @Inject
     private Logger logger;
 
     @Override
@@ -101,7 +97,7 @@ public class TokenOIDCEndpoint implements OIDCEndpoint
             this.logger.debug("OIDC.token: Grant request: code={} redirectionURI={} clientID={}",
                 grant.getAuthorizationCode(), grant.getRedirectionURI(), clientID);
 
-            OIDCConsent consent =
+            BaseObjectOIDCConsent consent =
                 this.store.getConsent(clientID, grant.getRedirectionURI(), grant.getAuthorizationCode());
 
             if (consent == null) {
@@ -109,10 +105,7 @@ public class TokenOIDCEndpoint implements OIDCEndpoint
             }
 
             // Create and store a new token (impossible to reuse existing one if any)
-            XWikiBearerAccessToken accessToken =
-                XWikiBearerAccessToken.create(this.defaultReferenceSerializer.serialize(consent.getReference()));
-            // TODO: set a configurable lifespan ?
-            this.store.saveAccessToken(accessToken.getRandom(), consent);
+            XWikiBearerAccessToken accessToken = this.store.createAndSaveAccessToken(consent);
 
             // Get the stored nonce
             Nonce nonce = this.store.getNonce(grant.getAuthorizationCode());

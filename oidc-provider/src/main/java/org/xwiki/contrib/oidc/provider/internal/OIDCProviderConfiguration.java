@@ -75,7 +75,7 @@ public class OIDCProviderConfiguration extends OIDCConfiguration
      */
     public String getAuthenticator()
     {
-        return getProperty(PROP_AUTHENTICATOR, null);
+        return getProperty(PROP_AUTHENTICATOR, (String) null);
     }
 
     /**

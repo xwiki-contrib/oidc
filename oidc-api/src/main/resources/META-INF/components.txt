@@ -1,1 +1,2 @@
 org.xwiki.contrib.oidc.internal.OIDCConfiguration
+org.xwiki.contrib.oidc.script.OIDCScriptService

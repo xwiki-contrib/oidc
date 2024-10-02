@@ -36,7 +36,7 @@ import org.xwiki.component.annotation.Component;
 import org.xwiki.contrib.oidc.OIDCUserInfo;
 import org.xwiki.contrib.oidc.internal.OIDCConfiguration;
 import org.xwiki.contrib.oidc.provider.internal.OIDCResourceReference;
-import org.xwiki.contrib.oidc.provider.internal.store.OIDCConsent;
+import org.xwiki.contrib.oidc.provider.internal.store.BaseObjectOIDCConsent;
 import org.xwiki.contrib.oidc.provider.internal.store.OIDCStore;
 import org.xwiki.contrib.oidc.provider.internal.store.XWikiBearerAccessToken;
 import org.xwiki.localization.LocaleUtils;
@@ -102,7 +102,7 @@ public class UserInfoOIDCEndpoint implements OIDCEndpoint
             return new UserInfoErrorResponse(BearerTokenError.INVALID_TOKEN);
         }
 
-        OIDCConsent consent = this.store.getConsent(xwikiAccessToken);
+        BaseObjectOIDCConsent consent = this.store.getConsent(xwikiAccessToken);
 
         if (consent == null) {
             return new UserInfoErrorResponse(BearerTokenError.INVALID_TOKEN);

@@ -22,6 +22,7 @@ package org.xwiki.oidc.test;
 import java.util.List;
 import java.util.Properties;
 
+import org.apache.commons.configuration2.PropertiesConfiguration;
 import org.junit.runner.RunWith;
 import org.xwiki.contrib.oidc.auth.OIDCAuthServiceImpl;
 import org.xwiki.contrib.oidc.provider.OIDCBridgeAuth;
@@ -46,9 +47,13 @@ public class AllTests
 
     private void setupAuthenticator(XWikiExecutor executor) throws Exception
     {
-        Properties properties = executor.loadXWikiCfg();
-        properties.setProperty("xwiki.authentication.authclass", OIDCAuthServiceImpl.class.getCanonicalName());
-        executor.saveXWikiCfg(properties);
+        Properties xwikiCfg = executor.loadXWikiCfg();
+        xwikiCfg.setProperty("xwiki.authentication.authclass", OIDCBridgeAuth.class.getCanonicalName());
+        executor.saveXWikiCfg(xwikiCfg);
+
+        PropertiesConfiguration xwikiProperties = executor.loadXWikiPropertiesConfiguration();
+        xwikiProperties.setProperty("oidc.provider.authenticator", OIDCAuthServiceImpl.class.getCanonicalName());
+        executor.saveXWikiProperties();
     }
 
     private void setupProvider(XWikiExecutor executor) throws Exception

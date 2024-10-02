@@ -33,7 +33,7 @@ import com.xpn.xwiki.objects.classes.BaseClass;
  * @version $Id: 9fbf4b627cd3716e8cd506e00b9c663f388a98f0 $
  */
 @Component
-@Named(OIDCConsent.REFERENCE_STRING)
+@Named(BaseObjectOIDCConsent.REFERENCE_STRING)
 @Singleton
 public class OIDCConsentClassDocumentInitializer extends AbstractMandatoryClassInitializer
 {
@@ -42,16 +42,21 @@ public class OIDCConsentClassDocumentInitializer extends AbstractMandatoryClassI
      */
     public OIDCConsentClassDocumentInitializer()
     {
-        super(OIDCConsent.REFERENCE, "XWiki OIDC Consent Class");
+        super(BaseObjectOIDCConsent.REFERENCE, "XWiki OIDC Consent Class");
     }
 
     @Override
     protected void createClass(BaseClass xclass)
     {
-        xclass.addTextField(OIDCConsent.FIELD_CLIENTID, "Client ID", 30);
-        xclass.addTextField(OIDCConsent.FIELD_REDIRECTURI, "Redirect URI", 30);
-        xclass.addBooleanField(OIDCConsent.FIELD_ALLOW, "Allow/Deny", "allow");
-        xclass.addTextAreaField(OIDCConsent.FIELD_CLAIMS, "Claims", 60, 10);
-        xclass.addPasswordField(OIDCConsent.FIELD_ACCESSTOKEN, "Access Token", 30);
+        xclass.addTextField(BaseObjectOIDCConsent.FIELD_CLIENTID, "Client ID", 30);
+        xclass.addTextField(BaseObjectOIDCConsent.FIELD_REDIRECTURI, "Redirect URI", 30);
+        xclass.addTextAreaField(BaseObjectOIDCConsent.FIELD_CLAIMS, "Claims", 60, 10);
+
+        xclass.addBooleanField(BaseObjectOIDCConsent.FIELD_ENABLED, "Allow/Deny", "checkbox", true);
+
+        // Token
+        xclass.addPasswordField(BaseObjectOIDCConsent.FIELD_ACCESSTOKEN, "Access Token", 30);
+        xclass.addDateField(BaseObjectOIDCConsent.FIELD_ACCESSTOKEN_EXPIRE, "Access Token Expiration");
+        // TODO: add a scope, when the concept is supported by the REST API
     }
 }

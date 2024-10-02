@@ -34,11 +34,9 @@ import org.xwiki.component.annotation.Component;
 import org.xwiki.contrib.oidc.provider.internal.OIDCManager;
 import org.xwiki.contrib.oidc.provider.internal.OIDCResourceReference;
 import org.xwiki.contrib.oidc.provider.internal.session.ProviderOIDCSessions;
-import org.xwiki.contrib.oidc.provider.internal.store.OIDCConsent;
+import org.xwiki.contrib.oidc.provider.internal.store.BaseObjectOIDCConsent;
 import org.xwiki.contrib.oidc.provider.internal.store.OIDCStore;
-import org.xwiki.contrib.oidc.provider.internal.store.XWikiBearerAccessToken;
 import org.xwiki.csrf.CSRFToken;
-import org.xwiki.model.reference.EntityReferenceSerializer;
 import org.xwiki.script.ScriptContextManager;
 
 import com.nimbusds.oauth2.sdk.AuthorizationCode;
@@ -91,9 +89,6 @@ public class AuthorizationOIDCEndpoint implements OIDCEndpoint
     private ScriptContextManager scripts;
 
     @Inject
-    private EntityReferenceSerializer<String> defaultReferenceSerializer;
-
-    @Inject
     private ProviderOIDCSessions sessions;
 
     @Inject
@@ -117,8 +112,6 @@ public class AuthorizationOIDCEndpoint implements OIDCEndpoint
         }
 
         XWikiContext xcontext = this.xcontextProvider.get();
-
-        XWikiBearerAccessToken accessToken = null;
 
         ///////////////////////////////////////////////////////
         // Authentication
@@ -158,7 +151,7 @@ public class AuthorizationOIDCEndpoint implements OIDCEndpoint
         this.logger.debug("OIDC: Client id: [{}]", user);
 
         // Get current consent for provided client id
-        OIDCConsent consent =
+        BaseObjectOIDCConsent consent =
             this.oidcStore.getConsent(clientID, request.getRedirectionURI(), xcontext.getUserReference());
 
         this.logger.debug("OIDC: Existing consent: [{}]", consent);
@@ -188,7 +181,7 @@ public class AuthorizationOIDCEndpoint implements OIDCEndpoint
             }
 
             // Create new consent
-            consent = new OIDCConsent(this.oidcStore.getUserDocument().newXObject(OIDCConsent.REFERENCE, xcontext));
+            consent = this.oidcStore.createCurrentUserConsent();
 
             consent.setClientID(clientID);
             consent.setRedirectURI(request.getRedirectionURI());
@@ -200,15 +193,18 @@ public class AuthorizationOIDCEndpoint implements OIDCEndpoint
 
             // Set access token if needed
             if (request.getResponseType().impliesImplicitFlow()) {
-                accessToken =
-                    XWikiBearerAccessToken.create(this.defaultReferenceSerializer.serialize(consent.getReference()));
-                this.oidcStore.setAccessToken(accessToken.getRandom(), consent);
+                this.oidcStore.createAccessToken(consent);
             }
 
             // Save consent
             this.oidcStore.saveConsent(consent, "Add new OIDC consent");
 
             this.logger.debug("OIDC: New consent: [{}]", consent);
+        } else if (request.getResponseType().impliesImplicitFlow()) {
+            // We have to set a new token in case of implicit flow since we don't know the clear version of the stored
+            // one
+            this.oidcStore.createAccessToken(consent);
+            this.oidcStore.saveConsent(consent, "Update token");
         }
 
         Nonce nonce = request instanceof AuthenticationRequest ? ((AuthenticationRequest) request).getNonce() : null;
@@ -219,11 +215,6 @@ public class AuthorizationOIDCEndpoint implements OIDCEndpoint
         if (request.getResponseType().impliesCodeFlow()) {
             authorizationCode = new AuthorizationCode();
         } else if (request.getResponseType().impliesImplicitFlow()) {
-            if (accessToken == null) {
-                accessToken =
-                    XWikiBearerAccessToken.create(this.defaultReferenceSerializer.serialize(consent.getReference()));
-                this.oidcStore.saveAccessToken(accessToken.getRandom(), consent);
-            }
             if (request instanceof AuthenticationRequest) {
                 idToken = this.manager.createdIdToken(clientID, consent.getUserReference(), nonce,
                     ((AuthenticationRequest) request).getOIDCClaims().getIDTokenClaimsRequest());
@@ -253,11 +244,11 @@ public class AuthorizationOIDCEndpoint implements OIDCEndpoint
             if (request instanceof AuthenticationRequest) {
                 // OpenID Connect
                 return new AuthenticationSuccessResponse(request.getRedirectionURI(), null,
-                    this.manager.signToken(idToken), accessToken, request.getState(), null, this.manager.getIssuer(),
-                    null);
+                    this.manager.signToken(idToken), consent.getAccessToken(), request.getState(), null,
+                    this.manager.getIssuer(), null);
             } else {
                 // OAuth2
-                return new AuthorizationSuccessResponse(request.getRedirectionURI(), null, accessToken,
+                return new AuthorizationSuccessResponse(request.getRedirectionURI(), null, consent.getAccessToken(),
                     request.getState(), this.manager.getIssuer(), null);
             }
         }

@@ -51,6 +51,17 @@
       <artifactId>oidc-provider</artifactId>
       <version>${project.version}</version>
     </dependency>
+    <dependency>
+      <groupId>org.xwiki.platform</groupId>
+      <artifactId>xwiki-platform-user-profile-ui</artifactId>
+      <version>${platform.version}</version>
+      <type>xar</type>
+    </dependency>
+    <dependency>
+      <groupId>org.xwiki.platform</groupId>
+      <artifactId>xwiki-platform-logging-script</artifactId>
+      <version>${platform.version}</version>
+    </dependency>
 
     <!-- Test dependencies -->
     <dependency>

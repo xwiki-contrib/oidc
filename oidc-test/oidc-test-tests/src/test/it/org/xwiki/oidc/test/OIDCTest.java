@@ -19,11 +19,14 @@
  */
 package org.xwiki.oidc.test;
 
+import java.net.URL;
+import java.net.URLConnection;
 import java.util.Arrays;
 
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.openqa.selenium.By;
+import org.xwiki.contrib.oidc.test.po.OIDCApplicationsUserProfilePage;
 import org.xwiki.contrib.oidc.test.po.OIDCClientProviderPage;
 import org.xwiki.contrib.oidc.test.po.OIDCProviderConsentPage;
 import org.xwiki.test.integration.XWikiExecutor;
@@ -50,7 +53,7 @@ public class OIDCTest extends AbstractTest
         // This will not be null if we are in the middle of allTests
         if (context == null) {
             PersistentTestContext persistentTestContext =
-                new PersistentTestContext(Arrays.asList(new XWikiExecutor(0), new XWikiExecutor(1)));
+                new PersistentTestContext(Arrays.asList(new XWikiExecutor(0)/*, new XWikiExecutor(1)*/));
             initializeSystem(persistentTestContext);
 
             // Start XWiki
@@ -192,6 +195,22 @@ public class OIDCTest extends AbstractTest
         // Make sure the user is logged in the provider
         gotoHome(1);
         assertEquals("xwiki:XWiki.provideruser", getCurrentUserReference());
+
+        // Create a token on the provider
+        getUtil().gotoPage(getURL(1, "/bin/view/XWiki/provideruser?category=userapplications"));
+        OIDCApplicationsUserProfilePage applications = new OIDCApplicationsUserProfilePage("provideruser");
+
+        applications.setApplicationName("My Application");
+        applications = applications.clickCreate();
+
+        String token = applications.getToken();
+
+        URL url = new URL(getURL(1, "/rest/"));
+        URLConnection connection = url.openConnection();
+        connection.setRequestProperty("Authorization", "Bearer " + token);
+        connection.connect();
+
+        assertEquals("xwiki:XWiki.provideruser", connection.getHeaderField("XWiki-User"));
 
         // TODO: Add support on provider side to automatically catch standard logout and send a backchannel logout to
         // all registered clients

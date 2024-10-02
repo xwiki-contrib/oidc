@@ -19,7 +19,9 @@
  */
 package org.xwiki.contrib.oidc.provider.internal.store;
 
-import java.security.SecureRandom;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.Date;
 
 import com.nimbusds.jose.util.Base64URL;
 import com.nimbusds.oauth2.sdk.ParseException;
@@ -28,73 +30,100 @@ import com.nimbusds.oauth2.sdk.token.BearerAccessToken;
 
 /**
  * Extends {@link BearerAccessToken} with the reference of the consent object.
+ * <p>
+ * When serialize to an HTTP Authorization header:
+ *
+ * <pre>
+ * Authorization: Bearer xwiki:XWiki.MyUser^XWiki.XWikiUsers[4]/2YotnFZFEjr1zCsicMWpAA
+ * </pre>
  * 
  * @version $Id$
  * @since 1.15
  */
 public class XWikiBearerAccessToken extends BearerAccessToken
 {
-    private static final SecureRandom SECURERANDOM = new SecureRandom();
-
     private final String objectReference;
 
     private final String random;
 
-    protected XWikiBearerAccessToken(String objectReference, String random)
+    private Date expiration;
+
+    /**
+     * @since 2.13.0
+     */
+    protected XWikiBearerAccessToken(String objectReference, String random, long lifetime)
+    {
+        this(objectReference, random, Date.from(Instant.now().plusSeconds(lifetime)));
+    }
+
+    /**
+     * @since 2.13.0
+     */
+    protected XWikiBearerAccessToken(String objectReference, String random, Date expiration)
     {
         super(objectReference + '/' + random);
 
         this.objectReference = objectReference;
         this.random = random;
+        this.expiration = expiration;
+    }
+
+    private static String newRandom()
+    {
+        byte[] n = new byte[DEFAULT_BYTE_LENGTH];
+        secureRandom.nextBytes(n);
+
+        return Base64URL.encode(n).toString();
     }
 
     /**
-     * @param objectReference the reference of the object containing the consent
+     * @param documentObjectReference the reference of the object containing the consent
+     * @param expiration the expiration date
      * @return the new {@link XWikiBearerAccessToken} instance
+     * @since 2.13.0
      */
-    public static XWikiBearerAccessToken create(String objectReference)
+    public static XWikiBearerAccessToken create(String documentObjectReference, Date expiration)
     {
-        byte[] n = new byte[32];
-        SECURERANDOM.nextBytes(n);
 
-        return new XWikiBearerAccessToken(objectReference, Base64URL.encode(n).toString());
+        return new XWikiBearerAccessToken(documentObjectReference, newRandom(), expiration);
     }
 
     /**
-     * @param token the complete token value
-     * @return the parsed {@link XWikiBearerAccessToken} instance
-     * @throws ParseException when the token string is invalid
+     * @param documentObjectReference the reference of the object containing the consent
+     * @param lifetime the lifetime in seconds, 0 if not specified
+     * @return the new {@link XWikiBearerAccessToken} instance
+     * @since 2.13.0
      */
-    public static XWikiBearerAccessToken parse(String token) throws ParseException
+    public static XWikiBearerAccessToken create(String documentObjectReference, long lifetime)
     {
-        BearerAccessToken accessToken = BearerAccessToken.parse(token);
-
-        return parse(accessToken);
+        return new XWikiBearerAccessToken(documentObjectReference, newRandom(), lifetime);
     }
 
     /**
-     * @param token the complete token value
-     * @return the parsed {@link XWikiBearerAccessToken} instance
+     * @return the expiration date
+     * @since 2.13.0
      */
-    public static XWikiBearerAccessToken parse(AccessToken token)
+    public Date getExpiration()
     {
-        String tokenValue = token.getValue();
-        int index = tokenValue.lastIndexOf('/');
+        return this.expiration;
+    }
 
-        if (index == -1) {
-            return null;
+    @Override
+    public long getLifetime()
+    {
+        long lifetime = 0L;
+
+        if (this.expiration != null) {
+            lifetime = Duration.ofMillis(this.expiration.getTime() - new Date().getTime()).getSeconds();
         }
 
-        String objectReference = tokenValue.substring(0, index);
-        String random = tokenValue.substring(index + 1);
-
-        return new XWikiBearerAccessToken(objectReference, random);
+        return lifetime;
     }
 
     /**
      * @return the reference of the object containing the consent
      */
-    public String getObjectReference()
+    public String getDocumentObjectReference()
     {
         return this.objectReference;
     }
@@ -105,5 +134,48 @@ public class XWikiBearerAccessToken extends BearerAccessToken
     public String getRandom()
     {
         return this.random;
+    }
+
+    /**
+     * @param documentObjectReference the reference of the object containing the consent
+     * @return the new {@link XWikiBearerAccessToken} instance
+     * @since 2.13.0
+     */
+    public static XWikiBearerAccessToken create(String documentObjectReference)
+    {
+        return create(documentObjectReference, 0L);
+    }
+
+    /**
+     * @param authorization the HTTP authorization header value
+     * @return the parsed {@link XWikiBearerAccessToken}, or null if not a supported type
+     * @throws ParseException when failing to parse the token
+     * @since 2.13.0
+     */
+    public static XWikiBearerAccessToken parse(String authorization) throws ParseException
+    {
+        BearerAccessToken accessToken = BearerAccessToken.parse(authorization);
+
+        return parse(accessToken);
+    }
+
+    /**
+     * @param token the complete token value
+     * @return the parsed {@link XWikiBearerAccessToken} instance
+     */
+    public static XWikiBearerAccessToken parse(AccessToken token) throws ParseException
+    {
+        String tokenValue = token.getValue();
+        int index = tokenValue.lastIndexOf('/');
+
+        if (index == -1) {
+            throw new ParseException(
+                "The token value [" + tokenValue + "] does not have the expected format (<object reference>/<random>)");
+        }
+
+        String objectReference = tokenValue.substring(0, index);
+        String random = tokenValue.substring(index + 1);
+
+        return new XWikiBearerAccessToken(objectReference, random, null);
     }
 }

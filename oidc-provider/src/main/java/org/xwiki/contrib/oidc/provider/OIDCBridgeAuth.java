@@ -56,15 +56,15 @@ public class OIDCBridgeAuth implements XWikiAuthService
      */
     public OIDCBridgeAuth()
     {
-        String authClass = this.configuration.getAuthenticator();
+        String auth = this.configuration.getAuthenticator();
 
-        createAuthService(authClass);
+        createAuthService(auth);
     }
 
-    private void createAuthService(String authClass)
+    private void createAuthService(String auth)
     {
-        if (StringUtils.isNotEmpty(authClass)) {
-            LOGGER.debug("Using custom AuthClass [{}].", authClass);
+        if (StringUtils.isNotEmpty(auth)) {
+            LOGGER.debug("Using custom AuthClass [{}].", auth);
 
             try {
                 // Get the current ClassLoader
@@ -77,16 +77,16 @@ public class OIDCBridgeAuth implements XWikiAuthService
 
                 // Get the class
                 if (classloader != null) {
-                    this.authService = (XWikiAuthService) Class.forName(authClass, true, classloader).newInstance();
+                    this.authService = (XWikiAuthService) Class.forName(auth, true, classloader).newInstance();
                 } else {
-                    this.authService = (XWikiAuthService) Class.forName(authClass).newInstance();
+                    this.authService = (XWikiAuthService) Class.forName(auth).newInstance();
                 }
 
                 LOGGER.debug("Initialized AuthService using Reflection.");
 
                 return;
             } catch (Exception e) {
-                LOGGER.warn("Failed to initialize AuthService " + authClass
+                LOGGER.warn("Failed to initialize AuthService " + auth
                     + " using Reflection, trying default implementations using 'new'.", e);
             }
         }
@@ -110,7 +110,7 @@ public class OIDCBridgeAuth implements XWikiAuthService
                 return user;
             }
         } catch (Exception e) {
-            LOGGER.debug("Failed to get OIDC user from token [" + authorization + "]", e);
+            LOGGER.debug("Failed to get OIDC user from HTTP authorization [" + authorization + "]", e);
         }
 
         return this.authService.checkAuth(context);

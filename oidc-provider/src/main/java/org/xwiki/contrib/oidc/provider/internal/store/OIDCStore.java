@@ -21,6 +21,9 @@ package org.xwiki.contrib.oidc.provider.internal.store;
 
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -33,6 +36,8 @@ import javax.inject.Singleton;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.xwiki.component.annotation.Component;
+import org.xwiki.context.Execution;
+import org.xwiki.contrib.oidc.provider.internal.OIDCException;
 import org.xwiki.contrib.oidc.provider.internal.OIDCProviderConfiguration;
 import org.xwiki.contrib.oidc.provider.internal.OIDCProviderConfiguration.SubFormat;
 import org.xwiki.model.EntityType;
@@ -41,6 +46,8 @@ import org.xwiki.model.reference.DocumentReferenceResolver;
 import org.xwiki.model.reference.EntityReference;
 import org.xwiki.model.reference.EntityReferenceResolver;
 import org.xwiki.model.reference.EntityReferenceSerializer;
+import org.xwiki.user.UserReference;
+import org.xwiki.user.UserReferenceSerializer;
 
 import com.nimbusds.oauth2.sdk.AuthorizationCode;
 import com.nimbusds.oauth2.sdk.id.ClientID;
@@ -50,12 +57,18 @@ import com.xpn.xwiki.XWikiContext;
 import com.xpn.xwiki.XWikiException;
 import com.xpn.xwiki.doc.XWikiDocument;
 import com.xpn.xwiki.objects.BaseObject;
-import com.xpn.xwiki.objects.classes.PasswordClass;
 
+/**
+ * Allow manipulating consents.
+ * 
+ * @version $Id$
+ */
 @Component(roles = OIDCStore.class)
 @Singleton
 public class OIDCStore
 {
+    private static final String ALLOWED_MODIFICATION = "OIDCStore.allowedmodification";
+
     @Inject
     private Provider<XWikiContext> xcontextProvider;
 
@@ -71,6 +84,16 @@ public class OIDCStore
 
     @Inject
     private OIDCProviderConfiguration configuration;
+
+    @Inject
+    private EntityReferenceSerializer<String> defaultReferenceSerializer;
+
+    @Inject
+    @Named("document")
+    private UserReferenceSerializer<DocumentReference> userReferenceSerializer;
+
+    @Inject
+    private Execution execution;
 
     @Inject
     private Logger logger;
@@ -90,33 +113,42 @@ public class OIDCStore
         }
     }
 
-    public OIDCConsent getConsent(XWikiBearerAccessToken xwikiAccessToken) throws XWikiException
+    public BaseObjectOIDCConsent getConsent(XWikiBearerAccessToken xwikiAccessToken) throws XWikiException
     {
         EntityReference reference =
-            this.entityResolver.resolve(xwikiAccessToken.getObjectReference(), EntityType.OBJECT);
+            this.entityResolver.resolve(xwikiAccessToken.getDocumentObjectReference(), EntityType.OBJECT);
 
         XWikiContext xcontext = this.xcontextProvider.get();
 
         // Get the document containing the consent
         XWikiDocument consentDocument = xcontext.getWiki().getDocument(reference, xcontext);
 
-        // Get the consent
-        BaseObject consentObject = consentDocument.getXObject(reference);
-        if (consentObject == null) {
-            return null;
-        }
-        OIDCConsent consent = new OIDCConsent(consentObject);
+        // Make sure the document exist
+        if (!consentDocument.isNew()) {
+            // Get the consent object
+            BaseObject consentObject = consentDocument.getXObject(reference);
+            if (consentObject != null) {
+                BaseObjectOIDCConsent consent = new BaseObjectOIDCConsent(
+                    this.defaultReferenceSerializer.serialize(consentObject.getReference()), consentObject, xcontext);
 
-        // Compare token values
-        final String stored = consent.getAccessToken();
-        if (new PasswordClass().getEquivalentPassword(stored, xwikiAccessToken.getRandom()).equals(stored)) {
-            return consent;
+                // Validate token:
+                // * must be enabled
+                // * must not be expired
+                // * must match the stored token value
+                if (consent.isEnabled()
+                    && (consent.getAccessTokenExpiration() == null
+                        || consent.getAccessTokenExpiration().after(new Date()))
+                    && consent.isTokenValid(xwikiAccessToken)) {
+                    return consent;
+                }
+            }
         }
 
         return null;
     }
 
-    public OIDCConsent getConsent(ClientID clientID, URI redirectURI, AuthorizationCode code) throws XWikiException
+    public BaseObjectOIDCConsent getConsent(ClientID clientID, URI redirectURI, AuthorizationCode code)
+        throws XWikiException
     {
         DocumentReference userReference = getUserReference(code);
 
@@ -127,7 +159,7 @@ public class OIDCStore
         return getConsent(clientID, redirectURI, userReference);
     }
 
-    public OIDCConsent getConsent(ClientID clientID, URI redirectURI, DocumentReference userReference)
+    public BaseObjectOIDCConsent getConsent(ClientID clientID, URI redirectURI, DocumentReference userReference)
         throws XWikiException
     {
         XWikiContext xcontext = this.xcontextProvider.get();
@@ -137,7 +169,7 @@ public class OIDCStore
         return getConsent(clientID, redirectURI, userDocument);
     }
 
-    public OIDCConsent getConsent(ClientID clientID, URI redirectURI, XWikiDocument userDocument)
+    public BaseObjectOIDCConsent getConsent(ClientID clientID, URI redirectURI, XWikiDocument userDocument)
     {
         this.logger.debug("Get consent USER: reference={}", userDocument.getDocumentReference());
 
@@ -151,17 +183,20 @@ public class OIDCStore
         this.logger.debug("Get consent OIDC: clientIDString={} redirectURIString={}", clientIDString,
             redirectURIString);
 
-        List<BaseObject> consents = userDocument.getXObjects(OIDCConsent.REFERENCE);
+        List<BaseObject> consents = userDocument.getXObjects(BaseObjectOIDCConsent.REFERENCE);
         if (consents != null) {
-            for (BaseObject consent : consents) {
-                if (consent != null) {
+            for (BaseObject consentObject : consents) {
+                if (consentObject != null) {
                     this.logger.debug("Get consent STORED: clientIDString={} redirectURIString={}",
-                        consent.getStringValue(OIDCConsent.FIELD_CLIENTID),
-                        consent.getStringValue(OIDCConsent.FIELD_REDIRECTURI));
+                        consentObject.getStringValue(BaseObjectOIDCConsent.FIELD_CLIENTID),
+                        consentObject.getStringValue(BaseObjectOIDCConsent.FIELD_REDIRECTURI));
 
-                    if (clientIDString.equals(consent.getStringValue(OIDCConsent.FIELD_CLIENTID))
-                        && redirectURIString.equals(consent.getStringValue(OIDCConsent.FIELD_REDIRECTURI))) {
-                        return new OIDCConsent(consent);
+                    if (clientIDString.equals(consentObject.getStringValue(BaseObjectOIDCConsent.FIELD_CLIENTID))
+                        && redirectURIString
+                            .equals(consentObject.getStringValue(BaseObjectOIDCConsent.FIELD_REDIRECTURI))) {
+                        return new BaseObjectOIDCConsent(
+                            this.defaultReferenceSerializer.serialize(consentObject.getReference()), consentObject,
+                            this.xcontextProvider.get());
                     }
                 }
             }
@@ -170,36 +205,124 @@ public class OIDCStore
         return null;
     }
 
-    public XWikiDocument getUserDocument() throws XWikiException
+    public XWikiDocument getCurrentUserDocument() throws OIDCException
     {
         XWikiContext xcontext = this.xcontextProvider.get();
 
-        return xcontext.getWiki().getDocument(xcontext.getUserReference(), xcontext);
+        try {
+            return xcontext.getWiki().getDocument(xcontext.getUserReference(), xcontext);
+        } catch (XWikiException e) {
+            throw new OIDCException("Failed to load the document of the current user", e);
+        }
     }
 
-    public void saveAccessToken(String accessToken, OIDCConsent consent) throws XWikiException
+    private XWikiDocument getUserDocument(UserReference userReference) throws OIDCException
     {
-        setAccessToken(accessToken, consent);
-        saveConsent(consent, "Store new OIDC access token");
+        XWikiContext xcontext = this.xcontextProvider.get();
+
+        try {
+            return xcontext.getWiki().getDocument(this.userReferenceSerializer.serialize(userReference), xcontext);
+        } catch (XWikiException e) {
+            throw new OIDCException("Failed to load the document of the user [" + userReference + "]", e);
+        }
     }
 
-    public void setAccessToken(String accessToken, OIDCConsent consent)
+    public XWikiBearerAccessToken createAccessToken(BaseObjectOIDCConsent consent)
     {
-        consent.setAccessToken(accessToken, this.xcontextProvider.get());
+        // TODO: set a configurable default lifespan ?
+        return createAccessToken(consent, null);
     }
 
-    public OIDCConsent saveConsent(OIDCConsent consent, String comment) throws XWikiException
+    public XWikiBearerAccessToken createAccessToken(BaseObjectOIDCConsent consent, Date expirationDate)
+    {
+        // TODO: set a configurable default scope ? readonly by default ?
+        XWikiBearerAccessToken accessToken = XWikiBearerAccessToken
+            .create(this.defaultReferenceSerializer.serialize(consent.getReference()), expirationDate);
+        consent.setAccessToken(accessToken);
+
+        return accessToken;
+    }
+
+    public BaseObjectOIDCConsent createCurrentUserConsent() throws OIDCException
+    {
+        XWikiDocument userDocument = getCurrentUserDocument();
+
+        // Clone the document to avoid concurrency problems
+        userDocument = userDocument.clone();
+
+        // TODO: set a configurable default lifespan ?
+        return createUserConsent(userDocument, null);
+    }
+
+    public BaseObjectOIDCConsent createAndSaveConsent(UserReference userReference, ClientID clientID,
+        Date expirationDate) throws OIDCException
+    {
+        XWikiDocument userDocument = getUserDocument(userReference);
+
+        // Clone the document to avoid concurrency problems
+        userDocument = userDocument.clone();
+
+        BaseObjectOIDCConsent consent = createUserConsent(userDocument, expirationDate);
+
+        // Set the client ID
+        consent.setClientID(clientID);
+
+        // Save the new consent
+        saveConsent(consent, "Create a new consent");
+
+        return consent;
+    }
+
+    public BaseObjectOIDCConsent createUserConsent(XWikiDocument userDocument, Date expirationDate) throws OIDCException
+    {
+        XWikiContext xcontext = this.xcontextProvider.get();
+
+        BaseObject consentObject;
+        try {
+            consentObject = userDocument.newXObject(BaseObjectOIDCConsent.REFERENCE, xcontext);
+        } catch (XWikiException e) {
+            throw new OIDCException("Failed to create a new consent", e);
+        }
+
+        BaseObjectOIDCConsent consent = new BaseObjectOIDCConsent(
+            this.defaultReferenceSerializer.serialize(consentObject.getReference()), consentObject, xcontext);
+
+        // Create a token
+        createAccessToken(consent, expirationDate);
+
+        return consent;
+    }
+
+    public XWikiBearerAccessToken createAndSaveAccessToken(BaseObjectOIDCConsent consent) throws OIDCException
+    {
+        XWikiBearerAccessToken accessToken = createAccessToken(consent);
+        saveConsent(consent, "Update OIDC access token");
+
+        return accessToken;
+    }
+
+    public BaseObjectOIDCConsent saveConsent(BaseObjectOIDCConsent consent, String comment) throws OIDCException
     {
         XWikiDocument userDocument = consent.getOwnerDocument();
 
         XWikiContext xcontext = this.xcontextProvider.get();
 
-        xcontext.getWiki().saveDocument(userDocument, comment, xcontext);
+        try {
+            // Allow modifying consents
+            setConsentModificationAllowed();
+
+            xcontext.getWiki().saveDocument(userDocument, comment, xcontext);
+        } catch (XWikiException e) {
+            throw new OIDCException("Failed to save consent", e);
+        } finally {
+            // Don't all modifying consents anymore
+            unsetConsentModificationAllowed();
+        }
 
         return consent;
     }
 
-    public BaseObject getUserObject(OIDCConsent consent) throws XWikiException
+    public BaseObject getUserObject(BaseObjectOIDCConsent consent) throws XWikiException
     {
         XWikiContext xcontext = this.xcontextProvider.get();
 
@@ -270,5 +393,83 @@ public class OIDCStore
     public void removeAuthorizationCode(AuthorizationCode code)
     {
         this.authorizationSessionMap.remove(code);
+    }
+
+    /**
+     * @param userReference the reference of the user for which to return the consents
+     * @return the consents of the user
+     * @throws OIDCException when failing to load the user's consents
+     * @since 2.13.0
+     */
+    public List<BaseObjectOIDCConsent> getConsents(UserReference userReference) throws OIDCException
+    {
+        XWikiContext xcontext = this.xcontextProvider.get();
+
+        XWikiDocument userDocument = getUserDocument(userReference);
+
+        List<BaseObject> consentObjects = userDocument.getXObjects(BaseObjectOIDCConsent.REFERENCE);
+
+        if (consentObjects != null) {
+            List<BaseObjectOIDCConsent> consents = new ArrayList<>(consentObjects.size());
+
+            for (BaseObject consentObject : consentObjects) {
+                if (consentObject != null) {
+                    consents.add(new BaseObjectOIDCConsent(
+                        this.defaultReferenceSerializer.serialize(consentObject.getReference()), consentObject,
+                        xcontext));
+                }
+            }
+
+            return consents;
+        }
+
+        return Collections.emptyList();
+    }
+
+    private void setConsentModificationAllowed()
+    {
+        this.execution.getContext().setProperty(ALLOWED_MODIFICATION, Boolean.TRUE);
+    }
+
+    private void unsetConsentModificationAllowed()
+    {
+        this.execution.getContext().removeProperty(ALLOWED_MODIFICATION);
+    }
+
+    /**
+     * @param id the identifier of the consent
+     * @throws OIDCException when failing to delete the consent
+     */
+    public void deleteConsent(String id) throws OIDCException
+    {
+        // The id is actually the reference of the xobject holding the consent
+        EntityReference reference = this.entityResolver.resolve(id, EntityType.OBJECT);
+
+        XWikiContext xcontext = this.xcontextProvider.get();
+
+        // Get the document containing the consent
+        XWikiDocument consentDocument;
+        try {
+            consentDocument = xcontext.getWiki().getDocument(reference, xcontext);
+        } catch (XWikiException e) {
+            throw new OIDCException("Failed to load the consent document for id [" + id + "]", e);
+        }
+
+        // Make sure the document exist
+        if (!consentDocument.isNew()) {
+            // Get the consent object
+            BaseObject consentObject = consentDocument.getXObject(reference);
+            if (consentObject != null) {
+                // Remove the xobject
+                if (consentDocument.removeXObject(consentObject)) {
+                    // Save the modified document
+                    try {
+                        xcontext.getWiki().saveDocument(consentDocument, xcontext);
+                    } catch (XWikiException e) {
+                        throw new OIDCException("Failed to delete the consent for id [" + id + "]", e);
+                    }
+                }
+            }
+        }
     }
 }
