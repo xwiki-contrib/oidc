@@ -56,6 +56,8 @@ import org.xwiki.container.Container;
 import org.xwiki.container.Request;
 import org.xwiki.container.Session;
 import org.xwiki.container.servlet.ServletSession;
+import org.xwiki.contrib.oidc.OAuth2AccessTokenStore;
+import org.xwiki.contrib.oidc.OAuth2Exception;
 import org.xwiki.contrib.oidc.OIDCIdToken;
 import org.xwiki.contrib.oidc.OIDCUserInfo;
 import org.xwiki.contrib.oidc.auth.internal.endpoint.BackChannelLogoutOIDCEndpoint;
@@ -361,11 +363,26 @@ public class OIDCClientConfiguration extends OIDCConfiguration
         OIDCConfiguration.PREFIX_PROP + "defaultClientConfiguration";
 
     /**
-     * The name of the property which defines if users should be enabled by default
+     * The name of the property which defines if users should be enabled by default.
      *
      * @since 2.5.0
      */
     public static final String PROP_ENABLE_USER = OIDCConfiguration.PREFIX_PROP + "enableUser";
+
+    /**
+     * The name of the property which defines the type of this configuration.
+     *
+     * @since 2.14.0
+     */
+    public static final String PROP_CONFIGURATION_TYPE = OIDCConfiguration.PREFIX_PROP + "configurationType";
+
+    /**
+     * The default configuration type.
+     *
+     * @since 2.14.0
+     */
+    public static final String PROP_DEFAULT_CONFIGURATION_TYPE =
+        org.xwiki.contrib.oidc.auth.store.OIDCClientConfiguration.DEFAULT_CONFIGURATION_TYPE.name();
 
     /**
      * Default client configuration to use when no configuration is defined.
@@ -403,6 +420,9 @@ public class OIDCClientConfiguration extends OIDCConfiguration
     private ConfigurationSource xwikicfg;
 
     private Set<String> mandatoryXWikiGroups;
+
+    @Inject
+    private OAuth2AccessTokenStore accessTokenStore;
 
     /**
      * @since 2.4.0
@@ -1190,9 +1210,21 @@ public class OIDCClientConfiguration extends OIDCConfiguration
      */
     public void setAccessToken(AccessToken accessToken)
     {
-        // Don't store the BearerAccessToken object directly as it could cause classloader problems when an extension is
-        // upgraded
-        setSessionAttribute(PROP_SESSION_ACCESSTOKEN, accessToken.getValue());
+        org.xwiki.contrib.oidc.auth.store.OIDCClientConfiguration wikiConfiguration = getWikiClientConfiguration();
+        if (!isAuthenticationConfiguration() && wikiConfiguration != null) {
+            // Don't store the BearerAccessToken object directly as it could cause classloader problems when an extension is
+            // upgraded
+            setSessionAttribute(PROP_SESSION_ACCESSTOKEN, accessToken.getValue());
+        } else {
+            // In case we are simply authorizing XWiki to connect to the resource server, store the
+            // token in the access token store
+            try {
+                accessTokenStore.setAccessToken(wikiConfiguration, accessToken);
+            } catch (OAuth2Exception e) {
+                logger.error("Failed to save access token [{}] for configuration [{}]",
+                    accessToken, wikiConfiguration, e);
+            }
+        }
     }
 
     /**
@@ -1310,6 +1342,15 @@ public class OIDCClientConfiguration extends OIDCConfiguration
     public boolean getEnableUser()
     {
         return getProperty(PROP_ENABLE_USER, true);
+    }
+
+    /**
+     * @return true if the current configuration is to be used for authentication
+     */
+    public boolean isAuthenticationConfiguration()
+    {
+        return getProperty(PROP_CONFIGURATION_TYPE, PROP_DEFAULT_CONFIGURATION_TYPE).equals(
+            org.xwiki.contrib.oidc.auth.store.OIDCClientConfiguration.ConfigurationType.AUTHENTICATION.name());
     }
 
     /**

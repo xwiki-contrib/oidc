@@ -39,6 +39,7 @@ import org.xwiki.configuration.ConfigurationSource;
 import org.xwiki.container.Container;
 import org.xwiki.container.Request;
 import org.xwiki.container.servlet.ServletRequest;
+import org.xwiki.contrib.oidc.OAuth2AccessTokenStore;
 import org.xwiki.contrib.oidc.auth.store.OIDCClientConfigurationStore;
 import org.xwiki.contrib.oidc.provider.internal.OIDCManager;
 import org.xwiki.contrib.oidc.provider.internal.endpoint.TokenOIDCEndpoint;
@@ -90,6 +91,9 @@ class OIDCClientConfigurationTest
 
     @MockComponent
     private OIDCClientConfigurationStore oidcClientConfigurationStore;
+
+    @MockComponent
+    private OAuth2AccessTokenStore accessTokenStore;
 
     private org.xwiki.contrib.oidc.auth.store.OIDCClientConfiguration setUpWikiConfig() throws Exception
     {
