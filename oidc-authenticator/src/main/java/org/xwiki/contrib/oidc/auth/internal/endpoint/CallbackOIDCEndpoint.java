@@ -229,41 +229,44 @@ public class CallbackOIDCEndpoint implements OIDCEndpoint
             this.configuration.setAccessToken(accessToken);
         }
 
-        // Make sure there is an id token
-        if (idToken == null) {
-            return new ErrorResponse(HTTPResponse.SC_BAD_REQUEST, "No id token could be found");
+        if (configuration.isAuthenticationConfiguration()) {
+            // Make sure there is an id token
+            if (idToken == null) {
+                return new ErrorResponse(HTTPResponse.SC_BAD_REQUEST, "No id token could be found");
+            }
+
+            UserInfo userInfo;
+            if (accessToken != null && responseType.contains(Value.CODE) && !this.configuration.isUserInfoSkipped()) {
+                this.logger.debug("Requesting the userinfo from a dedicated endpoint");
+
+                // Request the user info from a dedicated endpoint if it's a code (or hybrid) flow
+                userInfo = this.users.getUserInfo(accessToken);
+            } else {
+                this.logger.debug("Using the id token as userinfo");
+
+                // Simulate a UserInfo based on the id token
+                userInfo = new UserInfo(idToken.toJSONObject());
+            }
+
+            // Update/Create XWiki user
+            SimplePrincipal principal = this.users.updateUser(idToken, userInfo, accessToken);
+
+            // Remember user in the session
+            HttpSession session = ((ServletSession) this.container.getSession()).getHttpSession();
+            session.setAttribute(SecurityRequestWrapper.PRINCIPAL_SESSION_KEY, principal);
+
+            // Indicate that the user is now authenticated
+            this.observationManager.notify(new UserAuthenticatedEvent(this.userResolver.resolve(principal.getName())),
+                null);
+            // Remember the session of that OIDC user (to be able to do back channel logout)
+            this.sessions.onLogin(session, idToken.getSubject());
+
+            // TODO: put enough information in the cookie to automatically authenticate when coming back after the session
+            // is lost
+
+            this.logger.debug("OIDC callback: principal=[{}]", principal);
         }
 
-        UserInfo userInfo;
-        if (accessToken != null && responseType.contains(Value.CODE) && !this.configuration.isUserInfoSkipped()) {
-            this.logger.debug("Requesting the userinfo from a dedicated endpoint");
-
-            // Request the user info from a dedicated endpoint if it's a code (or hybrid) flow
-            userInfo = this.users.getUserInfo(accessToken);
-        } else {
-            this.logger.debug("Using the id token as userinfo");
-
-            // Simulate a UserInfo based on the id token
-            userInfo = new UserInfo(idToken.toJSONObject());
-        }
-
-        // Update/Create XWiki user
-        SimplePrincipal principal = this.users.updateUser(idToken, userInfo, accessToken);
-
-        // Remember user in the session
-        HttpSession session = ((ServletSession) this.container.getSession()).getHttpSession();
-        session.setAttribute(SecurityRequestWrapper.PRINCIPAL_SESSION_KEY, principal);
-
-        // Indicate that the user is now authenticated
-        this.observationManager.notify(new UserAuthenticatedEvent(this.userResolver.resolve(principal.getName())),
-            null);
-        // Remember the session of that OIDC user (to be able to do back channel logout)
-        this.sessions.onLogin(session, idToken.getSubject());
-
-        // TODO: put enough information in the cookie to automatically authenticate when coming back after the session
-        // is lost
-
-        this.logger.debug("OIDC callback: principal=[{}]", principal);
         this.logger.debug("OIDC callback: redirect=[{}]", this.configuration.getSuccessRedirectURI());
 
         // Redirect to original request

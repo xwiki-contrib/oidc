@@ -65,6 +65,8 @@
   </dependencyManagement>
 
   <modules>
+    <module>oauth2-client</module>
+    <module>oauth2-store</module>
     <module>oidc-api</module>
     <module>oidc-provider</module>
     <module>oidc-authenticator-configuration</module>

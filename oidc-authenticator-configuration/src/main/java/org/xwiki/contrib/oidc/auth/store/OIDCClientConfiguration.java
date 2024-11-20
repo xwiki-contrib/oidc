@@ -218,6 +218,66 @@ public class OIDCClientConfiguration
      */
     public static final String FIELD_AFTER_LOGOUT_URL = "afterLogoutURL";
 
+    /**
+     * The name of the property defining if this client should be used for authentication or for authorization only.
+     *
+     * @since 2.14.0
+     */
+    public static final String FIELD_CONFIGURATION_TYPE = "configurationType";
+
+    /**
+     * Allowed configuration types.
+     *
+     * @since 2.14.0
+     */
+    public enum ConfigurationType
+    {
+        /**
+         * Authentication : this client should be used to authenticate users to the wiki.
+         */
+        AUTHENTICATION,
+        /**
+         * Authorization : the client should be used to fetch authorization to third party services.
+         */
+        AUTHORIZATION
+    }
+
+    /**
+     * The default configuration type.
+     *
+     * @since 2.14.0
+     */
+    public static final ConfigurationType DEFAULT_CONFIGURATION_TYPE = ConfigurationType.AUTHENTICATION;
+
+    /**
+     * Define the scope of authorization tokens in case we are dealing with an authorization client.
+     *
+     * @since 2.14.0
+     */
+    public static final String FIELD_TOKEN_SCOPE = "tokenScope";
+
+    /**
+     * Defines the scope of a token.
+     */
+    public enum TokenScope
+    {
+        /**
+         * Tokens should be saved at the wiki level.
+         */
+        WIKI,
+        /**
+         * Tokens should be saved in each user profile.
+         */
+        USER
+    }
+
+    /**
+     * The default token storage method.
+     *
+     * @since 2.14.0
+     */
+    public static final TokenScope DEFAULT_TOKEN_STORAGE = TokenScope.USER;
+
     private static final String LIST_SPLIT_REGEX = "(\\r?\\n|,|\\|)";
 
     private static final String JOIN_CHAR = "\n";
@@ -739,6 +799,7 @@ public class OIDCClientConfiguration
     }
 
     /**
+<<<<<<< HEAD
      * @return the url to be redirected after logout.
      * @since 2.13.2
      */
@@ -754,5 +815,48 @@ public class OIDCClientConfiguration
     public void setAfterLogoutURL(String url)
     {
         this.xobject.setStringValue(FIELD_AFTER_LOGOUT_URL, StringUtils.trimToEmpty(url));
+=======
+     * @return the type of configuration
+     * @since 2.14.0
+     */
+    public ConfigurationType getConfigurationType()
+    {
+        try {
+            return ConfigurationType.valueOf(xobject.getStringValue(FIELD_CONFIGURATION_TYPE));
+        } catch (IllegalArgumentException e) {
+            return DEFAULT_CONFIGURATION_TYPE;
+        }
+    }
+
+    /**
+     * @param configurationType the type of the configuration
+     * @since 2.14.0
+     */
+    public void setConfigurationType(ConfigurationType configurationType)
+    {
+        this.xobject.setStringValue(FIELD_CONFIGURATION_TYPE, configurationType.name());
+    }
+
+    /**
+     * @return the scope of the token
+     * @since 2.14.0
+     */
+    public TokenScope getTokenScope()
+    {
+        try {
+            return TokenScope.valueOf(xobject.getStringValue(FIELD_TOKEN_SCOPE));
+        } catch (IllegalArgumentException e) {
+            return DEFAULT_TOKEN_STORAGE;
+        }
+    }
+
+    /**
+     * @param tokenScope the scope of application for the access tokens
+     * @since 2.14.0
+     */
+    public void setTokenScope(TokenScope tokenScope)
+    {
+        this.xobject.setStringValue(FIELD_TOKEN_SCOPE, tokenScope.name());
+>>>>>>> 0befdc7 (OIDC-204 : Add support for OAuth2 Authorization Code Flow)
     }
 }
