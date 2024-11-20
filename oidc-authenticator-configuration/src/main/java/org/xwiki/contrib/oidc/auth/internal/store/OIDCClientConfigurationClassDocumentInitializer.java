@@ -19,6 +19,8 @@
  */
 package org.xwiki.contrib.oidc.auth.internal.store;
 
+import java.util.Arrays;
+
 import javax.inject.Named;
 import javax.inject.Singleton;
 
@@ -41,6 +43,8 @@ import com.xpn.xwiki.objects.classes.TextAreaClass;
 public class OIDCClientConfigurationClassDocumentInitializer extends AbstractMandatoryClassInitializer
 {
     private static final String SELECT = "select";
+
+    private static final String PIPE = "|";
 
     /**
      * Builds a new {@link OIDCClientConfigurationClassDocumentInitializer}.
@@ -94,5 +98,17 @@ public class OIDCClientConfigurationClassDocumentInitializer extends AbstractMan
         xclass.addBooleanField(OIDCClientConfiguration.FIELD_USER_INFO_SKIP, "Is user info skipped ?", SELECT);
         xclass.addBooleanField(OIDCClientConfiguration.FIELD_ENABLE_USER,
             "Should user profiles be enabled on first login ?", SELECT, true);
+        xclass.addStaticListField(OIDCClientConfiguration.FIELD_CONFIGURATION_TYPE, "Conifguration type",
+            String.join(PIPE,
+                Arrays.asList(
+                    OIDCClientConfiguration.ConfigurationType.AUTHENTICATION.name(),
+                    OIDCClientConfiguration.ConfigurationType.AUTHORIZATION.name())),
+            OIDCClientConfiguration.DEFAULT_CONFIGURATION_TYPE.name());
+        xclass.addStaticListField(OIDCClientConfiguration.FIELD_TOKEN_SCOPE, "Token scope",
+            String.join(PIPE,
+                Arrays.asList(
+                    OIDCClientConfiguration.TokenScope.USER.name(),
+                    OIDCClientConfiguration.TokenScope.WIKI.name())),
+            OIDCClientConfiguration.DEFAULT_TOKEN_STORAGE.name());
     }
 }
