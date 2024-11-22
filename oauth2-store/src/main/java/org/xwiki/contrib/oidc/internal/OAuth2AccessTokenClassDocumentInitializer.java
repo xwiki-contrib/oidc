@@ -53,7 +53,7 @@ public class OAuth2AccessTokenClassDocumentInitializer  extends AbstractMandator
         xclass.addTextField(OAuth2AccessToken.FIELD_CLIENT_CONFIGURATION_NAME, "Client configuration name", 255);
         xclass.addPasswordField(OAuth2AccessToken.FIELD_VALUE, "Value", 255);
         xclass.addTextField(OAuth2AccessToken.FIELD_TYPE, "Type", 255);
-        xclass.addStaticListField(OAuth2AccessToken.FIELD_SCOPE, "Scope", 255, true, "");
-        xclass.addNumberField(OAuth2AccessToken.FIELD_LIFETIME, "Lifetime", 255, "long");
+        xclass.addStaticListField(OAuth2AccessToken.FIELD_SCOPE, "Scope", 10, true, "");
+        xclass.addNumberField(OAuth2AccessToken.FIELD_EXPIRES_AT, "Expires at", 255, "long");
     }
 }
