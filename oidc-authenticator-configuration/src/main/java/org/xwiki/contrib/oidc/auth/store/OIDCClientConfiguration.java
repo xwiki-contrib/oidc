@@ -210,35 +210,11 @@ public class OIDCClientConfiguration
     public static final String FIELD_ENABLE_USER = "enableUser";
 
     /**
-     * The name of the property defining if this client should be used for authentication or for authorization only.
+     * The name of the property defining if this client should be used for authentication.
      *
      * @since 2.14.0
      */
-    public static final String FIELD_CONFIGURATION_TYPE = "configurationType";
-
-    /**
-     * Allowed configuration types.
-     *
-     * @since 2.14.0
-     */
-    public enum ConfigurationType
-    {
-        /**
-         * Authentication : this client should be used to authenticate users to the wiki.
-         */
-        AUTHENTICATION,
-        /**
-         * Authorization : the client should be used to fetch authorization to third party services.
-         */
-        AUTHORIZATION
-    }
-
-    /**
-     * The default configuration type.
-     *
-     * @since 2.14.0
-     */
-    public static final ConfigurationType DEFAULT_CONFIGURATION_TYPE = ConfigurationType.AUTHENTICATION;
+    public static final String FIELD_IS_USED_FOR_AUTHENTICATION = "isUsedForAuthentication";
 
     /**
      * Define the scope of authorization tokens in case we are dealing with an authorization client.
@@ -790,25 +766,21 @@ public class OIDCClientConfiguration
     }
 
     /**
-     * @return the type of configuration
+     * @return true if the configuration can be used for OIDC authentication
      * @since 2.14.0
      */
-    public ConfigurationType getConfigurationType()
+    public boolean isUsedForAuthentication()
     {
-        try {
-            return ConfigurationType.valueOf(xobject.getStringValue(FIELD_CONFIGURATION_TYPE));
-        } catch (IllegalArgumentException e) {
-            return DEFAULT_CONFIGURATION_TYPE;
-        }
+        return (this.xobject.getIntValue(FIELD_IS_USED_FOR_AUTHENTICATION, 1) == 1);
     }
 
     /**
-     * @param configurationType the type of the configuration
+     * @param isUsedForAuthentication whether the configuration can be used for authentication
      * @since 2.14.0
      */
-    public void setConfigurationType(ConfigurationType configurationType)
+    public void setIsUsedForAuthentication(boolean isUsedForAuthentication)
     {
-        this.xobject.setStringValue(FIELD_CONFIGURATION_TYPE, configurationType.name());
+        this.xobject.setIntValue(FIELD_IS_USED_FOR_AUTHENTICATION, isUsedForAuthentication ? 1 : 0);
     }
 
     /**

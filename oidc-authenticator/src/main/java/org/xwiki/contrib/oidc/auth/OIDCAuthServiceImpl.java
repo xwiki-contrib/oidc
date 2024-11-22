@@ -228,6 +228,9 @@ public class OIDCAuthServiceImpl extends XWikiAuthServiceImpl
         // Remember various stuff in the session so that callback can access it
         XWikiRequest request = context.getRequest();
 
+        // Clear previous OIDC session information
+        this.configuration.getOIDCSession(true).clear();
+
         // Get configured response type
         ResponseType responseType = this.configuration.getResponseType();
 
