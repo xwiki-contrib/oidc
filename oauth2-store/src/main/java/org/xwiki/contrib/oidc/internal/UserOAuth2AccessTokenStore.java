@@ -54,6 +54,6 @@ public class UserOAuth2AccessTokenStore extends AbstractOAuth2AccessTokenStore
     @Override
     public AccessToken getAccessToken(OIDCClientConfiguration configuration) throws OAuth2Exception
     {
-        return getAccessToken(documentAccessBridge.getCurrentUserReference(), configuration).toAccessToken();
+        return getAccessToken(documentAccessBridge.getCurrentUserReference(), configuration);
     }
 }

@@ -56,7 +56,7 @@ public class WikiOAuth2AccessTokenStore extends AbstractOAuth2AccessTokenStore
     @Override
     public AccessToken getAccessToken(OIDCClientConfiguration configuration) throws OAuth2Exception
     {
-        return getAccessToken(getDocumentReference(), configuration).toAccessToken();
+        return getAccessToken(getDocumentReference(), configuration);
     }
 
     private DocumentReference getDocumentReference()

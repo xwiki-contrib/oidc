@@ -36,6 +36,7 @@ import com.xpn.xwiki.XWiki;
 import com.xpn.xwiki.XWikiContext;
 import com.xpn.xwiki.XWikiException;
 import com.xpn.xwiki.doc.XWikiDocument;
+import com.xpn.xwiki.objects.BaseObject;
 
 /**
  * Abstract implementation of {@link OAuth2AccessTokenStore} which provides some utility methods to subclasses.
@@ -54,7 +55,14 @@ public abstract class AbstractOAuth2AccessTokenStore implements OAuth2AccessToke
     @Inject
     protected ContextualAuthorizationManager contextualAuthorizationManager;
 
-    protected OAuth2AccessToken getAccessToken(DocumentReference documentReference,
+    protected AccessToken getAccessToken(DocumentReference documentReference, OIDCClientConfiguration configuration)
+        throws OAuth2Exception
+    {
+        OAuth2AccessToken oAuth2AccessToken = getOAuth2AccessToken(documentReference, configuration);
+        return (oAuth2AccessToken == null) ? null : oAuth2AccessToken.toAccessToken();
+    }
+
+    protected OAuth2AccessToken getOAuth2AccessToken(DocumentReference documentReference,
         OIDCClientConfiguration configuration)
         throws OAuth2Exception
     {
@@ -64,7 +72,13 @@ public abstract class AbstractOAuth2AccessTokenStore implements OAuth2AccessToke
         try {
             XWikiDocument document = xwiki.getDocument(documentReference, context);
 
-            return getAccessTokenFromDocument(document, configuration.getConfigurationName());
+            if (document.isNew() || document.getXObject(
+                OAuth2AccessToken.CLASS_REFERENCE, OAuth2AccessToken.FIELD_CLIENT_CONFIGURATION_NAME,
+                configuration.getConfigurationName(), false) == null) {
+                return null;
+            } else {
+                return getOAuth2AccessTokenFromDocument(document, configuration.getConfigurationName());
+            }
         } catch (XWikiException e) {
             throw new OAuth2Exception(String.format("Failed to get access token for [%s] in [%s]",
                 configuration.getConfigurationName(), documentReference), e);
@@ -81,9 +95,13 @@ public abstract class AbstractOAuth2AccessTokenStore implements OAuth2AccessToke
             XWikiDocument document = xwiki.getDocument(documentReference, context);
 
             if (contextualAuthorizationManager.hasAccess(Right.EDIT, documentReference)) {
-                OAuth2AccessToken token = getAccessTokenFromDocument(document, configuration.getConfigurationName());
+                OAuth2AccessToken token =
+                    getOAuth2AccessTokenFromDocument(document, configuration.getConfigurationName());
                 token.fromAccessToken(accessToken);
 
+                // Don't create a new version of the document upon save
+                document.setContentDirty(false);
+                document.setMetaDataDirty(false);
                 xwiki.saveDocument(document, String.format("Save OAuth2 access token for [%s]",
                     configuration.getConfigurationName()), context);
             } else {
@@ -97,12 +115,16 @@ public abstract class AbstractOAuth2AccessTokenStore implements OAuth2AccessToke
         }
     }
 
-    private OAuth2AccessToken getAccessTokenFromDocument(XWikiDocument document, String clientConfigurationName)
-        throws XWikiException
+    private OAuth2AccessToken getOAuth2AccessTokenFromDocument(XWikiDocument document,
+        String clientConfigurationName) throws XWikiException
     {
-        OAuth2AccessToken accessToken = new OAuth2AccessToken(
-            document.getXObject(OAuth2AccessToken.CLASS_REFERENCE,
-                OAuth2AccessToken.FIELD_CLIENT_CONFIGURATION_NAME, clientConfigurationName, true));
+        BaseObject accessTokenObj = document.getXObject(OAuth2AccessToken.CLASS_REFERENCE,
+            OAuth2AccessToken.FIELD_CLIENT_CONFIGURATION_NAME, clientConfigurationName, false);
+        if (accessTokenObj == null) {
+            accessTokenObj = document.getXObject(OAuth2AccessToken.CLASS_REFERENCE, true, contextProvider.get());
+        }
+
+        OAuth2AccessToken accessToken = new OAuth2AccessToken(accessTokenObj);
 
         if (StringUtils.isBlank(accessToken.getClientConfigurationName())) {
             accessToken.setClientConfigurationName(clientConfigurationName);
