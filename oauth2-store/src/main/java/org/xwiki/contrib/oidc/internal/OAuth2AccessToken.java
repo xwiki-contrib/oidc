@@ -73,7 +73,7 @@ public class OAuth2AccessToken
     /**
      * The token lifetime.
      */
-    public static final String FIELD_LIFETIME = "lifetime";
+    public static final String FIELD_EXPIRES_AT = "expiresAt";
 
     private final BaseObject xobject;
 
@@ -134,19 +134,19 @@ public class OAuth2AccessToken
     }
 
     /**
-     * @return the token lifetime
+     * @return the token expiration timestamp
      */
-    public long getLifetime()
+    public long getExpiresAt()
     {
-        return this.xobject.getLongValue(FIELD_LIFETIME);
+        return this.xobject.getLongValue(FIELD_EXPIRES_AT);
     }
 
     /**
-     * @param lifetime the token lifetime
+     * @param expiresAt the token expiration timestamp
      */
-    public void setLifetime(long lifetime)
+    public void setExpiresAt(long expiresAt)
     {
-        this.xobject.setLongValue(FIELD_LIFETIME, lifetime);
+        this.xobject.setLongValue(FIELD_EXPIRES_AT, expiresAt);
     }
 
     /**
@@ -174,9 +174,10 @@ public class OAuth2AccessToken
      */
     public void fromAccessToken(AccessToken accessToken)
     {
+
         setValue(accessToken.getValue());
         setType(accessToken.getType());
-        setLifetime(accessToken.getLifetime());
+        setExpiresAt(System.currentTimeMillis() + (accessToken.getLifetime() * 1000));
         setScope(accessToken.getScope());
     }
 
@@ -187,11 +188,12 @@ public class OAuth2AccessToken
     public AccessToken toAccessToken() throws OAuth2Exception
     {
         // For now, only bearer access tokens are supported.
-        if (getType() != AccessTokenType.BEARER) {
+        if (!AccessTokenType.BEARER.equals(getType())) {
             throw new OAuth2Exception(
                 String.format("Failed to convert access token : type [%s] is unsupported.", getType().toString()));
         } else {
-            return new BearerAccessToken(getValue(), getLifetime(), getScope());
+            long lifetime = Math.min(((getExpiresAt() - System.currentTimeMillis()) / 1000), 0);
+            return new BearerAccessToken(getValue(), lifetime, getScope());
         }
     }
 
