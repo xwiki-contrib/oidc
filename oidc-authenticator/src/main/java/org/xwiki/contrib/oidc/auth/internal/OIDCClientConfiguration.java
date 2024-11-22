@@ -104,6 +104,7 @@ import com.nimbusds.openid.connect.sdk.rp.OIDCClientMetadata;
 import com.nimbusds.openid.connect.sdk.rp.OIDCClientRegistrationRequest;
 import com.xpn.xwiki.XWikiContext;
 import com.xpn.xwiki.XWikiException;
+import com.xpn.xwiki.user.api.XWikiUser;
 import com.xpn.xwiki.web.XWikiServletRequest;
 
 /**
@@ -370,19 +371,12 @@ public class OIDCClientConfiguration extends OIDCConfiguration
     public static final String PROP_ENABLE_USER = OIDCConfiguration.PREFIX_PROP + "enableUser";
 
     /**
-     * The name of the property which defines the type of this configuration.
+     * The name of the property which defines if the current configuration can be used for authentication.
      *
      * @since 2.14.0
      */
-    public static final String PROP_CONFIGURATION_TYPE = OIDCConfiguration.PREFIX_PROP + "configurationType";
-
-    /**
-     * The default configuration type.
-     *
-     * @since 2.14.0
-     */
-    public static final String PROP_DEFAULT_CONFIGURATION_TYPE =
-        org.xwiki.contrib.oidc.auth.store.OIDCClientConfiguration.DEFAULT_CONFIGURATION_TYPE.name();
+    public static final String PROP_IS_USED_FOR_AUTHENTICATION =
+        OIDCConfiguration.PREFIX_PROP + "isUsedForAuthentication";
 
     /**
      * Default client configuration to use when no configuration is defined.
@@ -1211,7 +1205,7 @@ public class OIDCClientConfiguration extends OIDCConfiguration
     public void setAccessToken(AccessToken accessToken)
     {
         org.xwiki.contrib.oidc.auth.store.OIDCClientConfiguration wikiConfiguration = getWikiClientConfiguration();
-        if (!isAuthenticationConfiguration() && wikiConfiguration != null) {
+        if (isAuthenticationConfiguration() || wikiConfiguration == null) {
             // Don't store the BearerAccessToken object directly as it could cause classloader problems when an extension is
             // upgraded
             setSessionAttribute(PROP_SESSION_ACCESSTOKEN, accessToken.getValue());
@@ -1219,8 +1213,11 @@ public class OIDCClientConfiguration extends OIDCConfiguration
             // In case we are simply authorizing XWiki to connect to the resource server, store the
             // token in the access token store
             try {
+                XWikiContext context = contextProvider.get();
+                XWikiUser user = context.getWiki().checkAuth(context);
+                context.setUserReference(user.getUserReference());
                 accessTokenStore.setAccessToken(wikiConfiguration, accessToken);
-            } catch (OAuth2Exception e) {
+            } catch (OAuth2Exception | XWikiException e) {
                 logger.error("Failed to save access token [{}] for configuration [{}]",
                     accessToken, wikiConfiguration, e);
             }
@@ -1349,8 +1346,7 @@ public class OIDCClientConfiguration extends OIDCConfiguration
      */
     public boolean isAuthenticationConfiguration()
     {
-        return getProperty(PROP_CONFIGURATION_TYPE, PROP_DEFAULT_CONFIGURATION_TYPE).equals(
-            org.xwiki.contrib.oidc.auth.store.OIDCClientConfiguration.ConfigurationType.AUTHENTICATION.name());
+        return getProperty(PROP_IS_USED_FOR_AUTHENTICATION, true);
     }
 
     /**
@@ -1358,8 +1354,14 @@ public class OIDCClientConfiguration extends OIDCConfiguration
      */
     private String getOIDCProviderName()
     {
-        String cookieName =
-            configuration.getProperty(CLIENT_CONFIGURATION_COOKIE_PROPERTY, DEFAULT_OIDC_CONFIGURATION_COOKIE);
+        // Check if the session has a key indicating which configuration to use
+        // We rely on the fact that the OIDC session is cleared before any authentication or authorization attempt
+        String sessionProviderName = getSessionAttribute(DEFAULT_CLIENT_CONFIGURATION_PROPERTY);
+        if (sessionProviderName != null) {
+            return sessionProviderName;
+        }
+
+        String cookieName = configuration.getProperty(CLIENT_CONFIGURATION_COOKIE_PROPERTY, DEFAULT_OIDC_CONFIGURATION_COOKIE);
 
         String fallbackProviderName =
             configuration.getProperty(DEFAULT_CLIENT_CONFIGURATION_PROPERTY, DEFAULT_CLIENT_CONFIGURATION);
@@ -1377,12 +1379,6 @@ public class OIDCClientConfiguration extends OIDCConfiguration
 
                 return cookie.getValue();
             }
-        }
-
-        // Check if the session has a key indicating which configuration to use
-        String sessionProviderName = getSessionAttribute(DEFAULT_CLIENT_CONFIGURATION_PROPERTY);
-        if (sessionProviderName != null) {
-            return sessionProviderName;
         }
 
         return fallbackProviderName;
@@ -1505,6 +1501,9 @@ public class OIDCClientConfiguration extends OIDCConfiguration
                 break;
             case PROP_ENABLE_USER:
                 returnValue = clientConfiguration.getEnableUser();
+                break;
+            case PROP_IS_USED_FOR_AUTHENTICATION:
+                returnValue = clientConfiguration.isUsedForAuthentication();
                 break;
         }
 

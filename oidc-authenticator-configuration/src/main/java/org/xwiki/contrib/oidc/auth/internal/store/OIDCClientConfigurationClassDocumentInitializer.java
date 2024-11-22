@@ -105,6 +105,8 @@ public class OIDCClientConfigurationClassDocumentInitializer extends AbstractMan
                     OIDCClientConfiguration.ConfigurationType.AUTHENTICATION.name(),
                     OIDCClientConfiguration.ConfigurationType.AUTHORIZATION.name())),
             OIDCClientConfiguration.DEFAULT_CONFIGURATION_TYPE.name());
+        xclass.addBooleanField(OIDCClientConfiguration.FIELD_IS_USED_FOR_AUTHENTICATION,
+            "Can this configuration be used for authentication ?", SELECT, true);
         xclass.addStaticListField(OIDCClientConfiguration.FIELD_TOKEN_SCOPE, "Token scope",
             String.join(PIPE,
                 Arrays.asList(

@@ -219,7 +219,7 @@ public class CallbackOIDCEndpoint implements OIDCEndpoint
                 this.configuration.setAccessToken(accessToken);
 
                 // Also parse and validate the id token if we don't already have it
-                if (idToken == null) {
+                if (configuration.isAuthenticationConfiguration() && idToken == null) {
                     idToken = parseIdToken(null, tokenResponse.getOIDCTokens().getIDToken(),
                         authenticationResponse.getIssuer());
                 }
