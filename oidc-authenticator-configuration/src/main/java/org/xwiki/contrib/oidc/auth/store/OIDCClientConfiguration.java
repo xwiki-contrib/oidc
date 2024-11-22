@@ -219,35 +219,11 @@ public class OIDCClientConfiguration
     public static final String FIELD_AFTER_LOGOUT_URL = "afterLogoutURL";
 
     /**
-     * The name of the property defining if this client should be used for authentication or for authorization only.
+     * The name of the property defining if this client should be used for authentication.
      *
      * @since 2.14.0
      */
-    public static final String FIELD_CONFIGURATION_TYPE = "configurationType";
-
-    /**
-     * Allowed configuration types.
-     *
-     * @since 2.14.0
-     */
-    public enum ConfigurationType
-    {
-        /**
-         * Authentication : this client should be used to authenticate users to the wiki.
-         */
-        AUTHENTICATION,
-        /**
-         * Authorization : the client should be used to fetch authorization to third party services.
-         */
-        AUTHORIZATION
-    }
-
-    /**
-     * The default configuration type.
-     *
-     * @since 2.14.0
-     */
-    public static final ConfigurationType DEFAULT_CONFIGURATION_TYPE = ConfigurationType.AUTHENTICATION;
+    public static final String FIELD_IS_USED_FOR_AUTHENTICATION = "isUsedForAuthentication";
 
     /**
      * Define the scope of authorization tokens in case we are dealing with an authorization client.
@@ -799,7 +775,6 @@ public class OIDCClientConfiguration
     }
 
     /**
-<<<<<<< HEAD
      * @return the url to be redirected after logout.
      * @since 2.13.2
      */
@@ -815,26 +790,24 @@ public class OIDCClientConfiguration
     public void setAfterLogoutURL(String url)
     {
         this.xobject.setStringValue(FIELD_AFTER_LOGOUT_URL, StringUtils.trimToEmpty(url));
-=======
-     * @return the type of configuration
-     * @since 2.14.0
-     */
-    public ConfigurationType getConfigurationType()
-    {
-        try {
-            return ConfigurationType.valueOf(xobject.getStringValue(FIELD_CONFIGURATION_TYPE));
-        } catch (IllegalArgumentException e) {
-            return DEFAULT_CONFIGURATION_TYPE;
-        }
     }
 
     /**
-     * @param configurationType the type of the configuration
+     * @return true if the configuration can be used for OIDC authentication
      * @since 2.14.0
      */
-    public void setConfigurationType(ConfigurationType configurationType)
+    public boolean isUsedForAuthentication()
     {
-        this.xobject.setStringValue(FIELD_CONFIGURATION_TYPE, configurationType.name());
+        return (this.xobject.getIntValue(FIELD_IS_USED_FOR_AUTHENTICATION, 1) == 1);
+    }
+
+    /**
+     * @param isUsedForAuthentication whether the configuration can be used for authentication
+     * @since 2.14.0
+     */
+    public void setIsUsedForAuthentication(boolean isUsedForAuthentication)
+    {
+        this.xobject.setIntValue(FIELD_IS_USED_FOR_AUTHENTICATION, isUsedForAuthentication ? 1 : 0);
     }
 
     /**
@@ -857,6 +830,5 @@ public class OIDCClientConfiguration
     public void setTokenScope(TokenScope tokenScope)
     {
         this.xobject.setStringValue(FIELD_TOKEN_SCOPE, tokenScope.name());
->>>>>>> 0befdc7 (OIDC-204 : Add support for OAuth2 Authorization Code Flow)
     }
 }
