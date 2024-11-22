@@ -1,0 +1,2 @@
+org.xwiki.contrib.oidc.internal.DefaultOAuth2ClientManager
+org.xwiki.contrib.oidc.OAuth2ClientScriptService
