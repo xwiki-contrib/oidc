@@ -21,6 +21,7 @@ package org.xwiki.contrib.oidc.internal;
 
 import java.util.Arrays;
 
+import org.apache.commons.lang3.StringUtils;
 import org.xwiki.contrib.oidc.OAuth2Exception;
 import org.xwiki.model.reference.LocalDocumentReference;
 
@@ -28,27 +29,28 @@ import com.nimbusds.oauth2.sdk.Scope;
 import com.nimbusds.oauth2.sdk.token.AccessToken;
 import com.nimbusds.oauth2.sdk.token.AccessTokenType;
 import com.nimbusds.oauth2.sdk.token.BearerAccessToken;
+import com.nimbusds.oauth2.sdk.token.RefreshToken;
 import com.xpn.xwiki.XWiki;
 import com.xpn.xwiki.objects.BaseObject;
 
 /**
- * A helper wrapping a BaseObject to make easier to manipulate access tokens.
+ * A helper wrapping a BaseObject to make easier to manipulate tokens.
  *
  * @version $Id$
  * @since 1.25
  */
-public class OAuth2AccessToken
+public class OAuth2Token
 {
     /**
      * The full name of the access token class.
      */
-    public static final String CLASS_FULLNAME = "XWiki.OAuth2.AccessTokenClass";
+    public static final String CLASS_FULLNAME = "XWiki.OAuth2.TokenClass";
 
     /**
      * The local reference of the access token class.
      */
     public static final LocalDocumentReference CLASS_REFERENCE =
-        new LocalDocumentReference(Arrays.asList(XWiki.SYSTEM_SPACE, "OAuth2"), "AccessTokenClass");
+        new LocalDocumentReference(Arrays.asList(XWiki.SYSTEM_SPACE, "OAuth2"), "TokenClass");
 
     /**
      * The name of the client configuration to which this token relates to.
@@ -56,9 +58,14 @@ public class OAuth2AccessToken
     public static final String FIELD_CLIENT_CONFIGURATION_NAME = "clientConfigurationName";
 
     /**
-     * The token value.
+     * The access token.
      */
-    public static final String FIELD_VALUE = "value";
+    public static final String FIELD_ACCESS_TOKEN = "accessToken";
+
+    /**
+     * The refresh token.
+     */
+    public static final String FIELD_REFRESH_TOKEN = "refreshToken";
 
     /**
      * The token type.
@@ -80,7 +87,7 @@ public class OAuth2AccessToken
     /**
      * @param xobject the actual XWiki object
      */
-    public OAuth2AccessToken(BaseObject xobject)
+    public OAuth2Token(BaseObject xobject)
     {
         this.xobject = xobject;
     }
@@ -102,19 +109,35 @@ public class OAuth2AccessToken
     }
 
     /**
-     * @return the token value
+     * @return the access token value
      */
-    public String getValue()
+    public String getAccessToken()
     {
-        return this.xobject.getStringValue(FIELD_VALUE);
+        return this.xobject.getStringValue(FIELD_ACCESS_TOKEN);
     }
 
     /**
-     * @param value the token value
+     * @param accessToken the access token
      */
-    public void setValue(String value)
+    public void setAccessToken(String accessToken)
     {
-        this.xobject.setStringValue(FIELD_VALUE, value);
+        this.xobject.setStringValue(FIELD_ACCESS_TOKEN, accessToken);
+    }
+
+    /**
+     * @return the refresh token value
+     */
+    public String getRefreshToken()
+    {
+        return this.xobject.getStringValue(FIELD_REFRESH_TOKEN);
+    }
+
+    /**
+     * @param refreshToken the refresh token
+     */
+    public void setRefreshToken(String refreshToken)
+    {
+        this.xobject.setStringValue(FIELD_REFRESH_TOKEN, refreshToken);
     }
 
     /**
@@ -175,10 +198,22 @@ public class OAuth2AccessToken
     public void fromAccessToken(AccessToken accessToken)
     {
 
-        setValue(accessToken.getValue());
+        setAccessToken(accessToken.getValue());
         setType(accessToken.getType());
         setExpiresAt(System.currentTimeMillis() + (accessToken.getLifetime() * 1000));
         setScope(accessToken.getScope());
+    }
+
+    /**
+     * @param refreshToken the refresh token to store
+     */
+    public void fromRefreshToken(RefreshToken refreshToken)
+    {
+        if (refreshToken == null || StringUtils.isBlank(refreshToken.getValue())) {
+            setRefreshToken(null);
+        } else {
+            setRefreshToken(refreshToken.getValue());
+        }
     }
 
     /**
@@ -193,8 +228,16 @@ public class OAuth2AccessToken
                 String.format("Failed to convert access token : type [%s] is unsupported.", getType().toString()));
         } else {
             long lifetime = Math.min(((getExpiresAt() - System.currentTimeMillis()) / 1000), 0);
-            return new BearerAccessToken(getValue(), lifetime, getScope());
+            return new BearerAccessToken(getAccessToken(), lifetime, getScope());
         }
+    }
+
+    /**
+     * @return the refresh token corresponding to the stored token, or null if the token doesn't exist
+     */
+    public RefreshToken toRefreshToken()
+    {
+        return StringUtils.isBlank(getRefreshToken()) ? null : new RefreshToken(getRefreshToken());
     }
 
 }
