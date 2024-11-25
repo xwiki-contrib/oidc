@@ -54,7 +54,7 @@ public class OAuth2ClientScriptService implements ScriptService
     private OIDCClientConfigurationStore clientConfigurationStore;
 
     @Inject
-    private OAuth2AccessTokenStore accessTokenStore;
+    private OAuth2TokenStore tokenStore;
 
     @Inject
     private ContextualAuthorizationManager authorizationManager;
@@ -93,7 +93,7 @@ public class OAuth2ClientScriptService implements ScriptService
 
             if (!(force && isWikiAdmin)) {
                 // Check if an access token already exists for this configuration
-                AccessToken accessToken = accessTokenStore.getAccessToken(configuration);
+                AccessToken accessToken = tokenStore.getAccessToken(configuration);
                 if (accessToken != null && accessToken.getLifetime() > System.currentTimeMillis()) {
                     throw new OAuth2Exception(
                         String.format("Configuration [%s] is already authorized", configurationName));
@@ -120,7 +120,7 @@ public class OAuth2ClientScriptService implements ScriptService
      */
     public AccessToken getAccessToken(String configurationName) throws OAuth2Exception
     {
-        return accessTokenStore.getAccessToken(getConfigurationFromName(configurationName));
+        return tokenStore.getAccessToken(getConfigurationFromName(configurationName));
     }
 
     private OIDCClientConfiguration getConfigurationFromName(String name) throws OAuth2Exception

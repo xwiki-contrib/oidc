@@ -23,6 +23,7 @@ import org.xwiki.component.annotation.Role;
 import org.xwiki.contrib.oidc.auth.store.OIDCClientConfiguration;
 
 import com.nimbusds.oauth2.sdk.token.AccessToken;
+import com.nimbusds.oauth2.sdk.token.RefreshToken;
 
 /**
  * Interface to get and set OAuth2 access tokens.
@@ -31,16 +32,18 @@ import com.nimbusds.oauth2.sdk.token.AccessToken;
  * @since 2.14.0
  */
 @Role
-public interface OAuth2AccessTokenStore
+public interface OAuth2TokenStore
 {
     /**
      * Save the oauth2 access token.
      *
      * @param configuration the client configuration to use
      * @param accessToken the access token to be saved
+     * @param refreshToken the refresh token
      * @throws OAuth2Exception if an error happens
      */
-    void setAccessToken(OIDCClientConfiguration configuration, AccessToken accessToken) throws OAuth2Exception;
+    void setToken(OIDCClientConfiguration configuration, AccessToken accessToken, RefreshToken refreshToken)
+        throws OAuth2Exception;
 
     /**
      * Retrieve the access token related to the given client configuration. Returns null if no token is found.
@@ -50,4 +53,13 @@ public interface OAuth2AccessTokenStore
      * @throws OAuth2Exception if an error happens
      */
     AccessToken getAccessToken(OIDCClientConfiguration configuration) throws OAuth2Exception;
+
+    /**
+     * Retrieve the refresh token related to the given client configuration. Returns null if no token is found.
+     *
+     * @param configuration the client configuration to use
+     * @return the corresponding refresh token, or null if no token is found
+     * @throws OAuth2Exception if an error happens
+     */
+    RefreshToken getRefreshToken(OIDCClientConfiguration configuration) throws OAuth2Exception;
 }

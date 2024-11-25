@@ -37,7 +37,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.xwiki.container.Container;
-import org.xwiki.contrib.oidc.OAuth2AccessTokenStore;
+import org.xwiki.contrib.oidc.OAuth2TokenStore;
 import org.xwiki.contrib.oidc.auth.internal.session.ClientProviders;
 import org.xwiki.contrib.oidc.auth.internal.store.DefaultOIDCUserStore;
 import org.xwiki.contrib.oidc.auth.internal.store.OIDCUserClassDocumentInitializer;
@@ -141,7 +141,7 @@ class OIDCUserManagerTest
     MockitoOldcore oldcore;
 
     @MockComponent
-    OAuth2AccessTokenStore accessTokenStore;
+    OAuth2TokenStore tokenStore;
 
     private DocumentReference xwikiallgroupReference;
 

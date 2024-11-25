@@ -19,41 +19,42 @@
  */
 package org.xwiki.contrib.oidc.internal;
 
-import javax.inject.Inject;
 import javax.inject.Named;
 
-import org.xwiki.bridge.DocumentAccessBridge;
 import org.xwiki.component.annotation.Component;
-import org.xwiki.contrib.oidc.OAuth2Exception;
-import org.xwiki.contrib.oidc.auth.store.OIDCClientConfiguration;
 
-import com.nimbusds.oauth2.sdk.token.AccessToken;
+import com.xpn.xwiki.doc.AbstractMandatoryClassInitializer;
+import com.xpn.xwiki.objects.classes.BaseClass;
 
 import groovy.lang.Singleton;
 
 /**
- * Store for OAuth2 access token based on user profiles.
+ * Document initializer for the OAuth2 Token configuration class.
  *
  * @version $Id$
  * @since 2.14.0
  */
 @Component
-@Named("user")
+@Named(OAuth2Token.CLASS_FULLNAME)
 @Singleton
-public class UserOAuth2AccessTokenStore extends AbstractOAuth2AccessTokenStore
+public class OAuth2TokenClassDocumentInitializer extends AbstractMandatoryClassInitializer
 {
-    @Inject
-    private DocumentAccessBridge documentAccessBridge;
-
-    @Override
-    public void setAccessToken(OIDCClientConfiguration configuration, AccessToken accessToken) throws OAuth2Exception
+    /**
+     * Builds a new {@link OAuth2TokenClassDocumentInitializer}.
+     */
+    public OAuth2TokenClassDocumentInitializer()
     {
-        saveAccessToken(documentAccessBridge.getCurrentUserReference(), configuration, accessToken);
+        super(OAuth2Token.CLASS_REFERENCE, "OAuth2 Token Class");
     }
 
     @Override
-    public AccessToken getAccessToken(OIDCClientConfiguration configuration) throws OAuth2Exception
+    protected void createClass(BaseClass xclass)
     {
-        return getAccessToken(documentAccessBridge.getCurrentUserReference(), configuration);
+        xclass.addTextField(OAuth2Token.FIELD_CLIENT_CONFIGURATION_NAME, "Client configuration name", 255);
+        xclass.addPasswordField(OAuth2Token.FIELD_ACCESS_TOKEN, "Access token", 255);
+        xclass.addPasswordField(OAuth2Token.FIELD_REFRESH_TOKEN, "Refresh token", 255);
+        xclass.addTextField(OAuth2Token.FIELD_TYPE, "Type", 255);
+        xclass.addStaticListField(OAuth2Token.FIELD_SCOPE, "Scope", 10, true, "");
+        xclass.addNumberField(OAuth2Token.FIELD_EXPIRES_AT, "Expires at", 255, "long");
     }
 }
