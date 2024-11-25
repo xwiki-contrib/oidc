@@ -56,7 +56,7 @@ import org.xwiki.container.Container;
 import org.xwiki.container.Request;
 import org.xwiki.container.Session;
 import org.xwiki.container.servlet.ServletSession;
-import org.xwiki.contrib.oidc.OAuth2AccessTokenStore;
+import org.xwiki.contrib.oidc.OAuth2TokenStore;
 import org.xwiki.contrib.oidc.OAuth2Exception;
 import org.xwiki.contrib.oidc.OIDCIdToken;
 import org.xwiki.contrib.oidc.OIDCUserInfo;
@@ -91,6 +91,7 @@ import com.nimbusds.oauth2.sdk.id.ClientID;
 import com.nimbusds.oauth2.sdk.id.Issuer;
 import com.nimbusds.oauth2.sdk.token.AccessToken;
 import com.nimbusds.oauth2.sdk.token.BearerAccessToken;
+import com.nimbusds.oauth2.sdk.token.RefreshToken;
 import com.nimbusds.openid.connect.sdk.Nonce;
 import com.nimbusds.openid.connect.sdk.OIDCClaimsRequest;
 import com.nimbusds.openid.connect.sdk.OIDCScopeValue;
@@ -416,7 +417,7 @@ public class OIDCClientConfiguration extends OIDCConfiguration
     private Set<String> mandatoryXWikiGroups;
 
     @Inject
-    private OAuth2AccessTokenStore accessTokenStore;
+    private OAuth2TokenStore tokenStore;
 
     /**
      * @since 2.4.0
@@ -1202,7 +1203,7 @@ public class OIDCClientConfiguration extends OIDCConfiguration
     /**
      * @since 1.2
      */
-    public void setAccessToken(AccessToken accessToken)
+    public void setAccessToken(AccessToken accessToken, RefreshToken refreshToken)
     {
         org.xwiki.contrib.oidc.auth.store.OIDCClientConfiguration wikiConfiguration = getWikiClientConfiguration();
         if (isAuthenticationConfiguration() || wikiConfiguration == null) {
@@ -1216,7 +1217,7 @@ public class OIDCClientConfiguration extends OIDCConfiguration
                 XWikiContext context = contextProvider.get();
                 XWikiUser user = context.getWiki().checkAuth(context);
                 context.setUserReference(user.getUserReference());
-                accessTokenStore.setAccessToken(wikiConfiguration, accessToken);
+                tokenStore.setToken(wikiConfiguration, accessToken, refreshToken);
             } catch (OAuth2Exception | XWikiException e) {
                 logger.error("Failed to save access token [{}] for configuration [{}]",
                     accessToken, wikiConfiguration, e);

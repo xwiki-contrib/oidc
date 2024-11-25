@@ -79,6 +79,7 @@ import com.nimbusds.oauth2.sdk.id.ClientID;
 import com.nimbusds.oauth2.sdk.id.Issuer;
 import com.nimbusds.oauth2.sdk.id.State;
 import com.nimbusds.oauth2.sdk.token.AccessToken;
+import com.nimbusds.oauth2.sdk.token.RefreshToken;
 import com.nimbusds.openid.connect.sdk.AuthenticationSuccessResponse;
 import com.nimbusds.openid.connect.sdk.Nonce;
 import com.nimbusds.openid.connect.sdk.OIDCClaimsRequest;
@@ -216,7 +217,7 @@ public class CallbackOIDCEndpoint implements OIDCEndpoint
                 accessToken = tokenResponse.getTokens().getBearerAccessToken();
 
                 // Store the access token in the session
-                this.configuration.setAccessToken(accessToken);
+                this.configuration.setAccessToken(accessToken, tokenResponse.getTokens().getRefreshToken());
 
                 // Also parse and validate the id token if we don't already have it
                 if (configuration.isAuthenticationConfiguration() && idToken == null) {
@@ -226,7 +227,7 @@ public class CallbackOIDCEndpoint implements OIDCEndpoint
             }
         } else {
             // Store the access token in the session
-            this.configuration.setAccessToken(accessToken);
+            this.configuration.setAccessToken(accessToken, null);
         }
 
         if (configuration.isAuthenticationConfiguration()) {

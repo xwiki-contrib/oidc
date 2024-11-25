@@ -24,7 +24,7 @@ import javax.inject.Provider;
 
 import org.apache.tika.utils.StringUtils;
 import org.slf4j.Logger;
-import org.xwiki.contrib.oidc.OAuth2AccessTokenStore;
+import org.xwiki.contrib.oidc.OAuth2TokenStore;
 import org.xwiki.contrib.oidc.OAuth2Exception;
 import org.xwiki.contrib.oidc.auth.store.OIDCClientConfiguration;
 import org.xwiki.model.reference.DocumentReference;
@@ -32,6 +32,7 @@ import org.xwiki.security.authorization.ContextualAuthorizationManager;
 import org.xwiki.security.authorization.Right;
 
 import com.nimbusds.oauth2.sdk.token.AccessToken;
+import com.nimbusds.oauth2.sdk.token.RefreshToken;
 import com.xpn.xwiki.XWiki;
 import com.xpn.xwiki.XWikiContext;
 import com.xpn.xwiki.XWikiException;
@@ -39,12 +40,12 @@ import com.xpn.xwiki.doc.XWikiDocument;
 import com.xpn.xwiki.objects.BaseObject;
 
 /**
- * Abstract implementation of {@link OAuth2AccessTokenStore} which provides some utility methods to subclasses.
+ * Abstract implementation of {@link OAuth2TokenStore} which provides some utility methods to subclasses.
  *
  * @version $Id$
  * @since 2.14.0
  */
-public abstract class AbstractOAuth2AccessTokenStore implements OAuth2AccessTokenStore
+public abstract class AbstractOAuth2TokenStore implements OAuth2TokenStore
 {
     @Inject
     protected Provider<XWikiContext> contextProvider;
@@ -58,11 +59,18 @@ public abstract class AbstractOAuth2AccessTokenStore implements OAuth2AccessToke
     protected AccessToken getAccessToken(DocumentReference documentReference, OIDCClientConfiguration configuration)
         throws OAuth2Exception
     {
-        OAuth2AccessToken oAuth2AccessToken = getOAuth2AccessToken(documentReference, configuration);
-        return (oAuth2AccessToken == null) ? null : oAuth2AccessToken.toAccessToken();
+        OAuth2Token oAuth2Token = getOAuth2Token(documentReference, configuration);
+        return (oAuth2Token == null) ? null : oAuth2Token.toAccessToken();
     }
 
-    protected OAuth2AccessToken getOAuth2AccessToken(DocumentReference documentReference,
+    protected RefreshToken getRefreshToken(DocumentReference documentReference, OIDCClientConfiguration configuration)
+        throws OAuth2Exception
+    {
+        OAuth2Token oAuth2Token = getOAuth2Token(documentReference, configuration);
+        return (oAuth2Token == null) ? null : oAuth2Token.toRefreshToken();
+    }
+
+    protected OAuth2Token getOAuth2Token(DocumentReference documentReference,
         OIDCClientConfiguration configuration)
         throws OAuth2Exception
     {
@@ -73,20 +81,21 @@ public abstract class AbstractOAuth2AccessTokenStore implements OAuth2AccessToke
             XWikiDocument document = xwiki.getDocument(documentReference, context);
 
             if (document.isNew() || document.getXObject(
-                OAuth2AccessToken.CLASS_REFERENCE, OAuth2AccessToken.FIELD_CLIENT_CONFIGURATION_NAME,
+                OAuth2Token.CLASS_REFERENCE, OAuth2Token.FIELD_CLIENT_CONFIGURATION_NAME,
                 configuration.getConfigurationName(), false) == null) {
                 return null;
             } else {
-                return getOAuth2AccessTokenFromDocument(document, configuration.getConfigurationName());
+                return getOAuth2TokenFromDocument(document, configuration.getConfigurationName());
             }
         } catch (XWikiException e) {
-            throw new OAuth2Exception(String.format("Failed to get access token for [%s] in [%s]",
+            throw new OAuth2Exception(String.format("Failed to get token for [%s] in [%s]",
                 configuration.getConfigurationName(), documentReference), e);
         }
     }
 
-    protected void saveAccessToken(DocumentReference documentReference,
-        OIDCClientConfiguration configuration, AccessToken accessToken) throws OAuth2Exception
+    protected void saveAccess(DocumentReference documentReference,
+        OIDCClientConfiguration configuration, AccessToken accessToken, RefreshToken refreshToken)
+        throws OAuth2Exception
     {
         XWikiContext context = contextProvider.get();
         XWiki xwiki = context.getWiki();
@@ -95,41 +104,42 @@ public abstract class AbstractOAuth2AccessTokenStore implements OAuth2AccessToke
             XWikiDocument document = xwiki.getDocument(documentReference, context);
 
             if (contextualAuthorizationManager.hasAccess(Right.EDIT, documentReference)) {
-                OAuth2AccessToken token =
-                    getOAuth2AccessTokenFromDocument(document, configuration.getConfigurationName());
+                OAuth2Token token =
+                    getOAuth2TokenFromDocument(document, configuration.getConfigurationName());
                 token.fromAccessToken(accessToken);
+                token.fromRefreshToken(refreshToken);
 
                 // Don't create a new version of the document upon save
                 document.setContentDirty(false);
                 document.setMetaDataDirty(false);
-                xwiki.saveDocument(document, String.format("Save OAuth2 access token for [%s]",
+                xwiki.saveDocument(document, String.format("Save OAuth2 token for [%s]",
                     configuration.getConfigurationName()), context);
             } else {
                 throw new OAuth2Exception(
-                    String.format("Current user [%s] has no edit rights on [%s] to save access token for [%s]",
+                    String.format("Current user [%s] has no edit rights on [%s] to save token for [%s]",
                         context.getUserReference(), documentReference, configuration.getConfigurationName()));
             }
         } catch (XWikiException e) {
-            throw new OAuth2Exception(String.format("Failed to save access token for [%s] in [%s]",
+            throw new OAuth2Exception(String.format("Failed to save token for [%s] in [%s]",
                 configuration.getConfigurationName(), documentReference), e);
         }
     }
 
-    private OAuth2AccessToken getOAuth2AccessTokenFromDocument(XWikiDocument document,
+    private OAuth2Token getOAuth2TokenFromDocument(XWikiDocument document,
         String clientConfigurationName) throws XWikiException
     {
-        BaseObject accessTokenObj = document.getXObject(OAuth2AccessToken.CLASS_REFERENCE,
-            OAuth2AccessToken.FIELD_CLIENT_CONFIGURATION_NAME, clientConfigurationName, false);
-        if (accessTokenObj == null) {
-            accessTokenObj = document.getXObject(OAuth2AccessToken.CLASS_REFERENCE, true, contextProvider.get());
+        BaseObject tokenObj = document.getXObject(OAuth2Token.CLASS_REFERENCE,
+            OAuth2Token.FIELD_CLIENT_CONFIGURATION_NAME, clientConfigurationName, false);
+        if (tokenObj == null) {
+            tokenObj = document.getXObject(OAuth2Token.CLASS_REFERENCE, true, contextProvider.get());
         }
 
-        OAuth2AccessToken accessToken = new OAuth2AccessToken(accessTokenObj);
+        OAuth2Token token = new OAuth2Token(tokenObj);
 
-        if (StringUtils.isBlank(accessToken.getClientConfigurationName())) {
-            accessToken.setClientConfigurationName(clientConfigurationName);
+        if (StringUtils.isBlank(token.getClientConfigurationName())) {
+            token.setClientConfigurationName(clientConfigurationName);
         }
 
-        return accessToken;
+        return token;
     }
 }

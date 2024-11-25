@@ -24,31 +24,33 @@ import javax.inject.Inject;
 import org.xwiki.component.annotation.Component;
 import org.xwiki.component.manager.ComponentLookupException;
 import org.xwiki.component.manager.ComponentManager;
-import org.xwiki.contrib.oidc.OAuth2AccessTokenStore;
+import org.xwiki.contrib.oidc.OAuth2TokenStore;
 import org.xwiki.contrib.oidc.OAuth2Exception;
 import org.xwiki.contrib.oidc.auth.store.OIDCClientConfiguration;
 
 import com.nimbusds.oauth2.sdk.token.AccessToken;
+import com.nimbusds.oauth2.sdk.token.RefreshToken;
 
 import groovy.lang.Singleton;
 
 /**
- * Default implementation for the {@link org.xwiki.contrib.oidc.OAuth2AccessTokenStore}.
+ * Default implementation for the {@link OAuth2TokenStore}.
  *
  * @version $Id$
  * @since 2.14.0
  */
 @Component
 @Singleton
-public class DefaultOAuth2AccessTokenStore extends AbstractOAuth2AccessTokenStore
+public class DefaultOAuth2TokenStore extends AbstractOAuth2TokenStore
 {
     @Inject
     private ComponentManager componentManager;
 
     @Override
-    public void setAccessToken(OIDCClientConfiguration configuration, AccessToken accessToken) throws OAuth2Exception
+    public void setToken(OIDCClientConfiguration configuration, AccessToken accessToken, RefreshToken refreshToken)
+        throws OAuth2Exception
     {
-        getStore(configuration.getTokenScope().name().toLowerCase()).setAccessToken(configuration, accessToken);
+        getStore(configuration.getTokenScope().name().toLowerCase()).setToken(configuration, accessToken, refreshToken);
     }
 
     @Override
@@ -57,11 +59,17 @@ public class DefaultOAuth2AccessTokenStore extends AbstractOAuth2AccessTokenStor
         return getStore(configuration.getTokenScope().name().toLowerCase()).getAccessToken(configuration);
     }
 
-    private OAuth2AccessTokenStore getStore(String hint) throws OAuth2Exception
+    @Override
+    public RefreshToken getRefreshToken(OIDCClientConfiguration configuration) throws OAuth2Exception
     {
-        if (componentManager.hasComponent(OAuth2AccessTokenStore.class, hint)) {
+        return getStore(configuration.getTokenScope().name().toLowerCase()).getRefreshToken(configuration);
+    }
+
+    private OAuth2TokenStore getStore(String hint) throws OAuth2Exception
+    {
+        if (componentManager.hasComponent(OAuth2TokenStore.class, hint)) {
             try {
-                return componentManager.getInstance(OAuth2AccessTokenStore.class, hint);
+                return componentManager.getInstance(OAuth2TokenStore.class, hint);
             } catch (ComponentLookupException e) {
                 // Shouldn't happen
                 throw new OAuth2Exception(String.format("Failed to load access token store with hint [%s]", hint));

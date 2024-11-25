@@ -29,6 +29,7 @@ import org.xwiki.contrib.oidc.auth.store.OIDCClientConfiguration;
 import org.xwiki.model.reference.DocumentReference;
 
 import com.nimbusds.oauth2.sdk.token.AccessToken;
+import com.nimbusds.oauth2.sdk.token.RefreshToken;
 import com.xpn.xwiki.internal.mandatory.XWikiPreferencesDocumentInitializer;
 
 import groovy.lang.Singleton;
@@ -42,21 +43,28 @@ import groovy.lang.Singleton;
 @Component
 @Named("wiki")
 @Singleton
-public class WikiOAuth2AccessTokenStore extends AbstractOAuth2AccessTokenStore
+public class WikiOAuth2TokenStore extends AbstractOAuth2TokenStore
 {
     @Inject
     private DocumentAccessBridge documentAccessBridge;
 
     @Override
-    public void setAccessToken(OIDCClientConfiguration configuration, AccessToken accessToken) throws OAuth2Exception
+    public void setToken(OIDCClientConfiguration configuration, AccessToken accessToken, RefreshToken refreshToken)
+        throws OAuth2Exception
     {
-        saveAccessToken(getDocumentReference(), configuration, accessToken);
+        saveAccess(getDocumentReference(), configuration, accessToken, refreshToken);
     }
 
     @Override
     public AccessToken getAccessToken(OIDCClientConfiguration configuration) throws OAuth2Exception
     {
         return getAccessToken(getDocumentReference(), configuration);
+    }
+
+    @Override
+    public RefreshToken getRefreshToken(OIDCClientConfiguration configuration) throws OAuth2Exception
+    {
+        return getRefreshToken(getDocumentReference(), configuration);
     }
 
     private DocumentReference getDocumentReference()
