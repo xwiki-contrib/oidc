@@ -335,7 +335,7 @@ public class OIDCUserManager
         // default
         StringSubstitutor substitutor = new StringSubstitutor(new OIDCStringLookup(formatMap));
 
-        String formattedSubject = formatSubjec(substitutor);
+        String formattedSubject = formatSubject(substitutor);
 
         XWikiDocument userDocument = this.store.searchDocument(idToken.getIssuer().getValue(), formattedSubject);
 
@@ -879,7 +879,7 @@ public class OIDCUserManager
         return substitutor.replace(this.configuration.getXWikiUserNameFormater());
     }
 
-    private String formatSubjec(StringSubstitutor substitutor)
+    private String formatSubject(StringSubstitutor substitutor)
     {
         return substitutor.replace(this.configuration.getSubjectFormater());
     }
