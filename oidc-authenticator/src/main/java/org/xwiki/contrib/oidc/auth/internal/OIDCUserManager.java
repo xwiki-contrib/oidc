@@ -915,7 +915,8 @@ public class OIDCUserManager
         XWikiContext context = this.xcontextProvider.get();
 
         URI redirectURI;
-        String xredirect = context.getRequest().getParameter("xredirect");
+        String xredirect = this.configuration.getLogoutRedirectURL(
+            context.getRequest().getParameter("xredirect"));
         if (xredirect != null) {
             if (xredirect.startsWith("/")) {
                 URL serverURL = context.getURLFactory().getServerURL(context);

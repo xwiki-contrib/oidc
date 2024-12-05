@@ -326,6 +326,13 @@ public class OIDCClientConfiguration extends OIDCConfiguration
      */
     public static final String PROP_LOGOUT_MECHANISM = "oidc.logoutMechanism";
 
+    /**
+     * The URL to redirect to after logout (optional).
+     *
+     * @since 2.31.2
+     */
+    private static final String PROP_LOGOUT_REDIRECT_URL = "oidc.afterLogoutURL";
+
     private static final String XWIKI_GROUP_PREFIX = "XWiki.";
 
     private static final Set<String> SAFE_PROPERTIES = SetUtils.hashSet(PROP_SKIPPED);
@@ -406,7 +413,7 @@ public class OIDCClientConfiguration extends OIDCConfiguration
         if (session instanceof ServletSession) {
             HttpSession httpSession = ((ServletSession) session).getHttpSession();
 
-            this.logger.debug("Session: {}", httpSession.getId());
+            this.logger.trace("Session: {}", httpSession.getId());
 
             Map<String, Object> oidcSession = (Map<String, Object>) httpSession.getAttribute(SESSION);
             if (oidcSession == null && create) {
@@ -422,9 +429,14 @@ public class OIDCClientConfiguration extends OIDCConfiguration
 
     public <T> T getSessionAttribute(String name)
     {
-        Map<String, Object> session = getOIDCSession(false);
-        if (session != null) {
-            return (T) session.get(name);
+        try {
+            Map<String, Object> session = getOIDCSession(false);
+            if (session != null) {
+                return (T) session.get(name);
+            }
+        } catch (IllegalStateException e) {
+            // expected if session is destroyed; e.g. after logout
+            logger.debug("failed to get [{}] from session; already expired", name);
         }
 
         return null;
@@ -1153,6 +1165,16 @@ public class OIDCClientConfiguration extends OIDCConfiguration
     }
 
     /**
+     * @param defaultLogoutURL the URL to use if none is set in the configuration.
+     * @return the URL to redirect to after logout.
+     * @since 2.32.2
+     */
+    public String getLogoutRedirectURL(String defaultLogoutURL)
+    {
+        return getProperty(PROP_LOGOUT_REDIRECT_URL, defaultLogoutURL);
+    }
+
+    /**
      * @since 1.2
      */
     public AccessToken getAccessToken()
@@ -1435,6 +1457,9 @@ public class OIDCClientConfiguration extends OIDCConfiguration
                 break;
             case PROP_LOGOUT_MECHANISM:
                 returnValue = clientConfiguration.getLogoutMechanism();
+                break;
+            case PROP_LOGOUT_REDIRECT_URL:
+                returnValue = clientConfiguration.getAfterLogoutURL();
                 break;
             case PROP_ENABLE_USER:
                 returnValue = clientConfiguration.getEnableUser();

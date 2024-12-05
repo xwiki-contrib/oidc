@@ -209,6 +209,15 @@ public class OIDCClientConfiguration
      */
     public static final String FIELD_ENABLE_USER = "enableUser";
 
+    /**
+     * The name of the property defining a dedicated URL to go to after logout.
+     * If set, after logout the browser will be redirected to that URL
+     * instead of the previous XWiki page.
+     *
+     * @since 2.13.2
+     */
+    public static final String FIELD_AFTER_LOGOUT_URL = "afterLogoutURL";
+
     private static final String LIST_SPLIT_REGEX = "(\\r?\\n|,|\\|)";
 
     private static final String JOIN_CHAR = "\n";
@@ -727,5 +736,23 @@ public class OIDCClientConfiguration
     public void setEnableUser(boolean enableUser)
     {
         this.xobject.setIntValue(FIELD_ENABLE_USER, enableUser ? 1 : 0);
+    }
+
+    /**
+     * @return the url to be redirected after logout.
+     * @since 2.13.2
+     */
+    public String getAfterLogoutURL()
+    {
+        return this.xobject.getStringValue(FIELD_AFTER_LOGOUT_URL);
+    }
+
+    /**
+     * @param url the url to redirect to after logout.
+     * @since 2.13.2
+     */
+    public void setAfterLogoutURL(String url)
+    {
+        this.xobject.setStringValue(FIELD_AFTER_LOGOUT_URL, StringUtils.trimToEmpty(url));
     }
 }
