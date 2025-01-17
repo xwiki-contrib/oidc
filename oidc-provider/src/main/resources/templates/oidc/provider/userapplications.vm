@@ -92,34 +92,36 @@
   #end
 
   {{html}}
-    <form method="post" class="xform>
-      <input type="hidden" name="form_token" value="$!{services.csrf.getToken()}" />
+    #if ($xcontext.action == 'view')
+      <form method="post" class="xform>
+        <input type="hidden" name="form_token" value="$!{services.csrf.getToken()}" />
 
-      <label id="label_application_name">
-        $escapetool.xml($services.localization.render('oidc.template.userapplications.application_name'))
-        <input type="text" id="input_application_name" name="application_name"#if($request.application_name) value="$escapetool.xml($request.application_name)"#end/>
-      </label>
+        <label id="label_application_name">
+          $escapetool.xml($services.localization.render('oidc.template.userapplications.application_name'))
+          <input type="text" id="input_application_name" name="application_name"#if($request.application_name) value="$escapetool.xml($request.application_name)"#end/>
+        </label>
 
-      <label id="label_expiration">
-        $escapetool.xml($services.localization.render('oidc.template.userapplications.expiration.label'))
-        <select id="select_expiration" name="expiration">
-          #expirationOptionDays(7, $expiration)
-          #expirationOptionDays(30, $expiration)
-          #expirationOptionDays(60, $expiration)
-          #expirationOptionDays(90, $expiration)
-          <option value="date"#if($expiration == 'date') selected#end>$escapetool.xml($services.localization.render('oidc.template.userapplications.expiration.custom'))</option>
-          <option value="never"#if($expiration == 'never') selected#end>$escapetool.xml($services.localization.render('oidc.template.userapplications.expiration.never'))</option>
-        </select>
-      </label>
+        <label id="label_expiration">
+          $escapetool.xml($services.localization.render('oidc.template.userapplications.expiration.label'))
+          <select id="select_expiration" name="expiration">
+            #expirationOptionDays(7, $expiration)
+            #expirationOptionDays(30, $expiration)
+            #expirationOptionDays(60, $expiration)
+            #expirationOptionDays(90, $expiration)
+            <option value="date"#if($expiration == 'date') selected#end>$escapetool.xml($services.localization.render('oidc.template.userapplications.expiration.custom'))</option>
+            <option value="never"#if($expiration == 'never') selected#end>$escapetool.xml($services.localization.render('oidc.template.userapplications.expiration.never'))</option>
+          </select>
+        </label>
 
-      <label id="label_expiration_date">
-        $escapetool.xml($services.localization.render('oidc.template.userapplications.expiration_date.label'))
-        <input id="input_expiration_date" type="date" name="expiration_date"#if($expiration_date) value="$escapetool.xml($datetool.format('yyyy-MM-dd', $expiration_date))"#end#if ($expiration != 'date') disabled#end/>
-      </label>
-      ##TODO: add support for a scope
+        <label id="label_expiration_date">
+          $escapetool.xml($services.localization.render('oidc.template.userapplications.expiration_date.label'))
+          <input id="input_expiration_date" type="date" name="expiration_date"#if($expiration_date) value="$escapetool.xml($datetool.format('yyyy-MM-dd', $expiration_date))"#end#if ($expiration != 'date') disabled#end/>
+        </label>
+        ##TODO: add support for a scope
 
-      <button class="btn btn-primary" name="oidc_consent_create">$escapetool.xml($services.localization.render("oidc.template.userapplications.create"))</button>
-    </form>
+        <button class="btn btn-primary" name="oidc_consent_create">$escapetool.xml($services.localization.render("oidc.template.userapplications.create"))</button>
+      </form>
+    #end
 
     #foreach ($consent in $services.oidc.provider.getConsents($xcontext.userReference))
       <div class="box">
@@ -141,11 +143,13 @@
           </span>
         </div>
 
-        <form method="post" class="xform pull-right">
-          <input type="hidden" name="form_token" value="$!{services.csrf.getToken()}" />
-          <input type="hidden" name="consent_id" value="$escapetool.xml($consent.id)"/>
-          <button class="btn btn-sm btn-danger" name="oidc_consent_delete">$escapetool.xml($services.localization.render("oidc.template.userapplications.delete"))</button>
-        </form>
+        #if ($xcontext.action == 'view')
+          <form method="post" class="xform pull-right">
+            <input type="hidden" name="form_token" value="$!{services.csrf.getToken()}" />
+            <input type="hidden" name="consent_id" value="$escapetool.xml($consent.id)"/>
+            <button class="btn btn-sm btn-danger" name="oidc_consent_delete">$escapetool.xml($services.localization.render("oidc.template.userapplications.delete"))</button>
+          </form>
+        #end
       </div>
     #end
   {{/html}}
