@@ -576,10 +576,13 @@ public class OIDCUserManager
         try {
             BaseClass groupClass = context.getWiki().getGroupClass(context);
 
-            // Get the XWiki document holding the objects comprising the group membership list
-            XWikiDocument groupDoc = context.getWiki().getDocument(xwikiGroupName, context);
+            synchronized (this) {
+                // Get the XWiki document holding the objects comprising the group membership list
+                XWikiDocument groupDoc = context.getWiki().getDocument(xwikiGroupName, context);
 
-            synchronized (groupDoc) {
+                // Clone the cached group document to avoid messing with other threads
+                groupDoc = groupDoc.clone();
+
                 // Get and remove the specific group membership object for the user
                 BaseObject groupObj =
                     groupDoc.getXObject(groupClass.getDocumentReference(), XWIKI_GROUP_MEMBERFIELD, xwikiUserName);
@@ -600,17 +603,20 @@ public class OIDCUserManager
      * @param xwikiGroupName the name of the group.
      * @param context the XWiki context.
      */
-    protected void addUserToXWikiGroup(String xwikiUserName, String xwikiGroupName, XWikiContext context)
+    protected synchronized void addUserToXWikiGroup(String xwikiUserName, String xwikiGroupName, XWikiContext context)
     {
         try {
             BaseClass groupClass = context.getWiki().getGroupClass(context);
 
-            // Get document representing group
-            XWikiDocument groupDoc = context.getWiki().getDocument(xwikiGroupName, context);
-
             this.logger.debug("Adding user [{}] to xwiki group [{}]", xwikiUserName, xwikiGroupName);
 
-            synchronized (groupDoc) {
+            synchronized (this) {
+                // Get document representing group
+                XWikiDocument groupDoc = context.getWiki().getDocument(xwikiGroupName, context);
+
+                // Clone the cached group document to avoid messing with other threads
+                groupDoc = groupDoc.clone();
+
                 // Make extra sure the group cannot contain duplicate (even if this method is not supposed to be called
                 // in this case)
                 List<BaseObject> xobjects = groupDoc.getXObjects(groupClass.getDocumentReference());
