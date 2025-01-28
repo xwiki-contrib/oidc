@@ -547,7 +547,7 @@ public class OIDCClientConfiguration extends OIDCConfiguration
             // Get property from request
             String requestValue = getRequestParameter(key);
             if (requestValue != null) {
-                return this.converter.convert(def.getClass(), requestValue);
+                return def != null ? this.converter.convert(def.getClass(), requestValue) : (T) requestValue;
             }
         }
 
@@ -561,7 +561,8 @@ public class OIDCClientConfiguration extends OIDCConfiguration
         org.xwiki.contrib.oidc.auth.store.OIDCClientConfiguration wikiClientConfiguration =
             getWikiClientConfiguration();
         if (wikiClientConfiguration != null) {
-            T wikiValue = getWikiConfigurationAttribute(wikiClientConfiguration, key, def.getClass());
+            T wikiValue =
+                getWikiConfigurationAttribute(wikiClientConfiguration, key, def != null ? def.getClass() : null);
             if (wikiValue != null) {
                 return wikiValue;
             }
@@ -1474,7 +1475,7 @@ public class OIDCClientConfiguration extends OIDCConfiguration
         // * empty lists
         if (returnValue != null && (!(returnValue instanceof String) || StringUtils.isNotBlank((String) returnValue))
             && (!(returnValue instanceof List) || CollectionUtils.isNotEmpty((List) returnValue))) {
-            T convertedValue = this.converter.convert(returnType, returnValue);
+            T convertedValue = returnType != null ? this.converter.convert(returnType, returnValue) : (T) returnValue;
 
             this.logger.debug("  Converted to [{}]", returnValue);
 

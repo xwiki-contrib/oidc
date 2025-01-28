@@ -37,6 +37,7 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.xwiki.configuration.ConfigurationSource;
 import org.xwiki.container.Container;
+import org.xwiki.container.Request;
 import org.xwiki.container.servlet.ServletRequest;
 import org.xwiki.contrib.oidc.auth.store.OIDCClientConfigurationStore;
 import org.xwiki.contrib.oidc.provider.internal.OIDCManager;
@@ -382,5 +383,17 @@ class OIDCClientConfigurationTest
             OIDCClientConfiguration.DEFAULT_GROUPSCLAIM)).thenReturn("groupclaim");
 
         assertEquals("groupclaim", this.configuration.getGroupClaim());
+    }
+
+    @Test
+    void getPropertyWithNullDefaultValue()
+    {
+        assertNull(this.configuration.getProperty("key", (String) null));
+
+        Request request = mock(Request.class);
+        when(request.getProperty(OIDCClientConfiguration.PROP_SKIPPED)).thenReturn("true");
+        when(this.container.getRequest()).thenReturn(request);
+
+        assertEquals("true", this.configuration.getProperty(OIDCClientConfiguration.PROP_SKIPPED, (String) null));
     }
 }
