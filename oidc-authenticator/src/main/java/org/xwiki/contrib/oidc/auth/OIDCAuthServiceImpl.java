@@ -238,12 +238,11 @@ public class OIDCAuthServiceImpl extends XWikiAuthServiceImpl
         // Remember the initial request URL
         this.configuration.setSuccessRedirectURI(URI.create(createSuccessRedirectURI(savedRequestId, context)));
 
-        maybeStoreRequestParameterInSession(request, OIDCClientConfiguration.PROP_PROVIDER);
-        maybeStoreRequestParameterInSession(request, OIDCClientConfiguration.PROP_USER_NAMEFORMATER);
-        maybeStoreRequestParameterInSession(request, OIDCClientConfiguration.PROP_USER_SUBJECTFORMATER);
-        maybeStoreRequestParameterInSession(request, OIDCClientConfiguration.PROP_ENDPOINT_AUTHORIZATION);
-        maybeStoreRequestParameterInSession(request, OIDCClientConfiguration.PROP_ENDPOINT_TOKEN);
-        maybeStoreRequestParameterInSession(request, OIDCClientConfiguration.PROP_ENDPOINT_USERINFO);
+        // Remember the provider when it's provided by the request (which is only allowed when it's not configured
+        // already)
+        if (this.configuration.getProvider() == null) {
+            maybeStoreRequestParameterInSession(request, OIDCClientConfiguration.PROP_PROVIDER);
+        }
 
         // Create the request URL
         AuthenticationRequest.Builder requestBuilder = new AuthenticationRequest.Builder(responseType,
