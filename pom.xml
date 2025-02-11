@@ -98,17 +98,7 @@
         <groupId>org.revapi</groupId>
         <artifactId>revapi-maven-plugin</artifactId>
         <configuration>
-          <analysisConfiguration>
-            <revapi.filter>
-              <archives>
-                <!-- We don't care about breakages coming from XWiki Standard. -->
-                <exclude>
-                  <item>org\.xwiki\.commons:.*:.*</item>
-                  <item>org\.xwiki\.rendering:.*:.*</item>
-                  <item>org\.xwiki\.platform:.*:.*</item>
-                </exclude>
-              </archives>
-            </revapi.filter>
+          <analysisConfiguration combine.children="append">
             <!-- Add ignores here using the following syntax. You can use a single <revapi.differences> entry but it
                  cannot be empty. You can also use different <revapi.differences> entries if you wish to use a common
                  justification for example (see example below).
