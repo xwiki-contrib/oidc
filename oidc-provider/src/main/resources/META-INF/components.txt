@@ -17,5 +17,6 @@ org.xwiki.contrib.oidc.provider.internal.session.ProviderOIDCSessions
 org.xwiki.contrib.oidc.provider.internal.store.OIDCConsentClassDocumentInitializer
 org.xwiki.contrib.oidc.provider.internal.store.OIDCConsentListener
 org.xwiki.contrib.oidc.provider.internal.store.OIDCStore
+org.xwiki.contrib.oidc.provider.internal.store.OIDCStoreListener
 org.xwiki.contrib.oidc.provider.internal.ui.UserApplicationsUIExtension
 org.xwiki.contrib.oidc.provider.script.OIDCProviderScriptService

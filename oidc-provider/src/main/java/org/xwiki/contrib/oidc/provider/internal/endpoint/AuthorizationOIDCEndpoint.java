@@ -221,8 +221,6 @@ public class AuthorizationOIDCEndpoint implements OIDCEndpoint
             }
         }
 
-        this.logger.debug("Remember authorization code [{}]", authorizationCode);
-
         // Remember authorization code
         this.oidcStore.setAuthorizationCode(authorizationCode, consent.getDocumentReference(), nonce);
 

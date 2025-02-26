@@ -46,6 +46,7 @@ import org.xwiki.model.reference.DocumentReferenceResolver;
 import org.xwiki.model.reference.EntityReference;
 import org.xwiki.model.reference.EntityReferenceResolver;
 import org.xwiki.model.reference.EntityReferenceSerializer;
+import org.xwiki.observation.ObservationManager;
 import org.xwiki.user.UserReference;
 import org.xwiki.user.UserReferenceSerializer;
 
@@ -93,25 +94,15 @@ public class OIDCStore
     private UserReferenceSerializer<DocumentReference> userReferenceSerializer;
 
     @Inject
+    private ObservationManager observation;
+
+    @Inject
     private Execution execution;
 
     @Inject
     private Logger logger;
 
-    private Map<AuthorizationCode, AuthorizationSession> authorizationSessionMap = new ConcurrentHashMap<>();
-
-    private class AuthorizationSession
-    {
-        final DocumentReference userReference;
-
-        final Nonce nonce;
-
-        AuthorizationSession(DocumentReference userReference, Nonce nonce)
-        {
-            this.userReference = userReference;
-            this.nonce = nonce;
-        }
-    }
+    Map<String, AuthorizationSession> authorizationSessionMap = new ConcurrentHashMap<>();
 
     public BaseObjectOIDCConsent getConsent(XWikiBearerAccessToken xwikiAccessToken) throws XWikiException
     {
@@ -346,9 +337,9 @@ public class OIDCStore
 
     public DocumentReference getUserReference(AuthorizationCode code)
     {
-        AuthorizationSession session = this.authorizationSessionMap.get(code);
+        AuthorizationSession session = this.authorizationSessionMap.get(code.getValue());
 
-        return session != null ? session.userReference : null;
+        return session != null ? session.getUserReference() : null;
     }
 
     /**
@@ -356,9 +347,13 @@ public class OIDCStore
      */
     public Nonce getNonce(AuthorizationCode code)
     {
-        AuthorizationSession session = this.authorizationSessionMap.get(code);
+        AuthorizationSession session = this.authorizationSessionMap.get(code.getValue());
 
-        return session != null ? session.nonce : null;
+        if (session != null) {
+            return Nonce.parse(session.getNonce());
+        }
+
+        return null;
     }
 
     /**
@@ -387,12 +382,21 @@ public class OIDCStore
      */
     public void setAuthorizationCode(AuthorizationCode code, DocumentReference userReference, Nonce nonce)
     {
-        this.authorizationSessionMap.put(code, new AuthorizationSession(userReference, nonce));
+        if (code != null) {
+            this.logger.debug("Remember authorization code [{}]", code);
+
+            this.observation.notify(new AuthorizationCodeCreatedEvent(code),
+                new AuthorizationSession(userReference, nonce));
+        }
     }
 
-    public void removeAuthorizationCode(AuthorizationCode code)
+    public void deleteAuthorizationCode(AuthorizationCode code)
     {
-        this.authorizationSessionMap.remove(code);
+        if (code != null) {
+            this.logger.debug("Delete authorization code [{}]", code);
+
+            this.observation.notify(new AuthorizationCodeDeletedEvent(code), null);
+        }
     }
 
     /**

@@ -111,7 +111,7 @@ public class TokenOIDCEndpoint implements OIDCEndpoint
             Nonce nonce = this.store.getNonce(grant.getAuthorizationCode());
 
             // Get rid of the temporary authorization code and associated metadata
-            this.store.removeAuthorizationCode(grant.getAuthorizationCode());
+            this.store.deleteAuthorizationCode(grant.getAuthorizationCode());
 
             IDTokenClaimsSet idToken =
                 this.manager.createdIdToken(clientID, consent.getUserReference(), nonce, consent.getClaims());
