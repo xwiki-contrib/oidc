@@ -1205,16 +1205,26 @@ public class OIDCClientConfiguration extends OIDCConfiguration
      */
     public void setAccessToken(AccessToken accessToken, RefreshToken refreshToken)
     {
-        org.xwiki.contrib.oidc.auth.store.OIDCClientConfiguration wikiConfiguration = getWikiClientConfiguration();
         if (isAuthenticationConfiguration()) {
             // Don't store the BearerAccessToken object directly as it could cause classloader problems when an extension is
             // upgraded
             setSessionAttribute(PROP_SESSION_ACCESSTOKEN, accessToken.getValue());
         }
+    }
+
+    /**
+     * @since 2.15.0
+     *
+     * @param accessToken the access token to store
+     * @param refreshToken the refresh token to store
+     */
+    public void storeTokens(AccessToken accessToken, RefreshToken refreshToken)
+    {
+        org.xwiki.contrib.oidc.auth.store.OIDCClientConfiguration wikiConfiguration = getWikiClientConfiguration();
 
         if (wikiConfiguration != null
             && !org.xwiki.contrib.oidc.auth.store.OIDCClientConfiguration.TokenStorageScope.NONE.equals(
-                wikiConfiguration.getTokenStorageScope())) {
+            wikiConfiguration.getTokenStorageScope())) {
             try {
                 XWikiContext context = contextProvider.get();
                 XWikiUser user = context.getWiki().checkAuth(context);

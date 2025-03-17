@@ -20,6 +20,7 @@
 package org.xwiki.contrib.oidc.internal;
 
 import java.util.Arrays;
+import java.util.Collections;
 
 import org.apache.commons.lang3.StringUtils;
 import org.xwiki.contrib.oidc.OAuth2Exception;
@@ -189,7 +190,7 @@ public class OAuth2Token
      */
     public void setScope(Scope scope)
     {
-        this.xobject.setStringListValue(FIELD_SCOPE, scope.toStringList());
+        this.xobject.setStringListValue(FIELD_SCOPE, (scope != null) ? scope.toStringList() : Collections.EMPTY_LIST);
     }
 
     /**
@@ -197,7 +198,6 @@ public class OAuth2Token
      */
     public void fromAccessToken(AccessToken accessToken)
     {
-
         setAccessToken(accessToken.getValue());
         setType(accessToken.getType());
         setExpiresAt(System.currentTimeMillis() + (accessToken.getLifetime() * 1000));

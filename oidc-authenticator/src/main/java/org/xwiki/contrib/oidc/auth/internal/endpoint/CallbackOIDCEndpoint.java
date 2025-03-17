@@ -205,6 +205,8 @@ public class CallbackOIDCEndpoint implements OIDCEndpoint
 
         // Get the access token
         AccessToken accessToken = authenticationResponse.getAccessToken();
+        RefreshToken refreshToken = null;
+
         this.logger.debug("Auth response: the provider sent back the access token [{}]", accessToken);
         if (accessToken == null) {
             this.logger.debug("Auth response: the provider did not sent back the authorization code [{}]",
@@ -215,6 +217,7 @@ public class CallbackOIDCEndpoint implements OIDCEndpoint
                     authenticationResponse.getIssuer(), this.configuration.getScope());
 
                 accessToken = tokenResponse.getTokens().getBearerAccessToken();
+                refreshToken = tokenResponse.getTokens().getRefreshToken();
 
                 // Store the access token in the session
                 this.configuration.setAccessToken(accessToken, tokenResponse.getTokens().getRefreshToken());
@@ -267,6 +270,8 @@ public class CallbackOIDCEndpoint implements OIDCEndpoint
 
             this.logger.debug("OIDC callback: principal=[{}]", principal);
         }
+
+        this.configuration.storeTokens(accessToken, refreshToken);
 
         this.logger.debug("OIDC callback: redirect=[{}]", this.configuration.getSuccessRedirectURI());
 
