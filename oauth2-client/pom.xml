@@ -27,10 +27,12 @@
     <artifactId>oidc</artifactId>
     <version>2.15.1-SNAPSHOT</version>
   </parent>
-
   <artifactId>oauth2-client</artifactId>
   <name>OAuth2 authentication client based on the OIDC Authenticator</name>
-
+  <properties>
+    <xwiki.extension.name>OAuth2 Client</xwiki.extension.name>
+    <xwiki.extension.description>Client for interacting with OAuth2 tokens</xwiki.extension.description>
+  </properties>
   <dependencies>
     <dependency>
       <groupId>${project.groupId}</groupId>
