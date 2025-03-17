@@ -99,19 +99,12 @@ public class OIDCClientConfigurationClassDocumentInitializer extends AbstractMan
         xclass.addBooleanField(OIDCClientConfiguration.FIELD_ENABLE_USER,
             "Should user profiles be enabled on first login ?", SELECT, true);
         xclass.addTextField(OIDCClientConfiguration.FIELD_AFTER_LOGOUT_URL, "URL after Logout", 255);
-        xclass.addStaticListField(OIDCClientConfiguration.FIELD_CONFIGURATION_TYPE, "Conifguration type",
+        xclass.addStaticListField(OIDCClientConfiguration.FIELD_TOKEN_STORAGE_SCOPE, "Store tokens",
             String.join(PIPE,
                 Arrays.asList(
-                    OIDCClientConfiguration.ConfigurationType.AUTHENTICATION.name(),
-                    OIDCClientConfiguration.ConfigurationType.AUTHORIZATION.name())),
-            OIDCClientConfiguration.DEFAULT_CONFIGURATION_TYPE.name());
-        xclass.addBooleanField(OIDCClientConfiguration.FIELD_IS_USED_FOR_AUTHENTICATION,
-            "Can this configuration be used for authentication ?", SELECT, true);
-        xclass.addStaticListField(OIDCClientConfiguration.FIELD_TOKEN_SCOPE, "Token scope",
-            String.join(PIPE,
-                Arrays.asList(
-                    OIDCClientConfiguration.TokenScope.USER.name(),
-                    OIDCClientConfiguration.TokenScope.WIKI.name())),
+                    OIDCClientConfiguration.TokenStorageScope.NONE.name(),
+                    OIDCClientConfiguration.TokenStorageScope.USER.name(),
+                    OIDCClientConfiguration.TokenStorageScope.WIKI.name())),
             OIDCClientConfiguration.DEFAULT_TOKEN_STORAGE.name());
     }
 }

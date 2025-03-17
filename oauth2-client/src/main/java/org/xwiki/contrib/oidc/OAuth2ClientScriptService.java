@@ -91,6 +91,11 @@ public class OAuth2ClientScriptService implements ScriptService
         try {
             OIDCClientConfiguration configuration = getConfigurationFromName(configurationName);
 
+            if (OIDCClientConfiguration.TokenStorageScope.NONE.equals(configuration.getTokenStorageScope())) {
+                throw new OAuth2Exception(
+                    String.format("Configuration [%s] does not store tokens", configurationName));
+            }
+
             if (!(force && isWikiAdmin)) {
                 // Check if an access token already exists for this configuration
                 AccessToken accessToken = tokenStore.getAccessToken(configuration);
@@ -101,7 +106,8 @@ public class OAuth2ClientScriptService implements ScriptService
             }
 
             // Ensure that only wiki administrators can authorize applications wiki-wide
-            if (OIDCClientConfiguration.TokenScope.WIKI.equals(configuration.getTokenScope()) && !isWikiAdmin) {
+            if (OIDCClientConfiguration.TokenStorageScope.WIKI.equals(
+                configuration.getTokenStorageScope()) && !isWikiAdmin) {
                 throw new OAuth2Exception(String.format(
                     "Current user is not allowed to authorize configuration [%s] on scope [%s]",
                     configurationName, configuration.getConfigurationName()));

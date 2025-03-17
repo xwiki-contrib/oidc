@@ -219,24 +219,23 @@ public class OIDCClientConfiguration
     public static final String FIELD_AFTER_LOGOUT_URL = "afterLogoutURL";
 
     /**
-     * The name of the property defining if this client should be used for authentication.
-     *
-     * @since 2.14.0
-     */
-    public static final String FIELD_IS_USED_FOR_AUTHENTICATION = "isUsedForAuthentication";
-
-    /**
      * Define the scope of authorization tokens in case we are dealing with an authorization client.
      *
-     * @since 2.14.0
+     * @since 2.15.0
      */
-    public static final String FIELD_TOKEN_SCOPE = "tokenScope";
+    public static final String FIELD_TOKEN_STORAGE_SCOPE = "tokenStorageScope";
 
     /**
-     * Defines the scope of a token.
+     * Defines where OIDC tokens should be stored.
+     *
+     * @since 2.15.0
      */
-    public enum TokenScope
+    public enum TokenStorageScope
     {
+        /**
+         * Tokens should not be stored.
+         */
+        NONE,
         /**
          * Tokens should be saved at the wiki level.
          */
@@ -250,9 +249,9 @@ public class OIDCClientConfiguration
     /**
      * The default token storage method.
      *
-     * @since 2.14.0
+     * @since 2.15.0
      */
-    public static final TokenScope DEFAULT_TOKEN_STORAGE = TokenScope.USER;
+    public static final TokenStorageScope DEFAULT_TOKEN_STORAGE = TokenStorageScope.NONE;
 
     private static final String LIST_SPLIT_REGEX = "(\\r?\\n|,|\\|)";
 
@@ -793,42 +792,24 @@ public class OIDCClientConfiguration
     }
 
     /**
-     * @return true if the configuration can be used for OIDC authentication
-     * @since 2.14.0
+     * @return the storage scope of the token
+     * @since 2.15.0
      */
-    public boolean isUsedForAuthentication()
-    {
-        return (this.xobject.getIntValue(FIELD_IS_USED_FOR_AUTHENTICATION, 1) == 1);
-    }
-
-    /**
-     * @param isUsedForAuthentication whether the configuration can be used for authentication
-     * @since 2.14.0
-     */
-    public void setIsUsedForAuthentication(boolean isUsedForAuthentication)
-    {
-        this.xobject.setIntValue(FIELD_IS_USED_FOR_AUTHENTICATION, isUsedForAuthentication ? 1 : 0);
-    }
-
-    /**
-     * @return the scope of the token
-     * @since 2.14.0
-     */
-    public TokenScope getTokenScope()
+    public TokenStorageScope getTokenStorageScope()
     {
         try {
-            return TokenScope.valueOf(xobject.getStringValue(FIELD_TOKEN_SCOPE));
+            return TokenStorageScope.valueOf(xobject.getStringValue(FIELD_TOKEN_STORAGE_SCOPE));
         } catch (IllegalArgumentException e) {
             return DEFAULT_TOKEN_STORAGE;
         }
     }
 
     /**
-     * @param tokenScope the scope of application for the access tokens
-     * @since 2.14.0
+     * @param tokenStorageScope where tokens should be stored
+     * @since 2.15.0
      */
-    public void setTokenScope(TokenScope tokenScope)
+    public void setTokenStorageScope(TokenStorageScope tokenStorageScope)
     {
-        this.xobject.setStringValue(FIELD_TOKEN_SCOPE, tokenScope.name());
+        this.xobject.setStringValue(FIELD_TOKEN_STORAGE_SCOPE, tokenStorageScope.name());
     }
 }

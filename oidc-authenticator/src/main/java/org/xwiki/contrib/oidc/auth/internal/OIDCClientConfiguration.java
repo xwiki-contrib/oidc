@@ -372,9 +372,9 @@ public class OIDCClientConfiguration extends OIDCConfiguration
     public static final String PROP_ENABLE_USER = OIDCConfiguration.PREFIX_PROP + "enableUser";
 
     /**
-     * The name of the property which defines if the current configuration can be used for authentication.
+     * The name of the session property which defines if the current configuration can be used for authentication.
      *
-     * @since 2.14.0
+     * @since 2.15.0
      */
     public static final String PROP_IS_USED_FOR_AUTHENTICATION =
         OIDCConfiguration.PREFIX_PROP + "isUsedForAuthentication";
@@ -1206,13 +1206,15 @@ public class OIDCClientConfiguration extends OIDCConfiguration
     public void setAccessToken(AccessToken accessToken, RefreshToken refreshToken)
     {
         org.xwiki.contrib.oidc.auth.store.OIDCClientConfiguration wikiConfiguration = getWikiClientConfiguration();
-        if (isAuthenticationConfiguration() || wikiConfiguration == null) {
+        if (isAuthenticationConfiguration()) {
             // Don't store the BearerAccessToken object directly as it could cause classloader problems when an extension is
             // upgraded
             setSessionAttribute(PROP_SESSION_ACCESSTOKEN, accessToken.getValue());
-        } else {
-            // In case we are simply authorizing XWiki to connect to the resource server, store the
-            // token in the access token store
+        }
+
+        if (wikiConfiguration != null
+            && !org.xwiki.contrib.oidc.auth.store.OIDCClientConfiguration.TokenStorageScope.NONE.equals(
+                wikiConfiguration.getTokenStorageScope())) {
             try {
                 XWikiContext context = contextProvider.get();
                 XWikiUser user = context.getWiki().checkAuth(context);
@@ -1347,7 +1349,13 @@ public class OIDCClientConfiguration extends OIDCConfiguration
      */
     public boolean isAuthenticationConfiguration()
     {
-        return getProperty(PROP_IS_USED_FOR_AUTHENTICATION, true);
+        Boolean sessionAttribute = getSessionAttribute(PROP_IS_USED_FOR_AUTHENTICATION);
+        if (getSessionAttribute(PROP_IS_USED_FOR_AUTHENTICATION) != null) {
+            return sessionAttribute;
+        } else {
+            // In case no attribute is defined, the default is to consider that we are authenticating.
+            return true;
+        }
     }
 
     /**
@@ -1502,9 +1510,6 @@ public class OIDCClientConfiguration extends OIDCConfiguration
                 break;
             case PROP_ENABLE_USER:
                 returnValue = clientConfiguration.getEnableUser();
-                break;
-            case PROP_IS_USED_FOR_AUTHENTICATION:
-                returnValue = clientConfiguration.isUsedForAuthentication();
                 break;
         }
 

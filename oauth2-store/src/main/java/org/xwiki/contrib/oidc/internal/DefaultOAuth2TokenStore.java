@@ -50,19 +50,30 @@ public class DefaultOAuth2TokenStore extends AbstractOAuth2TokenStore
     public void setToken(OIDCClientConfiguration configuration, AccessToken accessToken, RefreshToken refreshToken)
         throws OAuth2Exception
     {
-        getStore(configuration.getTokenScope().name().toLowerCase()).setToken(configuration, accessToken, refreshToken);
+        getStore(getStorageHint(configuration)).setToken(configuration, accessToken, refreshToken);
     }
 
     @Override
     public AccessToken getAccessToken(OIDCClientConfiguration configuration) throws OAuth2Exception
     {
-        return getStore(configuration.getTokenScope().name().toLowerCase()).getAccessToken(configuration);
+        return getStore(getStorageHint(configuration)).getAccessToken(configuration);
     }
 
     @Override
     public RefreshToken getRefreshToken(OIDCClientConfiguration configuration) throws OAuth2Exception
     {
-        return getStore(configuration.getTokenScope().name().toLowerCase()).getRefreshToken(configuration);
+        return getStore(getStorageHint(configuration)).getRefreshToken(configuration);
+    }
+
+    private String getStorageHint(OIDCClientConfiguration configuration) throws OAuth2Exception
+    {
+        OIDCClientConfiguration.TokenStorageScope scope = configuration.getTokenStorageScope();
+        if (!scope.equals(OIDCClientConfiguration.TokenStorageScope.NONE)) {
+            return scope.name().toLowerCase();
+        } else {
+            throw new OAuth2Exception(String.format("Configuration [%s] does not store tokens.",
+                configuration.getConfigurationName()));
+        }
     }
 
     private OAuth2TokenStore getStore(String hint) throws OAuth2Exception
