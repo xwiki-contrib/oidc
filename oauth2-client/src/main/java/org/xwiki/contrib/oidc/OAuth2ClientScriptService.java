@@ -41,7 +41,7 @@ import com.xpn.xwiki.XWikiException;
  * Script service to deal with OAuth2 authorizations.
  *
  * @version $Id$
- * @since 2.14.0
+ * @since 2.15.0
  */
 @Component
 @Named("oauth2client")

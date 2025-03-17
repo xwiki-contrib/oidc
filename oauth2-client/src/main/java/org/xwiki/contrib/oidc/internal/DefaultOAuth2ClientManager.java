@@ -46,7 +46,7 @@ import static org.xwiki.contrib.oidc.auth.internal.OIDCClientConfiguration.PROP_
  * Default manager implementation for OAuth2 clients.
  *
  * @version $Id$
- * @since 2.14.0
+ * @since 2.15.0
  */
 public class DefaultOAuth2ClientManager implements OAuth2ClientManager
 {

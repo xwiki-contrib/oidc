@@ -32,7 +32,7 @@ import groovy.lang.Singleton;
  * Document initializer for the OAuth2 Token configuration class.
  *
  * @version $Id$
- * @since 2.14.0
+ * @since 2.15.0
  */
 @Component
 @Named(OAuth2Token.CLASS_FULLNAME)

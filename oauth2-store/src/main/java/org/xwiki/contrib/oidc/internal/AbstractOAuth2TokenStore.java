@@ -43,7 +43,7 @@ import com.xpn.xwiki.objects.BaseObject;
  * Abstract implementation of {@link OAuth2TokenStore} which provides some utility methods to subclasses.
  *
  * @version $Id$
- * @since 2.14.0
+ * @since 2.15.0
  */
 public abstract class AbstractOAuth2TokenStore implements OAuth2TokenStore
 {

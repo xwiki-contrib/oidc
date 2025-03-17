@@ -23,7 +23,7 @@ package org.xwiki.contrib.oidc;
  * Exceptions specific to the OAuth2 protocol.
  *
  * @version $Id$
- * @since 2.14.0
+ * @since 2.15.0
  */
 public class OAuth2Exception extends Exception
 {

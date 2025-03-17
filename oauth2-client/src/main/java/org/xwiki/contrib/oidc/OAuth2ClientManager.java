@@ -28,7 +28,7 @@ import org.xwiki.contrib.oidc.auth.store.OIDCClientConfiguration;
  * Manager for OAuth2 clients.
  *
  * @version $Id$
- * @since 2.14.0
+ * @since 2.15.0
  */
 @Role
 public interface OAuth2ClientManager

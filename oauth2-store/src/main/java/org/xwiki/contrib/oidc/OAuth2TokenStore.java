@@ -29,7 +29,7 @@ import com.nimbusds.oauth2.sdk.token.RefreshToken;
  * Interface to get and set OAuth2 access tokens.
  *
  * @version $Id$
- * @since 2.14.0
+ * @since 2.15.0
  */
 @Role
 public interface OAuth2TokenStore

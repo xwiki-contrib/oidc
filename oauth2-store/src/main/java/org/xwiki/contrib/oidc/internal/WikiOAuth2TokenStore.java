@@ -38,7 +38,7 @@ import groovy.lang.Singleton;
  * Store for OAuth2 access token storing at wiki level.
  *
  * @version $Id$
- * @since 2.14.0
+ * @since 2.15.0
  */
 @Component
 @Named("wiki")

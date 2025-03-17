@@ -36,7 +36,7 @@ import groovy.lang.Singleton;
  * Store for OAuth2 access token based on user profiles.
  *
  * @version $Id$
- * @since 2.14.0
+ * @since 2.15.0
  */
 @Component
 @Named("user")

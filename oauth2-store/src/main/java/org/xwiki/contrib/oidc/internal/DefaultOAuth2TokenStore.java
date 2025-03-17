@@ -37,7 +37,7 @@ import groovy.lang.Singleton;
  * Default implementation for the {@link OAuth2TokenStore}.
  *
  * @version $Id$
- * @since 2.14.0
+ * @since 2.15.0
  */
 @Component
 @Singleton
