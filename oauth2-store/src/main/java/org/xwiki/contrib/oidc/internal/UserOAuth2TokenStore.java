@@ -21,6 +21,7 @@ package org.xwiki.contrib.oidc.internal;
 
 import javax.inject.Inject;
 import javax.inject.Named;
+import javax.inject.Singleton;
 
 import org.xwiki.bridge.DocumentAccessBridge;
 import org.xwiki.component.annotation.Component;
@@ -29,8 +30,6 @@ import org.xwiki.contrib.oidc.auth.store.OIDCClientConfiguration;
 
 import com.nimbusds.oauth2.sdk.token.AccessToken;
 import com.nimbusds.oauth2.sdk.token.RefreshToken;
-
-import groovy.lang.Singleton;
 
 /**
  * Store for OAuth2 access token based on user profiles.

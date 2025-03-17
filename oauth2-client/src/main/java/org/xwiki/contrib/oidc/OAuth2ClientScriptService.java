@@ -24,6 +24,7 @@ import java.net.URISyntaxException;
 
 import javax.inject.Inject;
 import javax.inject.Named;
+import javax.inject.Singleton;
 
 import org.xwiki.bridge.DocumentAccessBridge;
 import org.xwiki.component.annotation.Component;
@@ -44,6 +45,7 @@ import com.xpn.xwiki.XWikiException;
  * @since 2.15.0
  */
 @Component
+@Singleton
 @Named("oauth2client")
 public class OAuth2ClientScriptService implements ScriptService
 {

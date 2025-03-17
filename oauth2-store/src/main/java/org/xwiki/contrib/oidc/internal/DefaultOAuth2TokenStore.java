@@ -20,6 +20,7 @@
 package org.xwiki.contrib.oidc.internal;
 
 import javax.inject.Inject;
+import javax.inject.Singleton;
 
 import org.xwiki.component.annotation.Component;
 import org.xwiki.component.manager.ComponentLookupException;
@@ -30,8 +31,6 @@ import org.xwiki.contrib.oidc.auth.store.OIDCClientConfiguration;
 
 import com.nimbusds.oauth2.sdk.token.AccessToken;
 import com.nimbusds.oauth2.sdk.token.RefreshToken;
-
-import groovy.lang.Singleton;
 
 /**
  * Default implementation for the {@link OAuth2TokenStore}.

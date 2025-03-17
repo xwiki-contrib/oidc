@@ -21,6 +21,7 @@ package org.xwiki.contrib.oidc.internal;
 
 import javax.inject.Inject;
 import javax.inject.Named;
+import javax.inject.Singleton;
 
 import org.xwiki.bridge.DocumentAccessBridge;
 import org.xwiki.component.annotation.Component;
@@ -31,8 +32,6 @@ import org.xwiki.model.reference.DocumentReference;
 import com.nimbusds.oauth2.sdk.token.AccessToken;
 import com.nimbusds.oauth2.sdk.token.RefreshToken;
 import com.xpn.xwiki.internal.mandatory.XWikiPreferencesDocumentInitializer;
-
-import groovy.lang.Singleton;
 
 /**
  * Store for OAuth2 access token storing at wiki level.

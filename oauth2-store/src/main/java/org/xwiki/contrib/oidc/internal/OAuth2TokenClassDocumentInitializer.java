@@ -20,13 +20,12 @@
 package org.xwiki.contrib.oidc.internal;
 
 import javax.inject.Named;
+import javax.inject.Singleton;
 
 import org.xwiki.component.annotation.Component;
 
 import com.xpn.xwiki.doc.AbstractMandatoryClassInitializer;
 import com.xpn.xwiki.objects.classes.BaseClass;
-
-import groovy.lang.Singleton;
 
 /**
  * Document initializer for the OAuth2 Token configuration class.

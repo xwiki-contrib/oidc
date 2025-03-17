@@ -24,8 +24,10 @@ import java.net.URI;
 import java.net.URISyntaxException;
 
 import javax.inject.Inject;
+import javax.inject.Singleton;
 
 import org.slf4j.Logger;
+import org.xwiki.component.annotation.Component;
 import org.xwiki.contrib.oidc.OAuth2ClientManager;
 import org.xwiki.contrib.oidc.OAuth2Exception;
 import org.xwiki.contrib.oidc.auth.internal.endpoint.CallbackOIDCEndpoint;
@@ -48,6 +50,8 @@ import static org.xwiki.contrib.oidc.auth.internal.OIDCClientConfiguration.PROP_
  * @version $Id$
  * @since 2.15.0
  */
+@Component
+@Singleton
 public class DefaultOAuth2ClientManager implements OAuth2ClientManager
 {
     @Inject
