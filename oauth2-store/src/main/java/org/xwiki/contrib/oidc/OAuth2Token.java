@@ -17,14 +17,14 @@
  * Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
  */
-package org.xwiki.contrib.oidc.internal;
+package org.xwiki.contrib.oidc;
 
 import java.util.Arrays;
 import java.util.Collections;
 
 import org.apache.commons.lang3.StringUtils;
-import org.xwiki.contrib.oidc.OAuth2Exception;
 import org.xwiki.model.reference.LocalDocumentReference;
+import org.xwiki.stability.Unstable;
 
 import com.nimbusds.oauth2.sdk.Scope;
 import com.nimbusds.oauth2.sdk.token.AccessToken;
@@ -38,8 +38,9 @@ import com.xpn.xwiki.objects.BaseObject;
  * A helper wrapping a BaseObject to make easier to manipulate tokens.
  *
  * @version $Id$
- * @since 1.25
+ * @since 2.15.0
  */
+@Unstable
 public class OAuth2Token
 {
     /**
@@ -91,6 +92,15 @@ public class OAuth2Token
     public OAuth2Token(BaseObject xobject)
     {
         this.xobject = xobject;
+    }
+
+    /**
+     * @return the underlying XObject for the OAuth2Token.
+     * @since 2.16.0
+     */
+    public BaseObject getXObject()
+    {
+        return xobject;
     }
 
     /**
@@ -209,9 +219,9 @@ public class OAuth2Token
      */
     public void fromRefreshToken(RefreshToken refreshToken)
     {
-        if (refreshToken == null || StringUtils.isBlank(refreshToken.getValue())) {
-            setRefreshToken(null);
-        } else {
+        // As per https://datatracker.ietf.org/doc/html/rfc6749#section-6, we shouldn't update the refresh token in
+        // case no token is provided.
+        if (refreshToken != null && StringUtils.isNotBlank(refreshToken.getValue())) {
             setRefreshToken(refreshToken.getValue());
         }
     }

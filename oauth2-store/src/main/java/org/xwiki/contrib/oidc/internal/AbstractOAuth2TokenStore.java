@@ -24,6 +24,7 @@ import javax.inject.Provider;
 
 import org.apache.tika.utils.StringUtils;
 import org.slf4j.Logger;
+import org.xwiki.contrib.oidc.OAuth2Token;
 import org.xwiki.contrib.oidc.OAuth2TokenStore;
 import org.xwiki.contrib.oidc.OAuth2Exception;
 import org.xwiki.contrib.oidc.auth.store.OIDCClientConfiguration;
