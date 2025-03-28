@@ -56,6 +56,18 @@ public class WikiOAuth2TokenStore extends AbstractOAuth2TokenStore
     }
 
     @Override
+    public void deleteToken(OIDCClientConfiguration configuration) throws OAuth2Exception
+    {
+        deleteToken(getToken(getDocumentReference(), configuration));
+    }
+
+    @Override
+    public OAuth2Token getToken(OIDCClientConfiguration configuration) throws OAuth2Exception
+    {
+        return getToken(getDocumentReference(), configuration);
+    }
+
+    @Override
     public AccessToken getAccessToken(OIDCClientConfiguration configuration) throws OAuth2Exception
     {
         return getAccessToken(getDocumentReference(), configuration);

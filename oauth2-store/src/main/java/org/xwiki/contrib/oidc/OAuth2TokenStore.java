@@ -48,6 +48,35 @@ public interface OAuth2TokenStore
         throws OAuth2Exception;
 
     /**
+     * Delete the given token.
+     *
+     * @param token the OAuth2 token to delete
+     * @throws OAuth2Exception if an error happens
+     * @since 2.16.0
+     */
+    void deleteToken(OAuth2Token token) throws OAuth2Exception;
+
+    /**
+     * Delete the OAuth2 access token associated with this configuration.
+     *
+     * @param configuration the configuration to use
+     * @throws OAuth2Exception if an error happens
+     * @since 2.16.0
+     */
+    void deleteToken(OIDCClientConfiguration configuration) throws OAuth2Exception;
+
+    /**
+     * Retrieve the OAuth2 token stored in XWiki, related to the given client configuration. Returns null if no token
+     * is found.
+     *
+     * @param configuration the client configuration to use
+     * @return the corresponding token, or null if no token is found
+     * @throws OAuth2Exception if an error happens
+     * @since 2.16.0
+     */
+    OAuth2Token getToken(OIDCClientConfiguration configuration) throws OAuth2Exception;
+
+    /**
      * Retrieve the access token related to the given client configuration. Returns null if no token is found.
      *
      * @param configuration the client configuration to use

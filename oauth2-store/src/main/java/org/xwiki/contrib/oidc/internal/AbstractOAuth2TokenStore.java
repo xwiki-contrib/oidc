@@ -57,21 +57,43 @@ public abstract class AbstractOAuth2TokenStore implements OAuth2TokenStore
     @Inject
     protected ContextualAuthorizationManager contextualAuthorizationManager;
 
+    @Override
+    public void deleteToken(OAuth2Token token) throws OAuth2Exception
+    {
+        if (token != null) {
+            XWikiContext context = contextProvider.get();
+            XWiki xwiki = context.getWiki();
+
+            try {
+                XWikiDocument document = token.getXObject().getOwnerDocument();
+                document.removeXObject(token.getXObject());
+
+                // Don't create a new version of the document upon save
+                document.setContentDirty(false);
+                document.setMetaDataDirty(false);
+                xwiki.saveDocument(document, "Remove OAuth2 token", context);
+            } catch (XWikiException e) {
+                throw new OAuth2Exception(String.format("Failed to remove token for [%s]",
+                    token.getXObject().getReference()), e);
+            }
+        }
+    }
+
     protected AccessToken getAccessToken(DocumentReference documentReference, OIDCClientConfiguration configuration)
         throws OAuth2Exception
     {
-        OAuth2Token oAuth2Token = getOAuth2Token(documentReference, configuration);
+        OAuth2Token oAuth2Token = getToken(documentReference, configuration);
         return (oAuth2Token == null) ? null : oAuth2Token.toAccessToken();
     }
 
     protected RefreshToken getRefreshToken(DocumentReference documentReference, OIDCClientConfiguration configuration)
         throws OAuth2Exception
     {
-        OAuth2Token oAuth2Token = getOAuth2Token(documentReference, configuration);
+        OAuth2Token oAuth2Token = getToken(documentReference, configuration);
         return (oAuth2Token == null) ? null : oAuth2Token.toRefreshToken();
     }
 
-    protected OAuth2Token getOAuth2Token(DocumentReference documentReference,
+    protected OAuth2Token getToken(DocumentReference documentReference,
         OIDCClientConfiguration configuration)
         throws OAuth2Exception
     {

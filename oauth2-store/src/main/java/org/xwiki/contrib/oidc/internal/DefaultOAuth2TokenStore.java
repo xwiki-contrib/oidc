@@ -54,6 +54,18 @@ public class DefaultOAuth2TokenStore extends AbstractOAuth2TokenStore
     }
 
     @Override
+    public void deleteToken(OIDCClientConfiguration configuration) throws OAuth2Exception
+    {
+        getStore(getStorageHint(configuration)).deleteToken(configuration);
+    }
+
+    @Override
+    public OAuth2Token getToken(OIDCClientConfiguration configuration) throws OAuth2Exception
+    {
+        return getStore(getStorageHint(configuration)).getToken(configuration);
+    }
+
+    @Override
     public AccessToken getAccessToken(OIDCClientConfiguration configuration) throws OAuth2Exception
     {
         return getStore(getStorageHint(configuration)).getAccessToken(configuration);

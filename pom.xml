@@ -119,12 +119,10 @@
               <differences>
                 <item>
                   <code>java.method.addToInterface</code>
-                  <fullQualifiedClassName>com.acme.ToolInterface</fullyQualifiedClassName>
                   <new>method void com.acme.ToolInterface::setup()</new>
                 </item>
                 <item>
                   <code>java.method.removed</code>
-                  <fullQualifiedClassName>com.acme.ToolInterface</fullyQualifiedClassName>
                   <old>method void com.acme.ToolInterface::initialize()</old>
                   <justification>...</justification>
                 </item>
@@ -144,6 +142,27 @@
               </differences>
             </revapi.differences>
             -->
+            <revapi.differences>
+              <justification>Modification to unstable APIs</justification>
+              <criticality>highlight</criticality>
+              <differences>
+                <item>
+                  <ignore>true</ignore>
+                  <code>java.method.addedToInterface</code>
+                  <new>method void org.xwiki.contrib.oidc.OAuth2TokenStore::deleteToken(org.xwiki.contrib.oidc.OAuth2Token) throws org.xwiki.contrib.oidc.OAuth2Exception</new>
+                </item>
+                <item>
+                  <ignore>true</ignore>
+                  <code>java.method.addedToInterface</code>
+                  <new>method void org.xwiki.contrib.oidc.OAuth2TokenStore::deleteToken(org.xwiki.contrib.oidc.auth.store.OIDCClientConfiguration) throws org.xwiki.contrib.oidc.OAuth2Exception</new>
+                </item>
+                <item>
+                  <ignore>true</ignore>
+                  <code>java.method.addedToInterface</code>
+                  <new>method org.xwiki.contrib.oidc.OAuth2Token org.xwiki.contrib.oidc.OAuth2TokenStore::getToken(org.xwiki.contrib.oidc.auth.store.OIDCClientConfiguration) throws org.xwiki.contrib.oidc.OAuth2Exception</new>
+                </item>
+              </differences>
+            </revapi.differences>
           </analysisConfiguration>
         </configuration>
       </plugin>

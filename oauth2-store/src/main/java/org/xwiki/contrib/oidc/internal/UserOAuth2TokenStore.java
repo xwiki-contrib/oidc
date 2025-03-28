@@ -54,6 +54,18 @@ public class UserOAuth2TokenStore extends AbstractOAuth2TokenStore
     }
 
     @Override
+    public void deleteToken(OIDCClientConfiguration configuration) throws OAuth2Exception
+    {
+        deleteToken(getToken(documentAccessBridge.getCurrentUserReference(), configuration));
+    }
+
+    @Override
+    public OAuth2Token getToken(OIDCClientConfiguration configuration) throws OAuth2Exception
+    {
+        return getToken(documentAccessBridge.getCurrentUserReference(), configuration);
+    }
+
+    @Override
     public AccessToken getAccessToken(OIDCClientConfiguration configuration) throws OAuth2Exception
     {
         return getAccessToken(documentAccessBridge.getCurrentUserReference(), configuration);
