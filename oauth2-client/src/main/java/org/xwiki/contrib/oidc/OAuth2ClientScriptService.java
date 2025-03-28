@@ -34,6 +34,7 @@ import org.xwiki.query.QueryException;
 import org.xwiki.script.service.ScriptService;
 import org.xwiki.security.authorization.ContextualAuthorizationManager;
 import org.xwiki.security.authorization.Right;
+import org.xwiki.stability.Unstable;
 
 import com.nimbusds.oauth2.sdk.token.AccessToken;
 import com.xpn.xwiki.XWikiException;
@@ -44,6 +45,7 @@ import com.xpn.xwiki.XWikiException;
  * @version $Id$
  * @since 2.15.0
  */
+@Unstable
 @Component
 @Singleton
 @Named("oauth2client")

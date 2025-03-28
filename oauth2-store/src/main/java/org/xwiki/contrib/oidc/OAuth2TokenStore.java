@@ -21,6 +21,7 @@ package org.xwiki.contrib.oidc;
 
 import org.xwiki.component.annotation.Role;
 import org.xwiki.contrib.oidc.auth.store.OIDCClientConfiguration;
+import org.xwiki.stability.Unstable;
 
 import com.nimbusds.oauth2.sdk.token.AccessToken;
 import com.nimbusds.oauth2.sdk.token.RefreshToken;
@@ -32,6 +33,7 @@ import com.nimbusds.oauth2.sdk.token.RefreshToken;
  * @since 2.15.0
  */
 @Role
+@Unstable
 public interface OAuth2TokenStore
 {
     /**

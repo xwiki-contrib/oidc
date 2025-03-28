@@ -23,6 +23,7 @@ import java.net.URI;
 
 import org.xwiki.component.annotation.Role;
 import org.xwiki.contrib.oidc.auth.store.OIDCClientConfiguration;
+import org.xwiki.stability.Unstable;
 
 /**
  * Manager for OAuth2 clients.
@@ -31,6 +32,7 @@ import org.xwiki.contrib.oidc.auth.store.OIDCClientConfiguration;
  * @since 2.15.0
  */
 @Role
+@Unstable
 public interface OAuth2ClientManager
 {
     /**
