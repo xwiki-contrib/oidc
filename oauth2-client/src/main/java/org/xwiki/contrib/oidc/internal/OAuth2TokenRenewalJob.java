@@ -47,7 +47,7 @@ import com.nimbusds.openid.connect.sdk.OIDCTokenResponse;
  * Job for renewing OAuth2 access tokens, using OAuth2 renew tokens.
  *
  * @version $Id$
- * @since 2.15.1
+ * @since 2.16.0
  */
 @Component
 @Singleton

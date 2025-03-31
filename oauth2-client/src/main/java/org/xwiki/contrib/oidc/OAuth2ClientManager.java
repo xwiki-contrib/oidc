@@ -51,7 +51,7 @@ public interface OAuth2ClientManager
      * @param config the client configuration to be renewed
      * @return the token renewal job, or null if the token is not to be renewed
      * @throws OAuth2Exception if an error happens
-     * @since 2.15.1
+     * @since 2.16.0
      */
     Job renew(OIDCClientConfiguration config) throws OAuth2Exception;
 
@@ -62,7 +62,7 @@ public interface OAuth2ClientManager
      * @param force if true, the token will be renewed, even if it is not close to expiry
      * @return the token renewal job, or null if the token is not to be renewed
      * @throws OAuth2Exception if an error happens
-     * @since 2.15.1
+     * @since 2.16.0
      */
     Job renew(OIDCClientConfiguration config, boolean force) throws OAuth2Exception;
 }

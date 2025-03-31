@@ -837,7 +837,7 @@ public class OIDCClientConfiguration extends OIDCConfiguration
     /**
      * @param authMethod the authentication method to parse
      * @return the corresponding clieent authentication method
-     * @since 2.15.1
+     * @since 2.16.0
      */
     public ClientAuthenticationMethod toClientAuthenticationMethod(String authMethod)
     {

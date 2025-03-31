@@ -39,6 +39,7 @@ public interface OAuth2TokenStore
      *
      * @param token the token to save
      * @throws OAuth2Exception if an error happens
+     * @since 2.16.0
      */
     void saveToken(OAuth2Token token) throws OAuth2Exception;
 
@@ -77,6 +78,7 @@ public interface OAuth2TokenStore
      * @param configuration the configuration to use
      * @return an object reference that should be used to store the token
      * @throws OAuth2Exception if an error happens
+     * @since 2.16.0
      */
     ObjectReference getConfiguredObjectReference(OIDCClientConfiguration configuration) throws OAuth2Exception;
 }

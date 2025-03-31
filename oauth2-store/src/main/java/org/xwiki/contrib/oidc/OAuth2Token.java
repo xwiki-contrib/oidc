@@ -29,7 +29,7 @@ import org.xwiki.stability.Unstable;
  * An OAuth2 token.
  *
  * @version $Id$
- * @since 2.15.0
+ * @since 2.16.0
  */
 @Unstable
 public interface OAuth2Token

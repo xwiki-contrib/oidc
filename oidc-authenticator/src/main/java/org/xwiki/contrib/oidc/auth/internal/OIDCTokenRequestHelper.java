@@ -42,7 +42,7 @@ import com.nimbusds.openid.connect.sdk.OIDCTokenResponse;
  * Internal helper to help making token requests.
  *
  * @version $Id$
- * @since 2.15.1
+ * @since 2.16.0
  */
 public final class OIDCTokenRequestHelper
 {

@@ -137,7 +137,7 @@ public class OIDCClientConfiguration
     /**
      * The default token endpoint method that should be used.
      *
-     * @since 2.15.1
+     * @since 2.16.0
      */
     public static final String DEFAULT_TOKEN_ENDPOINT_METHOD = "client_secret_basic";
 
@@ -527,7 +527,7 @@ public class OIDCClientConfiguration
 
     /**
      * @return the token endpoint authentication method
-     * @since 2.15.1
+     * @since 2.16.0
      */
     public String getTokenEndpointAuthMethod()
     {
