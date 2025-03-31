@@ -25,7 +25,7 @@
   <parent>
     <groupId>org.xwiki.contrib.oidc</groupId>
     <artifactId>oidc-test</artifactId>
-    <version>2.16.0-SNAPSHOT</version>
+    <version>2.16.0</version>
   </parent>
   <artifactId>oidc-test-pageobjects</artifactId>
   <name>OpenID Connect - Tests - Page Objects</name>
