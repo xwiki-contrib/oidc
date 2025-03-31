@@ -30,6 +30,7 @@ import org.xwiki.bridge.DocumentAccessBridge;
 import org.xwiki.component.annotation.Component;
 import org.xwiki.contrib.oidc.auth.store.OIDCClientConfiguration;
 import org.xwiki.contrib.oidc.auth.store.OIDCClientConfigurationStore;
+import org.xwiki.contrib.oidc.internal.NimbusOAuth2Token;
 import org.xwiki.query.QueryException;
 import org.xwiki.script.service.ScriptService;
 import org.xwiki.security.authorization.ContextualAuthorizationManager;
@@ -102,7 +103,7 @@ public class OAuth2ClientScriptService implements ScriptService
 
             if (!(force && isWikiAdmin)) {
                 // Check if an access token already exists for this configuration
-                AccessToken accessToken = tokenStore.getAccessToken(configuration);
+                AccessToken accessToken = ((NimbusOAuth2Token) tokenStore.getToken(configuration)).toAccessToken();
                 if (accessToken != null && accessToken.getLifetime() > System.currentTimeMillis()) {
                     throw new OAuth2Exception(
                         String.format("Configuration [%s] is already authorized", configurationName));
@@ -128,9 +129,9 @@ public class OAuth2ClientScriptService implements ScriptService
      * @return the access token found, or null if no access token exists
      * @throws OAuth2Exception if an error happens
      */
-    public AccessToken getAccessToken(String configurationName) throws OAuth2Exception
+    public String getAccessToken(String configurationName) throws OAuth2Exception
     {
-        return tokenStore.getAccessToken(getConfigurationFromName(configurationName));
+        return tokenStore.getToken(getConfigurationFromName(configurationName)).getAccessToken();
     }
 
     private OIDCClientConfiguration getConfigurationFromName(String name) throws OAuth2Exception
@@ -146,5 +147,4 @@ public class OAuth2ClientScriptService implements ScriptService
             throw new OAuth2Exception(String.format("Failed to load configuration [%s]", name), e);
         }
     }
-
 }

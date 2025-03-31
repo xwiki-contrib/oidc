@@ -26,12 +26,9 @@ import javax.inject.Singleton;
 import org.xwiki.bridge.DocumentAccessBridge;
 import org.xwiki.component.annotation.Component;
 import org.xwiki.contrib.oidc.OAuth2Exception;
-import org.xwiki.contrib.oidc.OAuth2Token;
 import org.xwiki.contrib.oidc.auth.store.OIDCClientConfiguration;
 import org.xwiki.model.reference.DocumentReference;
 
-import com.nimbusds.oauth2.sdk.token.AccessToken;
-import com.nimbusds.oauth2.sdk.token.RefreshToken;
 import com.xpn.xwiki.internal.mandatory.XWikiPreferencesDocumentInitializer;
 
 /**
@@ -43,43 +40,14 @@ import com.xpn.xwiki.internal.mandatory.XWikiPreferencesDocumentInitializer;
 @Component
 @Named("wiki")
 @Singleton
-public class WikiOAuth2TokenStore extends AbstractOAuth2TokenStore
+public class WikiOAuth2TokenStore extends AbstractNimbusOAuth2TokenStore
 {
     @Inject
     private DocumentAccessBridge documentAccessBridge;
 
     @Override
-    public void setToken(OIDCClientConfiguration configuration, AccessToken accessToken, RefreshToken refreshToken)
+    public DocumentReference getConfiguredDocumentReference(OIDCClientConfiguration configuration)
         throws OAuth2Exception
-    {
-        saveAccess(getDocumentReference(), configuration, accessToken, refreshToken);
-    }
-
-    @Override
-    public void deleteToken(OIDCClientConfiguration configuration) throws OAuth2Exception
-    {
-        deleteToken(getToken(getDocumentReference(), configuration));
-    }
-
-    @Override
-    public OAuth2Token getToken(OIDCClientConfiguration configuration) throws OAuth2Exception
-    {
-        return getToken(getDocumentReference(), configuration);
-    }
-
-    @Override
-    public AccessToken getAccessToken(OIDCClientConfiguration configuration) throws OAuth2Exception
-    {
-        return getAccessToken(getDocumentReference(), configuration);
-    }
-
-    @Override
-    public RefreshToken getRefreshToken(OIDCClientConfiguration configuration) throws OAuth2Exception
-    {
-        return getRefreshToken(getDocumentReference(), configuration);
-    }
-
-    private DocumentReference getDocumentReference()
     {
         return new DocumentReference(XWikiPreferencesDocumentInitializer.LOCAL_REFERENCE,
             documentAccessBridge.getCurrentDocumentReference().getWikiReference());

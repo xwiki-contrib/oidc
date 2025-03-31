@@ -21,10 +21,8 @@ package org.xwiki.contrib.oidc;
 
 import org.xwiki.component.annotation.Role;
 import org.xwiki.contrib.oidc.auth.store.OIDCClientConfiguration;
+import org.xwiki.model.reference.ObjectReference;
 import org.xwiki.stability.Unstable;
-
-import com.nimbusds.oauth2.sdk.token.AccessToken;
-import com.nimbusds.oauth2.sdk.token.RefreshToken;
 
 /**
  * Interface to get and set OAuth2 access tokens.
@@ -37,15 +35,23 @@ import com.nimbusds.oauth2.sdk.token.RefreshToken;
 public interface OAuth2TokenStore
 {
     /**
-     * Save the oauth2 access token.
+     * Save the given token.
      *
-     * @param configuration the client configuration to use
-     * @param accessToken the access token to be saved
-     * @param refreshToken the refresh token
+     * @param token the token to save
      * @throws OAuth2Exception if an error happens
      */
-    void setToken(OIDCClientConfiguration configuration, AccessToken accessToken, RefreshToken refreshToken)
-        throws OAuth2Exception;
+    void saveToken(OAuth2Token token) throws OAuth2Exception;
+
+    /**
+     * Retrieve the OAuth2 token stored in XWiki, related to the given client configuration. Returns null if no token
+     * is found.
+     *
+     * @param configuration the client configuration to use
+     * @return the corresponding token, or null if no token is found
+     * @throws OAuth2Exception if an error happens
+     * @since 2.16.0
+     */
+    OAuth2Token getToken(OIDCClientConfiguration configuration) throws OAuth2Exception;
 
     /**
      * Delete the given token.
@@ -66,31 +72,11 @@ public interface OAuth2TokenStore
     void deleteToken(OIDCClientConfiguration configuration) throws OAuth2Exception;
 
     /**
-     * Retrieve the OAuth2 token stored in XWiki, related to the given client configuration. Returns null if no token
-     * is found.
+     * Provide the reference to be used for storing oauth2 tokens for the given configuration.
      *
-     * @param configuration the client configuration to use
-     * @return the corresponding token, or null if no token is found
-     * @throws OAuth2Exception if an error happens
-     * @since 2.16.0
-     */
-    OAuth2Token getToken(OIDCClientConfiguration configuration) throws OAuth2Exception;
-
-    /**
-     * Retrieve the access token related to the given client configuration. Returns null if no token is found.
-     *
-     * @param configuration the client configuration to use
-     * @return the corresponding access token, or null if no token is found
+     * @param configuration the configuration to use
+     * @return an object reference that should be used to store the token
      * @throws OAuth2Exception if an error happens
      */
-    AccessToken getAccessToken(OIDCClientConfiguration configuration) throws OAuth2Exception;
-
-    /**
-     * Retrieve the refresh token related to the given client configuration. Returns null if no token is found.
-     *
-     * @param configuration the client configuration to use
-     * @return the corresponding refresh token, or null if no token is found
-     * @throws OAuth2Exception if an error happens
-     */
-    RefreshToken getRefreshToken(OIDCClientConfiguration configuration) throws OAuth2Exception;
+    ObjectReference getConfiguredObjectReference(OIDCClientConfiguration configuration) throws OAuth2Exception;
 }

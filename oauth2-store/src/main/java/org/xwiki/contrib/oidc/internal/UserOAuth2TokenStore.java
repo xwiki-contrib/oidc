@@ -26,11 +26,8 @@ import javax.inject.Singleton;
 import org.xwiki.bridge.DocumentAccessBridge;
 import org.xwiki.component.annotation.Component;
 import org.xwiki.contrib.oidc.OAuth2Exception;
-import org.xwiki.contrib.oidc.OAuth2Token;
 import org.xwiki.contrib.oidc.auth.store.OIDCClientConfiguration;
-
-import com.nimbusds.oauth2.sdk.token.AccessToken;
-import com.nimbusds.oauth2.sdk.token.RefreshToken;
+import org.xwiki.model.reference.DocumentReference;
 
 /**
  * Store for OAuth2 access token based on user profiles.
@@ -41,39 +38,15 @@ import com.nimbusds.oauth2.sdk.token.RefreshToken;
 @Component
 @Named("user")
 @Singleton
-public class UserOAuth2TokenStore extends AbstractOAuth2TokenStore
+public class UserOAuth2TokenStore extends AbstractNimbusOAuth2TokenStore
 {
     @Inject
     private DocumentAccessBridge documentAccessBridge;
 
     @Override
-    public void setToken(OIDCClientConfiguration configuration, AccessToken accessToken, RefreshToken refreshToken)
+    public DocumentReference getConfiguredDocumentReference(OIDCClientConfiguration configuration)
         throws OAuth2Exception
     {
-        saveAccess(documentAccessBridge.getCurrentUserReference(), configuration, accessToken, refreshToken);
-    }
-
-    @Override
-    public void deleteToken(OIDCClientConfiguration configuration) throws OAuth2Exception
-    {
-        deleteToken(getToken(documentAccessBridge.getCurrentUserReference(), configuration));
-    }
-
-    @Override
-    public OAuth2Token getToken(OIDCClientConfiguration configuration) throws OAuth2Exception
-    {
-        return getToken(documentAccessBridge.getCurrentUserReference(), configuration);
-    }
-
-    @Override
-    public AccessToken getAccessToken(OIDCClientConfiguration configuration) throws OAuth2Exception
-    {
-        return getAccessToken(documentAccessBridge.getCurrentUserReference(), configuration);
-    }
-
-    @Override
-    public RefreshToken getRefreshToken(OIDCClientConfiguration configuration) throws OAuth2Exception
-    {
-        return getRefreshToken(documentAccessBridge.getCurrentUserReference(), configuration);
+        return documentAccessBridge.getCurrentUserReference();
     }
 }

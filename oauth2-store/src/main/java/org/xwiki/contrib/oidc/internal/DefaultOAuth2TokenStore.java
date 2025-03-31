@@ -29,9 +29,7 @@ import org.xwiki.contrib.oidc.OAuth2Token;
 import org.xwiki.contrib.oidc.OAuth2TokenStore;
 import org.xwiki.contrib.oidc.OAuth2Exception;
 import org.xwiki.contrib.oidc.auth.store.OIDCClientConfiguration;
-
-import com.nimbusds.oauth2.sdk.token.AccessToken;
-import com.nimbusds.oauth2.sdk.token.RefreshToken;
+import org.xwiki.model.reference.DocumentReference;
 
 /**
  * Default implementation for the {@link OAuth2TokenStore}.
@@ -41,22 +39,16 @@ import com.nimbusds.oauth2.sdk.token.RefreshToken;
  */
 @Component
 @Singleton
-public class DefaultOAuth2TokenStore extends AbstractOAuth2TokenStore
+public class DefaultOAuth2TokenStore extends AbstractNimbusOAuth2TokenStore
 {
     @Inject
     private ComponentManager componentManager;
 
     @Override
-    public void setToken(OIDCClientConfiguration configuration, AccessToken accessToken, RefreshToken refreshToken)
+    public void saveToken(OAuth2Token token)
         throws OAuth2Exception
     {
-        getStore(getStorageHint(configuration)).setToken(configuration, accessToken, refreshToken);
-    }
-
-    @Override
-    public void deleteToken(OIDCClientConfiguration configuration) throws OAuth2Exception
-    {
-        getStore(getStorageHint(configuration)).deleteToken(configuration);
+        getStore(getStorageHint(token.getConfiguration())).saveToken(token);
     }
 
     @Override
@@ -66,15 +58,16 @@ public class DefaultOAuth2TokenStore extends AbstractOAuth2TokenStore
     }
 
     @Override
-    public AccessToken getAccessToken(OIDCClientConfiguration configuration) throws OAuth2Exception
+    public void deleteToken(OIDCClientConfiguration configuration) throws OAuth2Exception
     {
-        return getStore(getStorageHint(configuration)).getAccessToken(configuration);
+        getStore(getStorageHint(configuration)).deleteToken(configuration);
     }
 
     @Override
-    public RefreshToken getRefreshToken(OIDCClientConfiguration configuration) throws OAuth2Exception
+    public DocumentReference getConfiguredDocumentReference(OIDCClientConfiguration configuration)
+        throws OAuth2Exception
     {
-        return getStore(getStorageHint(configuration)).getRefreshToken(configuration);
+        return null;
     }
 
     private String getStorageHint(OIDCClientConfiguration configuration) throws OAuth2Exception

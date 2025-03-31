@@ -23,7 +23,6 @@ import javax.inject.Named;
 import javax.inject.Singleton;
 
 import org.xwiki.component.annotation.Component;
-import org.xwiki.contrib.oidc.OAuth2Token;
 
 import com.xpn.xwiki.doc.AbstractMandatoryClassInitializer;
 import com.xpn.xwiki.objects.classes.BaseClass;
@@ -35,7 +34,7 @@ import com.xpn.xwiki.objects.classes.BaseClass;
  * @since 2.15.0
  */
 @Component
-@Named(OAuth2Token.CLASS_FULLNAME)
+@Named(NimbusOAuth2Token.CLASS_FULLNAME)
 @Singleton
 public class OAuth2TokenClassDocumentInitializer extends AbstractMandatoryClassInitializer
 {
@@ -44,17 +43,17 @@ public class OAuth2TokenClassDocumentInitializer extends AbstractMandatoryClassI
      */
     public OAuth2TokenClassDocumentInitializer()
     {
-        super(OAuth2Token.CLASS_REFERENCE, "OAuth2 Token Class");
+        super(NimbusOAuth2Token.CLASS_REFERENCE, "OAuth2 Token Class");
     }
 
     @Override
     protected void createClass(BaseClass xclass)
     {
-        xclass.addTextField(OAuth2Token.FIELD_CLIENT_CONFIGURATION_NAME, "Client configuration name", 255);
-        xclass.addPasswordField(OAuth2Token.FIELD_ACCESS_TOKEN, "Access token", 255);
-        xclass.addPasswordField(OAuth2Token.FIELD_REFRESH_TOKEN, "Refresh token", 255);
-        xclass.addTextField(OAuth2Token.FIELD_TYPE, "Type", 255);
-        xclass.addStaticListField(OAuth2Token.FIELD_SCOPE, "Scope", 10, true, "");
-        xclass.addNumberField(OAuth2Token.FIELD_EXPIRES_AT, "Expires at", 255, "long");
+        xclass.addTextField(NimbusOAuth2Token.FIELD_CLIENT_CONFIGURATION_NAME, "Client configuration name", 255);
+        xclass.addPasswordField(NimbusOAuth2Token.FIELD_ACCESS_TOKEN, "Access token", 255);
+        xclass.addPasswordField(NimbusOAuth2Token.FIELD_REFRESH_TOKEN, "Refresh token", 255);
+        xclass.addTextField(NimbusOAuth2Token.FIELD_TYPE, "Type", 255);
+        xclass.addStaticListField(NimbusOAuth2Token.FIELD_SCOPE, "Scope", 10, true, "");
+        xclass.addNumberField(NimbusOAuth2Token.FIELD_EXPIRES_AT, "Expires at", 255, "long");
     }
 }
