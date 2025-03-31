@@ -130,9 +130,16 @@ public class OIDCClientConfiguration
     public static final String FIELD_ENDPOINT_LOGOUT = "logoutEndpoint";
 
     /**
-     * Name of the property containing the token endpoint method.
+     * Name of the property containing the token endpoint authentication method.
      */
     public static final String FIELD_ENDPOINT_TOKEN_METHOD = "tokenEndpointMethod";
+
+    /**
+     * The default token endpoint method that should be used.
+     *
+     * @since 2.15.1
+     */
+    public static final String DEFAULT_TOKEN_ENDPOINT_METHOD = "client_secret_basic";
 
     /**
      * Name of the property containing the user info endpoint method.
@@ -519,11 +526,26 @@ public class OIDCClientConfiguration
     }
 
     /**
-     * @return the token endpoint method
+     * @return the token endpoint authentication method
+     * @since 2.15.1
+     */
+    public String getTokenEndpointAuthMethod()
+    {
+        String value = xobject.getStringValue(FIELD_ENDPOINT_TOKEN_METHOD);
+        if (StringUtils.isNotBlank(value)) {
+            return value;
+        } else {
+            return DEFAULT_TOKEN_ENDPOINT_METHOD;
+        }
+    }
+
+    /**
+     * @return the token endpoint authentication method
+     * @deprecated use {@link #getTokenEndpointAuthMethod()} instead
      */
     public String getTokenEndpointMethod()
     {
-        return this.xobject.getStringValue(FIELD_ENDPOINT_TOKEN_METHOD);
+        return getTokenEndpointAuthMethod();
     }
 
     /**

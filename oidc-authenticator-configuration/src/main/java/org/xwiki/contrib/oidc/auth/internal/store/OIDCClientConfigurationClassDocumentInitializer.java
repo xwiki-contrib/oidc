@@ -19,8 +19,6 @@
  */
 package org.xwiki.contrib.oidc.auth.internal.store;
 
-import java.util.Arrays;
-
 import javax.inject.Named;
 import javax.inject.Singleton;
 
@@ -76,8 +74,9 @@ public class OIDCClientConfigurationClassDocumentInitializer extends AbstractMan
         xclass.addTextField(OIDCClientConfiguration.FIELD_ENDPOINT_LOGOUT, "Logout OIDC endpoint", 255);
         xclass.addTextField(OIDCClientConfiguration.FIELD_CLIENT_ID, "Client ID", 255);
         xclass.addTextField(OIDCClientConfiguration.FIELD_CLIENT_SECRET, "Secret", 255);
-        xclass.addTextField(OIDCClientConfiguration.FIELD_ENDPOINT_TOKEN_METHOD, "Token endpoint authentication method",
-            255);
+        xclass.addStaticListField(OIDCClientConfiguration.FIELD_ENDPOINT_TOKEN_METHOD, "Token endpoint authentication method",
+            String.join(PIPE, "client_secret_basic", "client_secret_post"),
+            OIDCClientConfiguration.DEFAULT_TOKEN_ENDPOINT_METHOD);
         xclass.addTextField(OIDCClientConfiguration.FIELD_ENDPOINT_USERINFO_METHOD, "User information endpoint method",
             255);
         xclass.addTextAreaField(OIDCClientConfiguration.FIELD_ENDPOINT_USERINFO_HEADERS, "User info endpoint headers",
@@ -101,10 +100,9 @@ public class OIDCClientConfigurationClassDocumentInitializer extends AbstractMan
         xclass.addTextField(OIDCClientConfiguration.FIELD_AFTER_LOGOUT_URL, "URL after Logout", 255);
         xclass.addStaticListField(OIDCClientConfiguration.FIELD_TOKEN_STORAGE_SCOPE, "Store tokens",
             String.join(PIPE,
-                Arrays.asList(
-                    OIDCClientConfiguration.TokenStorageScope.NONE.name(),
-                    OIDCClientConfiguration.TokenStorageScope.USER.name(),
-                    OIDCClientConfiguration.TokenStorageScope.WIKI.name())),
+                OIDCClientConfiguration.TokenStorageScope.NONE.name(),
+                OIDCClientConfiguration.TokenStorageScope.USER.name(),
+                OIDCClientConfiguration.TokenStorageScope.WIKI.name()),
             OIDCClientConfiguration.DEFAULT_TOKEN_STORAGE.name());
     }
 }

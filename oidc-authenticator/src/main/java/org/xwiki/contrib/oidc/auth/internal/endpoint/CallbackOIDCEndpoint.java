@@ -271,6 +271,7 @@ public class CallbackOIDCEndpoint implements OIDCEndpoint
             this.logger.debug("OIDC callback: principal=[{}]", principal);
         }
 
+        // If the configuration indicates to store tokens, store them
         this.configuration.storeTokens(accessToken, refreshToken);
 
         this.logger.debug("OIDC callback: redirect=[{}]", this.configuration.getSuccessRedirectURI());

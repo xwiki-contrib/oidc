@@ -65,6 +65,7 @@ import org.xwiki.contrib.oidc.auth.internal.endpoint.CallbackOIDCEndpoint;
 import org.xwiki.contrib.oidc.auth.internal.session.ClientProviders;
 import org.xwiki.contrib.oidc.auth.internal.session.ClientProviders.ClientProvider;
 import org.xwiki.contrib.oidc.auth.store.OIDCClientConfigurationStore;
+import org.xwiki.contrib.oidc.internal.NimbusOAuth2Token;
 import org.xwiki.contrib.oidc.internal.OIDCConfiguration;
 import org.xwiki.contrib.oidc.provider.internal.OIDCManager;
 import org.xwiki.contrib.oidc.provider.internal.endpoint.AuthorizationOIDCEndpoint;
@@ -830,7 +831,16 @@ public class OIDCClientConfiguration extends OIDCConfiguration
      */
     public ClientAuthenticationMethod getTokenEndPointAuthMethod()
     {
-        String authMethod = getProperty(PROP_ENDPOINT_TOKEN_AUTH_METHOD, String.class);
+        return toClientAuthenticationMethod(getProperty(PROP_ENDPOINT_TOKEN_AUTH_METHOD, String.class));
+    }
+
+    /**
+     * @param authMethod the authentication method to parse
+     * @return the corresponding clieent authentication method
+     * @since 2.15.1
+     */
+    public ClientAuthenticationMethod toClientAuthenticationMethod(String authMethod)
+    {
         if ("client_secret_post".equalsIgnoreCase(authMethod)) {
             return ClientAuthenticationMethod.CLIENT_SECRET_POST;
         } else {
@@ -1229,7 +1239,10 @@ public class OIDCClientConfiguration extends OIDCConfiguration
                 XWikiContext context = contextProvider.get();
                 XWikiUser user = context.getWiki().checkAuth(context);
                 context.setUserReference(user.getUserReference());
-                tokenStore.setToken(wikiConfiguration, accessToken, refreshToken);
+
+                NimbusOAuth2Token token = new NimbusOAuth2Token(wikiConfiguration,
+                    tokenStore.getConfiguredObjectReference(wikiConfiguration), accessToken, refreshToken);
+                tokenStore.saveToken(token);
             } catch (OAuth2Exception | XWikiException e) {
                 logger.error("Failed to save access token [{}] for configuration [{}]",
                     accessToken, wikiConfiguration, e);
@@ -1474,7 +1487,7 @@ public class OIDCClientConfiguration extends OIDCConfiguration
                 returnValue = clientConfiguration.getClientSecret();
                 break;
             case PROP_ENDPOINT_TOKEN_AUTH_METHOD:
-                returnValue = clientConfiguration.getTokenEndpointMethod();
+                returnValue = clientConfiguration.getTokenEndpointAuthMethod();
                 break;
             case PROP_ENDPOINT_USERINFO_METHOD:
                 returnValue = clientConfiguration.getUserInfoEndpointMethod();
