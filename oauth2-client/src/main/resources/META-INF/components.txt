@@ -1,2 +1,3 @@
 org.xwiki.contrib.oidc.internal.DefaultOAuth2ClientManager
+org.xwiki.contrib.oidc.internal.OAuth2TokenRenewalJob
 org.xwiki.contrib.oidc.OAuth2ClientScriptService

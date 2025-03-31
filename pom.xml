@@ -188,6 +188,16 @@
                 </item>
                 <item>
                   <ignore>true</ignore>
+                  <code>java.method.addedToInterface</code>
+                  <new>method org.xwiki.job.Job org.xwiki.contrib.oidc.OAuth2ClientManager::renew(org.xwiki.contrib.oidc.auth.store.OIDCClientConfiguration) throws org.xwiki.contrib.oidc.OAuth2Exception</new>
+                </item>
+                <item>
+                  <ignore>true</ignore>
+                  <code>java.method.addedToInterface</code>
+                  <new>method org.xwiki.job.Job org.xwiki.contrib.oidc.OAuth2ClientManager::renew(org.xwiki.contrib.oidc.auth.store.OIDCClientConfiguration, boolean) throws org.xwiki.contrib.oidc.OAuth2Exception</new>
+                </item>
+                <item>
+                  <ignore>true</ignore>
                   <code>java.method.returnTypeChanged</code>
                   <old>method com.nimbusds.oauth2.sdk.token.AccessToken org.xwiki.contrib.oidc.OAuth2ClientScriptService::getAccessToken(java.lang.String) throws org.xwiki.contrib.oidc.OAuth2Exception</old>
                   <new>method java.lang.String org.xwiki.contrib.oidc.OAuth2ClientScriptService::getAccessToken(java.lang.String) throws org.xwiki.contrib.oidc.OAuth2Exception</new>

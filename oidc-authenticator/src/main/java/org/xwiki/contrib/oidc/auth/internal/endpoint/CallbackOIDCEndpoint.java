@@ -40,6 +40,7 @@ import org.xwiki.container.Container;
 import org.xwiki.container.servlet.ServletSession;
 import org.xwiki.contrib.oidc.auth.internal.Endpoint;
 import org.xwiki.contrib.oidc.auth.internal.OIDCClientConfiguration;
+import org.xwiki.contrib.oidc.auth.internal.OIDCTokenRequestHelper;
 import org.xwiki.contrib.oidc.auth.internal.OIDCUserManager;
 import org.xwiki.contrib.oidc.auth.internal.session.ClientHttpSessions;
 import org.xwiki.contrib.oidc.auth.internal.session.ClientProviders.ClientProvider;
@@ -213,8 +214,7 @@ public class CallbackOIDCEndpoint implements OIDCEndpoint
                 authenticationResponse.getAuthorizationCode());
 
             if (authenticationResponse.getAuthorizationCode() != null) {
-                OIDCTokenResponse tokenResponse = requestToken(authenticationResponse.getAuthorizationCode(),
-                    authenticationResponse.getIssuer(), this.configuration.getScope());
+                OIDCTokenResponse tokenResponse = requestTokenFromAuthenticationResponse(authenticationResponse);
 
                 accessToken = tokenResponse.getTokens().getBearerAccessToken();
                 refreshToken = tokenResponse.getTokens().getRefreshToken();
@@ -280,60 +280,6 @@ public class CallbackOIDCEndpoint implements OIDCEndpoint
         return new RedirectResponse(this.configuration.getSuccessRedirectURI());
     }
 
-    private OIDCTokenResponse requestToken(AuthorizationCode code, Issuer issuer, Scope scope)
-        throws URISyntaxException, GeneralException, IOException, OIDCException
-    {
-        this.logger.debug("Getting the access token from the token endpoint");
-
-        // Generate callback URL
-        URI callback = this.oidc.createEndPointURI(CallbackOIDCEndpoint.HINT);
-
-        // Get access token
-        AuthorizationGrant authorizationGrant = new AuthorizationCodeGrant(code, callback);
-
-        TokenRequest tokeRequest;
-        Secret secret = this.configuration.getSecret();
-        Endpoint tokenEndpoint = this.configuration.getTokenOIDCEndpoint();
-        ClientID clientID = this.configuration.getClientID(issuer);
-        if (secret != null) {
-            this.logger.debug("Adding secret ({} {})", clientID, secret.getValue());
-
-            ClientAuthentication clientSecret;
-            if (this.configuration.getTokenEndPointAuthMethod() == ClientAuthenticationMethod.CLIENT_SECRET_POST) {
-                clientSecret = new ClientSecretPost(clientID, secret);
-            } else {
-                clientSecret = new ClientSecretBasic(clientID, secret);
-            }
-            tokeRequest = new TokenRequest(tokenEndpoint.getURI(), clientSecret, authorizationGrant, scope);
-        } else {
-            tokeRequest = new TokenRequest(tokenEndpoint.getURI(), clientID, authorizationGrant, scope);
-        }
-
-        HTTPRequest tokenHTTP = tokeRequest.toHTTPRequest();
-        tokenEndpoint.prepare(tokenHTTP);
-
-        this.logger.debug("OIDC Token request ({}?{},{},{})", tokenHTTP.getURL(), tokenHTTP.getURL(),
-            tokenHTTP.getAuthorization(), tokenHTTP.getHeaderMap());
-
-        HTTPResponse httpResponse = tokenHTTP.send();
-        this.logger.debug("OIDC Token response ({})", httpResponse.getBody());
-
-        if (httpResponse.getStatusCode() != HTTPResponse.SC_OK) {
-            TokenErrorResponse error = TokenErrorResponse.parse(httpResponse);
-
-            this.logger.debug("Failed to get access token ([{}])",
-                error.getErrorObject() != null ? error.getErrorObject() : httpResponse.getStatusCode());
-
-            if (error.getErrorObject() != null) {
-                throw new OIDCException("Failed to get access token", error.getErrorObject());
-            } else {
-                throw new OIDCException("Failed to get access token (" + httpResponse.getStatusCode() + ')');
-            }
-        }
-
-        return OIDCTokenResponse.parse(httpResponse);
-    }
-
     private IDTokenClaimsSet parseIdToken(Nonce nonce, JWT token, Issuer issuer) throws GeneralException, IOException,
         URISyntaxException, BadJOSEException, JOSEException, ParseException, OIDCException
     {
@@ -383,5 +329,34 @@ public class CallbackOIDCEndpoint implements OIDCEndpoint
         this.configuration.setIdToken(idToken);
 
         return idToken;
+    }
+
+    private OIDCTokenResponse requestTokenFromAuthenticationResponse(
+        AuthenticationSuccessResponse authenticationSuccessResponse) throws Exception
+    {
+        this.logger.debug("Getting the access token from the token endpoint");
+        ClientAuthentication authentication = OIDCTokenRequestHelper.getClientAuthentication(
+            this.configuration.getTokenEndPointAuthMethod(),
+            this.configuration.getClientID(authenticationSuccessResponse.getIssuer()),
+            this.configuration.getSecret());
+
+        // Generate callback URL
+        URI callback = this.oidc.createEndPointURI(CallbackOIDCEndpoint.HINT);
+
+        // Get access token
+        AuthorizationGrant authorizationGrant =
+            new AuthorizationCodeGrant(authenticationSuccessResponse.getAuthorizationCode(), callback);
+
+        Endpoint tokenEndpoint = this.configuration.getTokenOIDCEndpoint();
+        Scope scope = this.configuration.getScope();
+        TokenRequest tokenRequest;
+        if (authentication != null) {
+            tokenRequest = new TokenRequest(tokenEndpoint.getURI(), authentication, authorizationGrant, scope);
+        } else {
+            tokenRequest = new TokenRequest(tokenEndpoint.getURI(),
+                this.configuration.getClientID(authenticationSuccessResponse.getIssuer()), authorizationGrant, scope);
+        }
+
+        return OIDCTokenRequestHelper.requestTokenHTTP(tokenRequest, this.configuration.getTokenOIDCEndpoint());
     }
 }

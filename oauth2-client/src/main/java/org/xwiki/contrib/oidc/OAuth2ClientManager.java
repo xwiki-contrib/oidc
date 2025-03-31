@@ -23,6 +23,7 @@ import java.net.URI;
 
 import org.xwiki.component.annotation.Role;
 import org.xwiki.contrib.oidc.auth.store.OIDCClientConfiguration;
+import org.xwiki.job.Job;
 import org.xwiki.stability.Unstable;
 
 /**
@@ -43,4 +44,25 @@ public interface OAuth2ClientManager
      * @throws OAuth2Exception if an error happens
      */
     void authorize(OIDCClientConfiguration config, URI redirectURI) throws OAuth2Exception;
+
+    /**
+     * Renews an OAuth2 access token if the token is close to expiry.
+     *
+     * @param config the client configuration to be renewed
+     * @return the token renewal job, or null if the token is not to be renewed
+     * @throws OAuth2Exception if an error happens
+     * @since 2.15.1
+     */
+    Job renew(OIDCClientConfiguration config) throws OAuth2Exception;
+
+    /**
+     * Renews an OAuth2 access token if the token is close to expiry.
+     *
+     * @param config the client configuration to be renewed
+     * @param force if true, the token will be renewed, even if it is not close to expiry
+     * @return the token renewal job, or null if the token is not to be renewed
+     * @throws OAuth2Exception if an error happens
+     * @since 2.15.1
+     */
+    Job renew(OIDCClientConfiguration config, boolean force) throws OAuth2Exception;
 }

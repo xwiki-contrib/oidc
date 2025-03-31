@@ -30,9 +30,15 @@ import org.slf4j.Logger;
 import org.xwiki.component.annotation.Component;
 import org.xwiki.contrib.oidc.OAuth2ClientManager;
 import org.xwiki.contrib.oidc.OAuth2Exception;
+import org.xwiki.contrib.oidc.OAuth2Token;
+import org.xwiki.contrib.oidc.OAuth2TokenStore;
 import org.xwiki.contrib.oidc.auth.internal.endpoint.CallbackOIDCEndpoint;
 import org.xwiki.contrib.oidc.auth.store.OIDCClientConfiguration;
 import org.xwiki.contrib.oidc.provider.internal.OIDCManager;
+import org.xwiki.job.DefaultRequest;
+import org.xwiki.job.Job;
+import org.xwiki.job.JobException;
+import org.xwiki.job.JobExecutor;
 
 import com.nimbusds.oauth2.sdk.AuthorizationRequest;
 import com.nimbusds.oauth2.sdk.GeneralException;
@@ -58,10 +64,16 @@ public class DefaultOAuth2ClientManager implements OAuth2ClientManager
     private OIDCManager oidcManager;
 
     @Inject
+    private OAuth2TokenStore tokenStore;
+
+    @Inject
     private org.xwiki.contrib.oidc.auth.internal.OIDCClientConfiguration authConfig;
 
     @Inject
     private Logger logger;
+
+    @Inject
+    private JobExecutor executor;
 
     @Override
     public void authorize(OIDCClientConfiguration config, URI redirectURI) throws OAuth2Exception
@@ -97,5 +109,40 @@ public class DefaultOAuth2ClientManager implements OAuth2ClientManager
         } catch (URISyntaxException | IOException | GeneralException e) {
             throw new OAuth2Exception("Failed to perform authorization request", e);
         }
+    }
+
+    @Override
+    public Job renew(OIDCClientConfiguration config) throws OAuth2Exception
+    {
+        return renew(config, false);
+    }
+
+    @Override
+    public Job renew(OIDCClientConfiguration config, boolean force) throws OAuth2Exception
+    {
+        OAuth2Token token = tokenStore.getToken(config);
+
+        // For now, only renew access tokens if they expire within the next 24 hours.
+        // TODO: Update the client configuration to allow users to define when a token should be renewed
+        if (token instanceof NimbusOAuth2Token
+            && (force || ((NimbusOAuth2Token) token).toAccessToken().getLifetime() < 3600 * 24)) {
+            DefaultRequest request = new DefaultRequest();
+            request.setProperty(OAuth2TokenRenewalJob.TOKEN_PROPERTY, token);
+
+            try {
+                return executor.execute(OAuth2TokenRenewalJob.JOB_TYPE, request);
+            } catch (JobException e) {
+                throw new OAuth2Exception(
+                    String.format("Failed to renew token [%s]", token.getReference()), e);
+            }
+        } else if (token != null) {
+            logger.info("Skipping renewal of token [{}] as the token is not close to expiry.",
+                token.getReference());
+        } else {
+            logger.info("Skipping token renewal as no token has been found for configuration [{}].",
+                config.getConfigurationName());
+        }
+
+        return null;
     }
 }
