@@ -103,10 +103,13 @@ public class OAuth2ClientScriptService implements ScriptService
 
             if (!(force && isWikiAdmin)) {
                 // Check if an access token already exists for this configuration
-                AccessToken accessToken = ((NimbusOAuth2Token) tokenStore.getToken(configuration)).toAccessToken();
-                if (accessToken != null && accessToken.getLifetime() > System.currentTimeMillis()) {
-                    throw new OAuth2Exception(
-                        String.format("Configuration [%s] is already authorized", configurationName));
+                OAuth2Token token = tokenStore.getToken(configuration);
+                if (token instanceof NimbusOAuth2Token) {
+                    AccessToken accessToken = ((NimbusOAuth2Token) token).toAccessToken();
+                    if (accessToken != null && accessToken.getLifetime() > System.currentTimeMillis()) {
+                        throw new OAuth2Exception(
+                            String.format("Configuration [%s] is already authorized", configurationName));
+                    }
                 }
             }
 
@@ -131,7 +134,12 @@ public class OAuth2ClientScriptService implements ScriptService
      */
     public String getAccessToken(String configurationName) throws OAuth2Exception
     {
-        return tokenStore.getToken(getConfigurationFromName(configurationName)).getAccessToken();
+        OAuth2Token token = tokenStore.getToken(getConfigurationFromName(configurationName));
+        if (token != null) {
+            return token.getAccessToken();
+        } else {
+            return null;
+        }
     }
 
     private OIDCClientConfiguration getConfigurationFromName(String name) throws OAuth2Exception

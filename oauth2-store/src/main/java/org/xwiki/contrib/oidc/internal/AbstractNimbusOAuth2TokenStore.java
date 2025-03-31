@@ -176,9 +176,7 @@ public abstract class AbstractNimbusOAuth2TokenStore implements OAuth2TokenStore
 
             try {
                 XWikiDocument document = xwiki.getDocument(getConfiguredDocumentReference(configuration), context);
-                return document.getXObject(
-                    NimbusOAuth2Token.CLASS_REFERENCE, NimbusOAuth2Token.FIELD_CLIENT_CONFIGURATION_NAME,
-                    configuration.getConfigurationName(), true).getReference();
+                return document.newXObject(NimbusOAuth2Token.CLASS_REFERENCE, context).getReference();
 
             } catch (XWikiException e) {
                 throw new OAuth2Exception(String.format(

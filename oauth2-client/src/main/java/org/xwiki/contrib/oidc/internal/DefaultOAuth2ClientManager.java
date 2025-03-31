@@ -22,12 +22,14 @@ package org.xwiki.contrib.oidc.internal;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.List;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
 
 import org.slf4j.Logger;
 import org.xwiki.component.annotation.Component;
+import org.xwiki.context.concurrent.ContextStoreManager;
 import org.xwiki.contrib.oidc.OAuth2ClientManager;
 import org.xwiki.contrib.oidc.OAuth2Exception;
 import org.xwiki.contrib.oidc.OAuth2Token;
@@ -37,8 +39,8 @@ import org.xwiki.contrib.oidc.auth.store.OIDCClientConfiguration;
 import org.xwiki.contrib.oidc.provider.internal.OIDCManager;
 import org.xwiki.job.DefaultRequest;
 import org.xwiki.job.Job;
-import org.xwiki.job.JobException;
 import org.xwiki.job.JobExecutor;
+import org.xwiki.model.reference.EntityReferenceSerializer;
 
 import com.nimbusds.oauth2.sdk.AuthorizationRequest;
 import com.nimbusds.oauth2.sdk.GeneralException;
@@ -70,6 +72,12 @@ public class DefaultOAuth2ClientManager implements OAuth2ClientManager
     private org.xwiki.contrib.oidc.auth.internal.OIDCClientConfiguration authConfig;
 
     @Inject
+    private EntityReferenceSerializer<String> entityReferenceSerializer;
+
+    @Inject
+    private ContextStoreManager contextStoreManager;
+
+    @Inject
     private Logger logger;
 
     @Inject
@@ -91,7 +99,9 @@ public class DefaultOAuth2ClientManager implements OAuth2ClientManager
 
             ResponseType responseType = new ResponseType(config.getResponseType().toArray(new String[0]));
             ClientID clientId = new ClientID(config.getClientId());
-            Scope scope = new Scope(config.getScope().toArray(new String[0]));
+
+            Scope scope = (config.getScope() != null)
+                ? new Scope(config.getScope().toArray(new String[0])) : new Scope();
 
             // Create the request URL
             AuthorizationRequest.Builder requestBuilder =
@@ -127,11 +137,15 @@ public class DefaultOAuth2ClientManager implements OAuth2ClientManager
         if (token instanceof NimbusOAuth2Token
             && (force || ((NimbusOAuth2Token) token).toAccessToken().getLifetime() < 3600 * 24)) {
             DefaultRequest request = new DefaultRequest();
+            request.setId("oauth2", token.getConfiguration().getConfigurationName(),
+                entityReferenceSerializer.serialize(token.getReference()));
             request.setProperty(OAuth2TokenRenewalJob.TOKEN_PROPERTY, token);
 
             try {
+                request.setContext(this.contextStoreManager.save(List.of("user")));
+
                 return executor.execute(OAuth2TokenRenewalJob.JOB_TYPE, request);
-            } catch (JobException e) {
+            } catch (Exception e) {
                 throw new OAuth2Exception(
                     String.format("Failed to renew token [%s]", token.getReference()), e);
             }

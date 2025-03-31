@@ -30,6 +30,7 @@ import org.xwiki.contrib.oidc.OAuth2TokenStore;
 import org.xwiki.contrib.oidc.OAuth2Exception;
 import org.xwiki.contrib.oidc.auth.store.OIDCClientConfiguration;
 import org.xwiki.model.reference.DocumentReference;
+import org.xwiki.model.reference.ObjectReference;
 
 /**
  * Default implementation for the {@link OAuth2TokenStore}.
@@ -61,6 +62,12 @@ public class DefaultOAuth2TokenStore extends AbstractNimbusOAuth2TokenStore
     public void deleteToken(OIDCClientConfiguration configuration) throws OAuth2Exception
     {
         getStore(getStorageHint(configuration)).deleteToken(configuration);
+    }
+
+    @Override
+    public ObjectReference getConfiguredObjectReference(OIDCClientConfiguration configuration) throws OAuth2Exception
+    {
+        return getStore(getStorageHint(configuration)).getConfiguredObjectReference(configuration);
     }
 
     @Override

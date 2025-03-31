@@ -68,7 +68,7 @@ public class OAuth2TokenRenewalJob extends AbstractJob<DefaultRequest, DefaultJo
     private org.xwiki.contrib.oidc.auth.internal.OIDCClientConfiguration authConfig;
 
     @Inject
-    private OAuth2TokenStore store;
+    private OAuth2TokenStore tokenStore;
 
     @Override
     public String getType()
@@ -109,14 +109,14 @@ public class OAuth2TokenRenewalJob extends AbstractJob<DefaultRequest, DefaultJo
             token.fromAccessToken(response.getTokens().getAccessToken());
             token.fromRefreshToken(response.getTokens().getRefreshToken());
 
-            store.saveToken(token);
+            tokenStore.saveToken(token);
         } catch (Exception e) {
             logger.error("Failed to renew token [{}]", token.getReference(), e);
 
             // In case the renewal fails, we need to check if the access token currently stored is still valid.
             // If it is not, then we can clean it up.
             if (token.toAccessToken().getLifetime() <= 0) {
-                store.deleteToken(token);
+                tokenStore.deleteToken(token);
             }
 
             throw new OAuth2Exception(String.format("Failed to renew token [%s] for configuration [%s]",

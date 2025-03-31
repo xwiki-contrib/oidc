@@ -261,7 +261,7 @@ public class NimbusOAuth2Token implements OAuth2Token
     public AccessToken toAccessToken() throws OAuth2Exception
     {
         // For now, only bearer access tokens are supported.
-        if (!AccessTokenType.BEARER.equals(getType())) {
+        if (!AccessTokenType.BEARER.equals(this.type)) {
             throw new OAuth2Exception(
                 String.format("Failed to convert access token : type [%s] is unsupported.", getType().toString()));
         } else {
@@ -290,6 +290,8 @@ public class NimbusOAuth2Token implements OAuth2Token
         xobject.setStringValue(FIELD_REFRESH_TOKEN, refreshToken);
         xobject.setStringValue(FIELD_TYPE, type.toString());
         xobject.setLongValue(FIELD_EXPIRES_AT, expiresAt);
-        xobject.setStringListValue(FIELD_SCOPE, scope.toStringList());
+        if (scope != null) {
+            xobject.setStringListValue(FIELD_SCOPE, scope.toStringList());
+        }
     }
 }
