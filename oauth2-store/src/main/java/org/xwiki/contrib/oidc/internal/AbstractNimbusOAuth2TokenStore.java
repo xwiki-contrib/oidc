@@ -80,7 +80,12 @@ public abstract class AbstractNimbusOAuth2TokenStore implements OAuth2TokenStore
                 if (contextualAuthorizationManager.hasAccess(Right.EDIT, documentReference)) {
                     BaseObject object = document.getXObject(NimbusOAuth2Token.CLASS_REFERENCE,
                         NimbusOAuth2Token.FIELD_CLIENT_CONFIGURATION_NAME,
-                        token.getConfiguration().getConfigurationName(), true);
+                        token.getConfiguration().getConfigurationName(), false);
+
+                    if (object == null) {
+                        object = document.newXObject(NimbusOAuth2Token.CLASS_REFERENCE, context);
+                    }
+
                     ((NimbusOAuth2Token) token).applyTo(object);
 
                     // Don't create a new version of the document upon save
