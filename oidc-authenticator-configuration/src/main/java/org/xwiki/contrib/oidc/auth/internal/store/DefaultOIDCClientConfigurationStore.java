@@ -26,6 +26,7 @@ import javax.inject.Provider;
 import javax.inject.Singleton;
 
 import org.xwiki.component.annotation.Component;
+import org.xwiki.contrib.oidc.auth.internal.store.OIDCClientConfigurationCache.CacheEntry;
 import org.xwiki.contrib.oidc.auth.store.OIDCClientConfiguration;
 import org.xwiki.contrib.oidc.auth.store.OIDCClientConfigurationStore;
 import org.xwiki.model.reference.DocumentReferenceResolver;
@@ -50,6 +51,9 @@ import com.xpn.xwiki.doc.XWikiDocument;
 @Singleton
 public class DefaultOIDCClientConfigurationStore implements OIDCClientConfigurationStore
 {
+    @Inject
+    private OIDCClientConfigurationCache cache;
+
     @Inject
     private QueryManager queryManager;
 
@@ -100,16 +104,25 @@ public class DefaultOIDCClientConfigurationStore implements OIDCClientConfigurat
     }
 
     @Override
-    public OIDCClientConfiguration getOIDCClientConfiguration(String name)
-        throws XWikiException, QueryException
+    public OIDCClientConfiguration getOIDCClientConfiguration(String name) throws XWikiException, QueryException
     {
-        XWikiDocument configurationDocument = getOIDCClientConfigurationDocument(name);
-
-        if (configurationDocument != null) {
-            return new OIDCClientConfiguration(
-                configurationDocument.getXObject(OIDCClientConfiguration.CLASS_REFERENCE));
+        // Check if the configuration (or the fact that there is no configuration) is already in the cache
+        CacheEntry entry = this.cache.get(name);
+        if (entry != null) {
+            return entry.getConfiguration();
         }
 
-        return null;
+        // Find the configuration
+        OIDCClientConfiguration configuration = null;
+        XWikiDocument configurationDocument = getOIDCClientConfigurationDocument(name);
+        if (configurationDocument != null) {
+            configuration =
+                new OIDCClientConfiguration(configurationDocument.getXObject(OIDCClientConfiguration.CLASS_REFERENCE));
+        }
+
+        // Cache the configuration
+        this.cache.set(name, configuration);
+
+        return configuration;
     }
 }
