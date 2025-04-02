@@ -115,7 +115,11 @@ public class NimbusOAuth2Token implements OAuth2Token
         this.type = new AccessTokenType(xobject.getStringValue(FIELD_TYPE));
         this.expiresAt = xobject.getLongValue(FIELD_EXPIRES_AT);
         this.scope = new Scope();
-        this.scope.addAll(xobject.getListValue(FIELD_SCOPE));
+        for (Object value : xobject.getListValue(FIELD_SCOPE)) {
+            if (value instanceof String) {
+                this.scope.add((String) value);
+            }
+        }
     }
 
     /**
