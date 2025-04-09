@@ -60,6 +60,13 @@
         <groupId>com.nimbusds</groupId>
         <artifactId>nimbus-jose-jwt</artifactId>
         <version>10.2</version>
+        <exclusions>
+          <!-- Excelude gson because nimbus-jose-jwt trigger a version too recent for the minimum supported XWiki version -->
+          <exclusion>
+            <groupId>com.google.code.gson</groupId>
+            <artifactId>gson</artifactId>
+          </exclusion>
+        </exclusions>
       </dependency>
     </dependencies>
   </dependencyManagement>
