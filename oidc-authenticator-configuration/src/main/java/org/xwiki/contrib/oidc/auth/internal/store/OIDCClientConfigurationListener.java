@@ -40,8 +40,7 @@ import com.xpn.xwiki.objects.BaseObjectReference;
 
 /**
  * @version $Id$
- * @since 17.3.0CR1
- * @since 16.10.6
+ * @since 2.16.3
  */
 @Component
 @Named(OIDCClientConfigurationListener.NAME)
