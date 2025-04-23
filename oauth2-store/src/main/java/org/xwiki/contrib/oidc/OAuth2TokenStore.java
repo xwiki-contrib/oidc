@@ -19,8 +19,11 @@
  */
 package org.xwiki.contrib.oidc;
 
+import java.util.Set;
+
 import org.xwiki.component.annotation.Role;
 import org.xwiki.contrib.oidc.auth.store.OIDCClientConfiguration;
+import org.xwiki.model.reference.DocumentReference;
 import org.xwiki.model.reference.ObjectReference;
 import org.xwiki.stability.Unstable;
 
@@ -81,4 +84,14 @@ public interface OAuth2TokenStore
      * @since 2.16.0
      */
     ObjectReference getConfiguredObjectReference(OIDCClientConfiguration configuration) throws OAuth2Exception;
+
+    /**
+     * Get a set of tokens that the given document contains.
+     *
+     * @param documentReference the reference to the document from which tokens should be extracted
+     * @return a set of tokens found in the document
+     * @throws OAuth2Exception if an error happens
+     * @since 2.17.0
+     */
+    Set<OAuth2Token> getTokens(DocumentReference documentReference) throws OAuth2Exception;
 }

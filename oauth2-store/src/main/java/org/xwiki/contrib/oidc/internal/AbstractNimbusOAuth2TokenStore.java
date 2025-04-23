@@ -19,6 +19,9 @@
  */
 package org.xwiki.contrib.oidc.internal;
 
+import java.util.HashSet;
+import java.util.Set;
+
 import javax.inject.Inject;
 import javax.inject.Provider;
 
@@ -26,8 +29,10 @@ import org.xwiki.contrib.oidc.OAuth2Token;
 import org.xwiki.contrib.oidc.OAuth2TokenStore;
 import org.xwiki.contrib.oidc.OAuth2Exception;
 import org.xwiki.contrib.oidc.auth.store.OIDCClientConfiguration;
+import org.xwiki.contrib.oidc.auth.store.OIDCClientConfigurationStore;
 import org.xwiki.model.reference.DocumentReference;
 import org.xwiki.model.reference.ObjectReference;
+import org.xwiki.query.QueryException;
 import org.xwiki.security.authorization.ContextualAuthorizationManager;
 import org.xwiki.security.authorization.Right;
 
@@ -50,6 +55,9 @@ public abstract class AbstractNimbusOAuth2TokenStore implements OAuth2TokenStore
 
     @Inject
     protected ContextualAuthorizationManager contextualAuthorizationManager;
+
+    @Inject
+    protected OIDCClientConfigurationStore oidcClientConfigurationStore;
 
     /**
      * Provide the document to be used for storing oauth2 tokens for the given configuration.
@@ -188,6 +196,33 @@ public abstract class AbstractNimbusOAuth2TokenStore implements OAuth2TokenStore
                     "Failed to get configured object reference for configuration [%s]",
                     configuration.getConfigurationName()), e);
             }
+        }
+    }
+
+    @Override
+    public Set<OAuth2Token> getTokens(DocumentReference documentReference) throws OAuth2Exception
+    {
+        XWikiContext context = contextProvider.get();
+        XWiki xwiki = context.getWiki();
+
+        try {
+            XWikiDocument document = xwiki.getDocument(documentReference, context);
+
+            Set<OAuth2Token> tokens = new HashSet<>();
+            for (BaseObject object : document.getXObjects(NimbusOAuth2Token.CLASS_REFERENCE)) {
+                // Get the corresponding configuration
+                OIDCClientConfiguration configuration = oidcClientConfigurationStore.getOIDCClientConfiguration(
+                    object.getStringValue(NimbusOAuth2Token.FIELD_CLIENT_CONFIGURATION_NAME));
+
+                if (configuration != null) {
+                    tokens.add(new NimbusOAuth2Token(configuration, object));
+                }
+            }
+
+            return tokens;
+        } catch (XWikiException | QueryException e) {
+            throw new OAuth2Exception(
+                String.format("Failed to get registered tokens tokens from document [%s]", documentReference), e);
         }
     }
 }

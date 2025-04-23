@@ -130,8 +130,12 @@ public class DefaultOAuth2ClientManager implements OAuth2ClientManager
     @Override
     public Job renew(OIDCClientConfiguration config, boolean force) throws OAuth2Exception
     {
-        OAuth2Token token = tokenStore.getToken(config);
+        return renew(tokenStore.getToken(config), force);
+    }
 
+    @Override
+    public Job renew(OAuth2Token token, boolean force) throws OAuth2Exception
+    {
         // For now, only renew access tokens if they expire within the next 24 hours.
         // TODO: Update the client configuration to allow users to define when a token should be renewed
         if (token instanceof NimbusOAuth2Token
@@ -154,7 +158,7 @@ public class DefaultOAuth2ClientManager implements OAuth2ClientManager
                 token.getReference());
         } else {
             logger.info("Skipping token renewal as no token has been found for configuration [{}].",
-                config.getConfigurationName());
+                token.getConfiguration().getConfigurationName());
         }
 
         return null;

@@ -65,4 +65,15 @@ public interface OAuth2ClientManager
      * @since 2.16.0
      */
     Job renew(OIDCClientConfiguration config, boolean force) throws OAuth2Exception;
+
+    /**
+     * Renews an OAuth2 access token if the token is close to expiry.
+     *
+     * @param token the token to renew
+     * @param force if true, the token will be renewed, even if it is not close to expiry
+     * @return the token renewal job, or null if the token is not to be renewed
+     * @throws OAuth2Exception if an error happens
+     * @since 2.17.0
+     */
+    Job renew(OAuth2Token token, boolean force) throws OAuth2Exception;
 }
