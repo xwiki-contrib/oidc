@@ -157,6 +157,9 @@ public class OIDCStore
 
         XWikiDocument userDocument = xcontext.getWiki().getDocument(userReference, xcontext);
 
+        // Make sure to avoid modifying the cached document
+        userDocument = userDocument.clone();
+
         return getConsent(clientID, redirectURI, userDocument);
     }
 
@@ -464,6 +467,9 @@ public class OIDCStore
             // Get the consent object
             BaseObject consentObject = consentDocument.getXObject(reference);
             if (consentObject != null) {
+                // Make sure to avoid modifying the cached document
+                consentDocument = consentDocument.clone();
+
                 // Remove the xobject
                 if (consentDocument.removeXObject(consentObject)) {
                     // Save the modified document
