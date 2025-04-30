@@ -33,7 +33,7 @@
   {{warning}}
     {{translation key="xe.admin.users.applyonusers"/}}
   {{/warning}}
-#elseif (!$xcontext.userReference.equals($doc.documentReference) && !$services.security.authorization.hasAcess('programming'))
+#elseif (!$xcontext.userReference.equals($doc.documentReference) && !$services.security.authorization.hasAccess('programming'))
   {{error}}
     {{translation key="notallowed"/}}
   {{/error}}
@@ -64,9 +64,9 @@
       #if ($request.oidc_consent_create)
         #set ($application_name = $request.application_name)
         #if ("$!application_name" != '')
-          #set ($consent = $services.oidc.provider.addConsent($xcontext.userReference, $application_name, $expiration_date))
+          #set ($consent = $services.oidc.provider.addConsent($doc.documentReference, $application_name, $expiration_date))
           {{success title="$services.rendering.escape($consent.clientID, 'xwiki/2.1')"}}
-            $services.rendering.escape($services.localization.render('oidc.template.userapplications.newTokenCreated', [$xcontext.userReference]), 'xwiki/2.1')
+            $services.rendering.escape($services.localization.render('oidc.template.userapplications.newTokenCreated', [$doc.documentReference]), 'xwiki/2.1')
 
             {{translation key="oidc.template.userapplications.bearerAccessToken"/}}
 
@@ -123,7 +123,7 @@
       </form>
     #end
 
-    #foreach ($consent in $services.oidc.provider.getConsents($xcontext.userReference))
+    #foreach ($consent in $services.oidc.provider.getConsents($doc.documentReference))
       <div class="box">
         <div class="pull-left">
           #if ($consent.clientID)
