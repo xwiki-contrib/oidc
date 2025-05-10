@@ -31,6 +31,7 @@ import org.xwiki.component.annotation.Component;
 import org.xwiki.contrib.oidc.auth.store.OIDCClientConfiguration;
 import org.xwiki.contrib.oidc.auth.store.OIDCClientConfigurationStore;
 import org.xwiki.contrib.oidc.internal.NimbusOAuth2Token;
+import org.xwiki.job.Job;
 import org.xwiki.query.QueryException;
 import org.xwiki.script.service.ScriptService;
 import org.xwiki.security.authorization.ContextualAuthorizationManager;
@@ -128,12 +129,41 @@ public class OAuth2ClientScriptService implements ScriptService
     }
 
     /**
+     * Get an up-to-date access token, renewing it if needed.
+     *
      * @param configurationName the configuration to use
      * @return the access token found, or null if no access token exists
      * @throws OAuth2Exception if an error happens
      */
     public String getAccessToken(String configurationName) throws OAuth2Exception
     {
+        return getAccessToken(configurationName, false);
+    }
+
+    /**
+     * Get an access token.
+     *
+     * @since 2.17.2
+     * @param configurationName the configuration to use
+     * @param skipRenewal set to true to not attempt to renew an expiring token
+     * @return the access token found, or null if no access token exists
+     * @throws OAuth2Exception if an error happens
+     */
+    public String getAccessToken(String configurationName, boolean skipRenewal) throws OAuth2Exception
+    {
+        if (!skipRenewal) {
+            // Make sure that the token is up to date
+            OIDCClientConfiguration configuration = getConfigurationFromName(configurationName);
+            Job tokenRenewalJob = oAuth2ClientManager.renew(configuration);
+            if (tokenRenewalJob != null) {
+                try {
+                    tokenRenewalJob.join();
+                } catch (InterruptedException e) {
+                    throw new OAuth2Exception(String.format("Failed to renew token [%s]", configurationName), e);
+                }
+            }
+        }
+
         OAuth2Token token = tokenStore.getToken(getConfigurationFromName(configurationName));
         if (token != null) {
             return token.getAccessToken();
@@ -141,6 +171,7 @@ public class OAuth2ClientScriptService implements ScriptService
             return null;
         }
     }
+
 
     private OIDCClientConfiguration getConfigurationFromName(String name) throws OAuth2Exception
     {
