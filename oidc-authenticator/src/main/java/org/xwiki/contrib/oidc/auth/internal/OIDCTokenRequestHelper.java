@@ -111,7 +111,8 @@ public final class OIDCTokenRequestHelper
             if (error.getErrorObject() != null) {
                 throw new OIDCException("Failed to get access token", error.getErrorObject());
             } else {
-                throw new OIDCException("Failed to get access token (" + httpResponse.getStatusCode() + ')');
+                throw new OIDCException(String.format("Failed to get access token (%s) : [%s]",
+                    httpResponse.getStatusCode(), httpResponse.getBody()));
             }
         }
 
