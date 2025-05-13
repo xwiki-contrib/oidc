@@ -154,11 +154,8 @@ public class DefaultOAuth2ClientManager implements OAuth2ClientManager
                     String.format("Failed to renew token [%s]", token.getReference()), e);
             }
         } else if (token != null) {
-            logger.info("Skipping renewal of token [{}] as the token is not close to expiry.",
+            logger.info("Skipping renewal of token [{}] as the token is not close to expiry or is not supported.",
                 token.getReference());
-        } else {
-            logger.info("Skipping token renewal as no token has been found for configuration [{}].",
-                token.getConfiguration().getConfigurationName());
         }
 
         return null;
