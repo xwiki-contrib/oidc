@@ -298,13 +298,17 @@ public class OIDCAuthServiceImpl extends XWikiAuthServiceImpl
     public void showLogin(XWikiContext context) throws XWikiException
     {
         if (!this.configuration.isSkipped()) {
-            try {
-                showLoginOIDC(context);
-            } catch (Exception e) {
-                LOGGER.error("Failed to show OpenID Connect login", e);
+            // It does not make much sense redirecting in the case of an ajax call as most of the time the redirect will
+            // fail (if CORS are not allowed on the target OIDC provider)
+            if (!Utils.isAjaxRequest(context)) {
+                try {
+                    showLoginOIDC(context);
+                } catch (Exception e) {
+                    LOGGER.error("Failed to show OpenID Connect login", e);
 
-                // Fallback on standard auth
-                super.showLogin(context);
+                    // Fallback on standard auth
+                    super.showLogin(context);
+                }
             }
         } else {
             super.showLogin(context);
