@@ -338,6 +338,11 @@ public class OIDCClientConfiguration extends OIDCConfiguration
      */
     private static final String PROP_LOGOUT_REDIRECT_URL = "oidc.afterLogoutURL";
 
+    /**
+     * @since 2.17.5
+     */
+    private static final String PROP_SKIP_LOGOUT_ID_TOKEN = "oidc.skipLogoutIdToken";
+
     private static final String XWIKI_GROUP_PREFIX = "XWiki.";
 
     private static final Set<String> SAFE_PROPERTIES = SetUtils.hashSet(PROP_SKIPPED);
@@ -1201,6 +1206,16 @@ public class OIDCClientConfiguration extends OIDCConfiguration
     }
 
     /**
+     * @return {@code true} if the ID Token should be skipped at logout, or {@code false} otherwise.
+     *
+     * @since 2.17.5
+     */
+    public boolean skipIdTokenFromLogout()
+    {
+        return getProperty(PROP_SKIP_LOGOUT_ID_TOKEN, false);
+    }
+
+    /**
      * @since 1.2
      */
     public AccessToken getAccessToken()
@@ -1533,6 +1548,9 @@ public class OIDCClientConfiguration extends OIDCConfiguration
                 break;
             case PROP_ENABLE_USER:
                 returnValue = clientConfiguration.getEnableUser();
+                break;
+            case PROP_SKIP_LOGOUT_ID_TOKEN:
+                returnValue = clientConfiguration.isIdTokenSkippedFromLogout();
                 break;
         }
 

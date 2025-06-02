@@ -104,5 +104,7 @@ public class OIDCClientConfigurationClassDocumentInitializer extends AbstractMan
                 OIDCClientConfiguration.TokenStorageScope.USER.name(),
                 OIDCClientConfiguration.TokenStorageScope.WIKI.name()),
             OIDCClientConfiguration.DEFAULT_TOKEN_STORAGE.name());
+        xclass.addBooleanField(OIDCClientConfiguration.FIELD_SKIP_LOGOUT_ID_TOKEN,
+            "Skip ID Token at logout", SELECT, false);
     }
 }

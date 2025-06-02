@@ -233,6 +233,13 @@ public class OIDCClientConfiguration
     public static final String FIELD_TOKEN_STORAGE_SCOPE = "tokenStorageScope";
 
     /**
+     * Name of the property indicating if the ID token should be added or not to the logout request.
+     *
+     * @since 2.17.5
+     */
+    public static final String FIELD_SKIP_LOGOUT_ID_TOKEN = "skipLogoutIdToken";
+
+    /**
      * Defines where OIDC tokens should be stored.
      *
      * @since 2.15.0
@@ -833,5 +840,14 @@ public class OIDCClientConfiguration
     public void setTokenStorageScope(TokenStorageScope tokenStorageScope)
     {
         this.xobject.setStringValue(FIELD_TOKEN_STORAGE_SCOPE, tokenStorageScope.name());
+    }
+
+    /**
+     * @return {@code true} if the ID Token should be skipped at logout, or {@code false} otherwise.
+     *
+     * @since 2.17.5
+     */
+    public boolean isIdTokenSkippedFromLogout() {
+        return (this.xobject.getIntValue(FIELD_SKIP_LOGOUT_ID_TOKEN, 0) == 1);
     }
 }

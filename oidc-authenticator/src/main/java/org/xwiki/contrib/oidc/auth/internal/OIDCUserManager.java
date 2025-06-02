@@ -938,8 +938,8 @@ public class OIDCUserManager
         }
 
         LogoutRequest logoutRequest =
-            new LogoutRequest(logoutEndpoint.getURI(), idToken, null, clientID, redirectURI, null, null);
-
+            new LogoutRequest(logoutEndpoint.getURI(), !this.configuration.skipIdTokenFromLogout() ? idToken : null,
+                null, clientID, redirectURI, null, null);
         // Redirect to the provider
         this.manager.redirect(logoutRequest.toURI().toString(), true);
     }
