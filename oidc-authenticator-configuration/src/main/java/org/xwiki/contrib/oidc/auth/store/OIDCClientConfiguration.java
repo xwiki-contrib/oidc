@@ -235,7 +235,7 @@ public class OIDCClientConfiguration
     /**
      * Name of the property indicating if the ID token should be added or not to the logout request.
      *
-     * @since 2.17.5
+     * @since 2.18.0
      */
     public static final String FIELD_SKIP_LOGOUT_ID_TOKEN = "skipLogoutIdToken";
 
@@ -845,7 +845,7 @@ public class OIDCClientConfiguration
     /**
      * @return {@code true} if the ID Token should be skipped at logout, or {@code false} otherwise.
      *
-     * @since 2.17.5
+     * @since 2.18.0
      */
     public boolean isIdTokenSkippedFromLogout() {
         return (this.xobject.getIntValue(FIELD_SKIP_LOGOUT_ID_TOKEN, 0) == 1);

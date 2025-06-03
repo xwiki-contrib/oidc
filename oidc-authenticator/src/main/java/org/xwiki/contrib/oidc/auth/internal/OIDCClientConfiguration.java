@@ -339,9 +339,9 @@ public class OIDCClientConfiguration extends OIDCConfiguration
     private static final String PROP_LOGOUT_REDIRECT_URL = "oidc.afterLogoutURL";
 
     /**
-     * @since 2.17.5
+     * @since 2.18.0
      */
-    private static final String PROP_SKIP_LOGOUT_ID_TOKEN = "oidc.skipLogoutIdToken";
+    public static final String PROP_SKIP_LOGOUT_ID_TOKEN = "oidc.skipLogoutIdToken";
 
     private static final String XWIKI_GROUP_PREFIX = "XWiki.";
 
@@ -1208,7 +1208,7 @@ public class OIDCClientConfiguration extends OIDCConfiguration
     /**
      * @return {@code true} if the ID Token should be skipped at logout, or {@code false} otherwise.
      *
-     * @since 2.17.5
+     * @since 2.18.0
      */
     public boolean skipIdTokenFromLogout()
     {
