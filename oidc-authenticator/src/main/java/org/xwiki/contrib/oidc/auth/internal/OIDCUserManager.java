@@ -900,18 +900,17 @@ public class OIDCUserManager
         JWT idToken = this.configuration.getIdTokenJWT();
 
         // TODO: remove cookies
-
-        // Make sure the session is free from anything related to a previously authenticated user (i.e. in case we
-        // are just after a logout)
-        this.sessions.logout(request.getSession());
-
         // Logout the provider if configured, otherwise just logout locally
-        if (logoutEndpoint != null && clientID != null) {
-            try {
+        try {
+            if (logoutEndpoint != null && clientID != null) {
                 logoutProvider(logoutEndpoint, clientID, idToken);
-            } catch (Exception e) {
-                this.logger.error("Failed to perform OIDC RP-initiated log-out.", e);
             }
+        } catch (Exception e) {
+            this.logger.error("Failed to perform OIDC RP-initiated log-out.", e);
+        } finally {
+            // Make sure the session is free from anything related to a previously authenticated user (i.e. in case we
+            // are just after a logout)
+            this.sessions.logout(request.getSession());
         }
     }
 
