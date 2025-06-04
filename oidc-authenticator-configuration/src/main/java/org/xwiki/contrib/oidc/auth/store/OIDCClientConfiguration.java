@@ -847,7 +847,8 @@ public class OIDCClientConfiguration
      *
      * @since 2.18.0
      */
-    public boolean isIdTokenSkippedFromLogout() {
+    public boolean isIdTokenSkippedFromLogout()
+    {
         return (this.xobject.getIntValue(FIELD_SKIP_LOGOUT_ID_TOKEN, 0) == 1);
     }
 }
