@@ -95,10 +95,12 @@ public class BackChannelLogoutOIDCEndpoint implements OIDCEndpoint
         ClientProvider clientProvider = this.configuration.getClientProvider();
         LogoutTokenClaimsSet logoutToken;
         if (clientProvider != null) {
-            LogoutTokenValidator tokenValidator = LogoutTokenValidator.create(clientProvider.getMetadata(),
-                this.configuration.createClientInformation(), this.oidc.getJWKSource());
+            JWT jwt = logoutRequest.getLogoutToken();
 
-            logoutToken = validate(tokenValidator, logoutRequest.getLogoutToken());
+            LogoutTokenValidator tokenValidator = LogoutTokenValidator.create(clientProvider.getMetadata(),
+                this.configuration.createClientInformation(jwt), this.oidc.getJWKSource());
+
+            logoutToken = validate(tokenValidator, jwt);
         } else {
             // TODO: add support for null ClientProvider
             logoutToken = new LogoutTokenClaimsSet(logoutRequest.getLogoutToken().getJWTClaimsSet());

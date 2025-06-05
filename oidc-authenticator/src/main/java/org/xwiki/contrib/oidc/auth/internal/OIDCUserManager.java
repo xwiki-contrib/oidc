@@ -213,9 +213,9 @@ public class OIDCUserManager
             ClientProvider clientProvider = this.configuration.getClientProvider();
 
             if (clientProvider != null) {
-                userinfo =
-                    UserInfoValidator.create(clientProvider.getMetadata(), this.configuration.createClientInformation(),
-                        this.oidc.getJWKSource()).validate(userinfoSuccessResponse.getUserInfoJWT());
+                JWT jwt = userinfoSuccessResponse.getUserInfoJWT();
+                userinfo = UserInfoValidator.create(clientProvider.getMetadata(),
+                    this.configuration.createClientInformation(jwt), this.oidc.getJWKSource()).validate(jwt);
             } else {
                 // TODO: add support for null ClientProvider
                 userinfo = new UserInfo(userinfoSuccessResponse.getUserInfoJWT().getJWTClaimsSet());

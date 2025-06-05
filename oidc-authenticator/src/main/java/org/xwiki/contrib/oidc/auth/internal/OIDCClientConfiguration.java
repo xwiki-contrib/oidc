@@ -77,9 +77,12 @@ import org.xwiki.instance.InstanceIdManager;
 import org.xwiki.properties.ConverterManager;
 import org.xwiki.query.QueryException;
 
+import com.nimbusds.jose.JWEAlgorithm;
 import com.nimbusds.jose.JWSAlgorithm;
+import com.nimbusds.jwt.EncryptedJWT;
 import com.nimbusds.jwt.JWT;
 import com.nimbusds.jwt.JWTParser;
+import com.nimbusds.jwt.SignedJWT;
 import com.nimbusds.oauth2.sdk.GeneralException;
 import com.nimbusds.oauth2.sdk.ParseException;
 import com.nimbusds.oauth2.sdk.ResponseType;
@@ -800,8 +803,6 @@ public class OIDCClientConfiguration extends OIDCConfiguration
 
         metadata.setApplicationType(ApplicationType.WEB);
         metadata.setBackChannelLogoutURI(this.manager.createEndPointURI(BackChannelLogoutOIDCEndpoint.HINT));
-        metadata.setIDTokenJWSAlg(JWSAlgorithm.RS256);
-        metadata.setUserInfoJWSAlg(JWSAlgorithm.RS256);
         metadata.setRedirectionURI(this.manager.createEndPointURI(CallbackOIDCEndpoint.HINT));
 
         return metadata;
@@ -816,6 +817,49 @@ public class OIDCClientConfiguration extends OIDCConfiguration
         throws URISyntaxException, GeneralException, IOException
     {
         return new OIDCClientInformation(getClientID(issuer), createClientMetadata());
+    }
+
+    /**
+     * @since 2.18.1
+     */
+    public OIDCClientInformation createClientInformation(JWT jwt)
+        throws URISyntaxException, GeneralException, IOException
+    {
+        return createClientInformation(getIssuer(), jwt);
+    }
+
+    /**
+     * @since 2.18.1
+     */
+    public OIDCClientInformation createClientInformation(Issuer issuer, JWT jwt)
+        throws URISyntaxException, GeneralException, IOException
+    {
+        OIDCClientInformation clientInformation = createClientInformation(issuer);
+
+        // Set a the expected alg if provided by the token
+        if (jwt instanceof SignedJWT) {
+            setJWSAlg(clientInformation.getOIDCMetadata(), ((SignedJWT) jwt).getHeader().getAlgorithm());
+        } else if (jwt instanceof EncryptedJWT) {
+            setJWEAlg(clientInformation.getOIDCMetadata(), ((EncryptedJWT) jwt).getHeader().getAlgorithm());
+        }
+
+        return clientInformation;
+    }
+
+    private void setJWSAlg(OIDCClientMetadata metadata, JWSAlgorithm alg)
+    {
+        metadata.setAuthorizationJWSAlg(alg);
+        metadata.setIDTokenJWSAlg(alg);
+        metadata.setUserInfoJWSAlg(alg);
+        metadata.setRequestObjectJWSAlg(alg);
+    }
+
+    private void setJWEAlg(OIDCClientMetadata metadata, JWEAlgorithm alg)
+    {
+        metadata.setAuthorizationJWEAlg(alg);
+        metadata.setIDTokenJWEAlg(alg);
+        metadata.setUserInfoJWEAlg(alg);
+        metadata.setRequestObjectJWEAlg(alg);
     }
 
     /**

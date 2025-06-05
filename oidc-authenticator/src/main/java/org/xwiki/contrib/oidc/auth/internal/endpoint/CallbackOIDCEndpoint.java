@@ -282,7 +282,8 @@ public class CallbackOIDCEndpoint implements OIDCEndpoint
         IDTokenClaimsSet idToken;
         if (clientProvider != null) {
             idToken = IDTokenValidator.create(clientProvider.getMetadata(),
-                this.configuration.createClientInformation(issuer), this.oidc.getJWKSource()).validate(token, nonce);
+                this.configuration.createClientInformation(issuer, token), this.oidc.getJWKSource())
+                .validate(token, nonce);
         } else {
             // TODO: add support for null ClientProvider
             idToken = new IDTokenClaimsSet(token.getJWTClaimsSet());
