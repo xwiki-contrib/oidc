@@ -239,7 +239,7 @@ public class OIDCUserManager
         return updateUser(idToken, getUserInfo(accessToken), accessToken);
     }
 
-    private void checkAllowedGroups(List<String> providerGroups) throws OIDCException
+    public void checkAllowedGroups(List<String> providerGroups) throws OIDCException
     {
         this.logger.debug("Checking allowed groups");
 
@@ -330,10 +330,7 @@ public class OIDCUserManager
         // Check allowed/forbidden groups
         checkAllowedGroups(providerGroups);
 
-        Map<String, String> formatMap = createFormatMap(idToken, userInfo);
-        // Change the default StringSubstitutor behavior to produce an empty String instead of an unresolved pattern by
-        // default
-        StringSubstitutor substitutor = new StringSubstitutor(new OIDCStringLookup(formatMap));
+        StringSubstitutor substitutor = getSubstitutor(idToken, userInfo);
 
         String formattedSubject = formatSubject(substitutor);
 
@@ -488,6 +485,15 @@ public class OIDCUserManager
         return new SimplePrincipal(userDocument.getPrefixedFullName());
     }
 
+    public StringSubstitutor getSubstitutor(ClaimsSet idToken, UserInfo userInfo) throws MalformedURLException {
+        Map<String, String> formatMap = createFormatMap(idToken, userInfo);
+
+        // Change the default StringSubstitutor behavior to produce an empty String
+        // instead of an unresolved pattern by
+        // default
+        return new StringSubstitutor(new OIDCStringLookup(formatMap));
+    }
+
     private void updateUserMapping(XWikiDocument userDocument, BaseClass userClass, BaseObject userObject,
         XWikiContext xcontext, StringSubstitutor substitutor)
     {
@@ -504,7 +510,7 @@ public class OIDCUserManager
         }
     }
 
-    private List<String> getProviderGroups(IDTokenClaimsSet idToken, UserInfo userInfo)
+    public List<String> getProviderGroups(ClaimsSet idToken, UserInfo userInfo)
     {
         String groupClaim = this.configuration.getGroupClaim();
 
@@ -821,7 +827,7 @@ public class OIDCUserManager
         }
     }
 
-    private Map<String, String> createFormatMap(IDTokenClaimsSet idToken, UserInfo userInfo)
+    private Map<String, String> createFormatMap(ClaimsSet idToken, UserInfo userInfo)
         throws MalformedURLException
     {
         Map<String, String> formatMap = new HashMap<>();
@@ -885,7 +891,7 @@ public class OIDCUserManager
         return substitutor.replace(this.configuration.getXWikiUserNameFormater());
     }
 
-    private String formatSubject(StringSubstitutor substitutor)
+    public String formatSubject(StringSubstitutor substitutor)
     {
         return substitutor.replace(this.configuration.getSubjectFormater());
     }

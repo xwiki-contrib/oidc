@@ -25,7 +25,7 @@
   <parent>
     <groupId>org.xwiki.contrib</groupId>
     <artifactId>parent-platform</artifactId>
-    <version>14.10.2</version>
+    <version>15.10.7</version>
   </parent>
 
   <groupId>org.xwiki.contrib.oidc</groupId>
@@ -101,6 +101,15 @@
         <artifactId>revapi-maven-plugin</artifactId>
         <configuration>
           <analysisConfiguration combine.children="append">
+            <revapi.filter>
+              <archives>
+                <!-- We're ignoring all API incompatibilities from XWiki dependencies (i.e. commons and rendering)
+                     since they're already covered by their own builds and we release all of them together. -->
+                <exclude>
+                  <item>org\.xwiki\.platform:.*:.*</item>
+                </exclude>
+              </archives>
+            </revapi.filter>
             <!-- Add ignores here using the following syntax. You can use a single <revapi.differences> entry but it
                  cannot be empty. You can also use different <revapi.differences> entries if you wish to use a common
                  justification for example (see example below).
