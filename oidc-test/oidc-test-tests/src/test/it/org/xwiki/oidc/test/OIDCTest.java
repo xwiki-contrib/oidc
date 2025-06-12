@@ -23,7 +23,6 @@ import java.net.URL;
 import java.net.URLConnection;
 import java.util.Arrays;
 
-import org.apache.commons.httpclient.UsernamePasswordCredentials;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.openqa.selenium.By;
@@ -33,13 +32,11 @@ import org.xwiki.contrib.oidc.test.po.OIDCProviderConsentPage;
 import org.xwiki.test.integration.XWikiExecutor;
 import org.xwiki.test.ui.AbstractTest;
 import org.xwiki.test.ui.PersistentTestContext;
-import org.xwiki.test.ui.TestUtils;
 import org.xwiki.test.ui.po.LoginPage;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
 
 /**
  * Verify the document cache update based on distributed events.
@@ -109,13 +106,6 @@ public class OIDCTest extends AbstractTest
     {
         getUtil().switchExecutor(index);
         getUtil().gotoPage(getURL(index, "/bin/logout/XWiki/XWikiLogout?xredirect=%2Fxwiki%2Fbin%2Fview%2FMain%2F"));
-    }
-
-    private void login(int index, UsernamePasswordCredentials credentials)
-    {
-        gotToLogin(index);
-        LoginPage loginPage = new LoginPage();
-        loginPage.loginAs(credentials.getUserName(), credentials.getPassword());
     }
 
     private String getHomeURL(int index)
