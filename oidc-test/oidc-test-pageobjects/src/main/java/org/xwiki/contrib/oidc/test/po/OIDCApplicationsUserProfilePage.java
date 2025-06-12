@@ -45,6 +45,14 @@ public class OIDCApplicationsUserProfilePage extends AbstractUserProfilePage
         return new OIDCApplicationsUserProfilePage(username);
     }
 
+    /**
+     * @since 2.18.2
+     */
+    public static boolean isAllowed()
+    {
+        return getUtil().getDriver().hasElementWithoutWaiting(By.id("input_application_name"));
+    }
+
     public OIDCApplicationsUserProfilePage(String username)
     {
         super(username);

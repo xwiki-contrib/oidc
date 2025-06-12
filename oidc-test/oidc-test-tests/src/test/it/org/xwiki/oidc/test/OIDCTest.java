@@ -23,6 +23,7 @@ import java.net.URL;
 import java.net.URLConnection;
 import java.util.Arrays;
 
+import org.apache.commons.httpclient.UsernamePasswordCredentials;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.openqa.selenium.By;
@@ -32,10 +33,13 @@ import org.xwiki.contrib.oidc.test.po.OIDCProviderConsentPage;
 import org.xwiki.test.integration.XWikiExecutor;
 import org.xwiki.test.ui.AbstractTest;
 import org.xwiki.test.ui.PersistentTestContext;
+import org.xwiki.test.ui.TestUtils;
 import org.xwiki.test.ui.po.LoginPage;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Verify the document cache update based on distributed events.
@@ -53,7 +57,7 @@ public class OIDCTest extends AbstractTest
         // This will not be null if we are in the middle of allTests
         if (context == null) {
             PersistentTestContext persistentTestContext =
-                new PersistentTestContext(Arrays.asList(new XWikiExecutor(0)/*, new XWikiExecutor(1)*/));
+                new PersistentTestContext(Arrays.asList(new XWikiExecutor(0)/* , new XWikiExecutor(1) */));
             initializeSystem(persistentTestContext);
 
             // Start XWiki
@@ -84,9 +88,9 @@ public class OIDCTest extends AbstractTest
         logout(0);
     }
 
-    private void gotToClientLogin()
+    private void gotToLogin(int index)
     {
-        getUtil().switchExecutor(0);
+        getUtil().switchExecutor(index);
         getUtil()
             .gotoPage(getUtil().getBaseBinURL() + "login/XWiki/XWikiLogin?xredirect=%2Fxwiki%2Fbin%2Fview%2FMain%2F");
     }
@@ -105,6 +109,13 @@ public class OIDCTest extends AbstractTest
     {
         getUtil().switchExecutor(index);
         getUtil().gotoPage(getURL(index, "/bin/logout/XWiki/XWikiLogout?xredirect=%2Fxwiki%2Fbin%2Fview%2FMain%2F"));
+    }
+
+    private void login(int index, UsernamePasswordCredentials credentials)
+    {
+        gotToLogin(index);
+        LoginPage loginPage = new LoginPage();
+        loginPage.loginAs(credentials.getUserName(), credentials.getPassword());
     }
 
     private String getHomeURL(int index)
@@ -135,8 +146,13 @@ public class OIDCTest extends AbstractTest
         getUtil().recacheSecretToken();
         getUtil().createUser("provideruser", "providerpassword", null);
 
+        // Go to token management of provideruser
+        getUtil().gotoPage(getURL(1, "/bin/view/XWiki/provideruser?category=userapplications"));
+        // Make sure guest user is not allowed to access the user token management
+        assertFalse(OIDCApplicationsUserProfilePage.isAllowed());
+
         // Login on the client
-        gotToClientLogin();
+        gotToLogin(0);
 
         // We are asked for the provider to use, set it
         OIDCClientProviderPage providerPage = new OIDCClientProviderPage();
@@ -172,7 +188,7 @@ public class OIDCTest extends AbstractTest
         assertNull(getCurrentUserReference());
 
         // Login again
-        gotToClientLogin();
+        gotToLogin(0);
 
         // We are asked for the provider to use, set it
         providerPage = new OIDCClientProviderPage();
