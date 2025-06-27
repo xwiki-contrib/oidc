@@ -27,6 +27,7 @@ import java.net.URISyntaxException;
 import java.net.URLEncoder;
 
 import javax.script.ScriptContext;
+import javax.servlet.http.HttpServletRequest;
 
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
@@ -55,7 +56,7 @@ import com.xpn.xwiki.web.XWikiRequest;
 
 /**
  * Authenticate user trough an OpenID Connect provider.
- * 
+ *
  * @version $Id$
  */
 public class OIDCAuthServiceImpl extends XWikiAuthServiceImpl
@@ -85,6 +86,21 @@ public class OIDCAuthServiceImpl extends XWikiAuthServiceImpl
         XWikiUser user = super.checkAuth(context);
 
         if (user == null) {
+            // obtain user from authorization header
+            if (configuration.isAllowAccessToken()) {
+                HttpServletRequest request = context.getRequest().getHttpServletRequest();
+                String idTokenHeader = request.getHeader("X-Id-Token");
+                String accessTokenHeader = request.getHeader("X-Access-Token");
+
+                if (idTokenHeader != null && accessTokenHeader != null) {
+                    // validate JWT
+                    user = users.checkAccessToken(idTokenHeader, accessTokenHeader);
+                    if (user != null) {
+                        return user;
+                    }
+                }
+            }
+
             LOGGER.debug("No user could be found in the session, starting an OpenID Connect authentication");
 
             // Try OIDC if there is no already authenticated user
