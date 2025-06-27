@@ -25,13 +25,11 @@ import java.lang.reflect.Type;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URLEncoder;
-import java.util.List;
 
 import javax.script.ScriptContext;
 import javax.servlet.http.HttpServletRequest;
 
 import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.text.StringSubstitutor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xwiki.container.Container;
@@ -46,27 +44,13 @@ import org.xwiki.contrib.oidc.provider.internal.OIDCManager;
 import org.xwiki.properties.ConverterManager;
 import org.xwiki.script.ScriptContextManager;
 
-import com.nimbusds.jose.JOSEObjectType;
-import com.nimbusds.jose.JWSAlgorithm;
-import com.nimbusds.jose.jwk.source.JWKSource;
-import com.nimbusds.jose.jwk.source.JWKSourceBuilder;
-import com.nimbusds.jose.proc.DefaultJOSEObjectTypeVerifier;
-import com.nimbusds.jose.proc.JWSKeySelector;
-import com.nimbusds.jose.proc.JWSVerificationKeySelector;
-import com.nimbusds.jose.proc.SecurityContext;
-import com.nimbusds.jwt.JWTClaimsSet;
-import com.nimbusds.jwt.proc.ConfigurableJWTProcessor;
-import com.nimbusds.jwt.proc.DefaultJWTProcessor;
 import com.nimbusds.oauth2.sdk.GeneralException;
 import com.nimbusds.oauth2.sdk.ResponseType;
 import com.nimbusds.oauth2.sdk.id.State;
 import com.nimbusds.openid.connect.sdk.AuthenticationRequest;
 import com.nimbusds.openid.connect.sdk.Nonce;
-import com.nimbusds.openid.connect.sdk.claims.ClaimsSet;
-import com.nimbusds.openid.connect.sdk.claims.UserInfo;
 import com.xpn.xwiki.XWikiContext;
 import com.xpn.xwiki.XWikiException;
-import com.xpn.xwiki.doc.XWikiDocument;
 import com.xpn.xwiki.user.api.XWikiUser;
 import com.xpn.xwiki.user.impl.xwiki.XWikiAuthServiceImpl;
 import com.xpn.xwiki.web.Utils;
@@ -99,29 +83,6 @@ public class OIDCAuthServiceImpl extends XWikiAuthServiceImpl
 
     private OIDCUserStore store = Utils.getComponent(OIDCUserStore.class);;
 
-    private ConfigurableJWTProcessor<SecurityContext> jwtProcessor;
-
-    public OIDCAuthServiceImpl()
-    {
-        jwtProcessor = new DefaultJWTProcessor<>();
-
-        try {
-            // Set the required "typ" header "at+jwt" for access tokens
-            jwtProcessor.setJWSTypeVerifier(new DefaultJOSEObjectTypeVerifier<>(new JOSEObjectType("JWT")));
-            JWKSource<SecurityContext> keySource;
-            keySource = JWKSourceBuilder.create(configuration.getClientProvider().getMetadata().getJWKSetURI().toURL())
-                .retrying(true).build();
-
-            JWSAlgorithm expectedJWSAlg = JWSAlgorithm.RS256;
-            // Configure the JWT processor with a key selector to feed matching public
-            // RSA keys sourced from the JWK set URL
-            JWSKeySelector<SecurityContext> keySelector = new JWSVerificationKeySelector<>(expectedJWSAlg, keySource);
-            jwtProcessor.setJWSKeySelector(keySelector);
-        } catch (IOException | GeneralException | URISyntaxException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
     @Override
     public XWikiUser checkAuth(XWikiContext context) throws XWikiException
     {
@@ -134,10 +95,12 @@ public class OIDCAuthServiceImpl extends XWikiAuthServiceImpl
             // obtain user from authorization header
             if (configuration.isAllowAccessToken()) {
                 HttpServletRequest request = context.getRequest().getHttpServletRequest();
-                String authHeader = request.getHeader("Authorization");
-                if (authHeader != null) {
+                String idTokenHeader = request.getHeader("X-Id-Token");
+                String accessTokenHeader = request.getHeader("X-Access-Token");
+
+                if (idTokenHeader != null && accessTokenHeader != null) {
                     // validate JWT
-                    user = checkAccessToken(authHeader);
+                    user = users.checkAccessToken(idTokenHeader, accessTokenHeader);
                     if (user != null) {
                         return user;
                     }
@@ -160,34 +123,6 @@ public class OIDCAuthServiceImpl extends XWikiAuthServiceImpl
         }
 
         return user;
-    }
-
-    private XWikiUser checkAccessToken(String authorizationHeaderValue)
-    {
-        JWTClaimsSet jwtClaimsSet;
-        try {
-            jwtClaimsSet = jwtProcessor.process(authorizationHeaderValue.substring("Bearer ".length()), null);
-
-            ClaimsSet claimsSet = new ClaimsSet();
-            claimsSet.putAll(jwtClaimsSet.toJSONObject());
-
-            UserInfo userInfo = new UserInfo(jwtClaimsSet);
-
-            // Get provider groups
-            List<String> providerGroups = users.getProviderGroups(claimsSet, userInfo);
-
-            // Check allowed/forbidden groups
-            users.checkAllowedGroups(providerGroups);
-
-            StringSubstitutor substitutor = users.getSubstitutor(claimsSet, userInfo);
-            String formattedSubject = users.formatSubject(substitutor);
-            XWikiDocument userDocument = this.store.searchDocument(claimsSet.getIssuer().getValue(), formattedSubject);
-
-            return new XWikiUser(userDocument.getDocumentReference());
-        } catch (Throwable e) {
-            LOGGER.error("Error while validating access token", e);
-            return null;
-        }
     }
 
     private void checkAuthOIDC(XWikiContext context) throws Exception
