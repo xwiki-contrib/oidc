@@ -37,6 +37,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -51,6 +52,7 @@ import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang3.RegExUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.commons.text.StringSubstitutor;
 import org.apache.http.client.utils.URIBuilder;
 import org.securityfilter.realm.SimplePrincipal;
@@ -163,18 +165,6 @@ public class OIDCUserManager implements Initializable
 
     private ConfigurableJWTProcessor<SecurityContext> jwtProcessor;
 
-    private LoadingCache<String, DocumentReference> userByAccessToken = CacheBuilder.newBuilder()
-        .expireAfterWrite(1, TimeUnit.MINUTES).build(new CacheLoader<String, DocumentReference>()
-        {
-
-            @Override
-            public DocumentReference load(String key) throws Exception
-            {
-                // TODO Auto-generated method stub
-                return null;
-            }
-        });
-
     @Override
     public void initialize() throws InitializationException
     {
@@ -199,37 +189,52 @@ public class OIDCUserManager implements Initializable
     public XWikiUser checkAccessToken(String idTokenHeader, String accessTokenHeader)
     {
         try {
-
-            // check id token signature
-            IDTokenClaimsSet idToken = new IDTokenClaimsSet(jwtProcessor.process(idTokenHeader, null));
-
-            if (!idToken.getAudience().stream().anyMatch(aud -> {
-                try {
-                    return aud.toString().equals(configuration.getClientID().getValue());
-                } catch (Exception e) {
-                    throw new RuntimeException(e);
-                }
-            }))
-                throw new OIDCException("ID Token Audience mismatch. Expected " + configuration.getClientID()
-                    + ", found " + idToken.getAudience());
-
-            AccessToken accessToken = new BearerAccessToken(accessTokenHeader);
-            UserInfo userInfo = getUserInfo(accessToken);
-
-            // also checks if the user is allowed to access the wiki
-            updateUser(idToken, userInfo, accessToken);
-
-            StringSubstitutor substitutor = getSubstitutor(idToken, userInfo);
-            String formattedSubject = formatSubject(substitutor);
-            XWikiDocument userDocument = this.store.searchDocument(idToken.getIssuer().getValue(), formattedSubject);
-
-            DocumentReference userDocumentReference = userDocument.getDocumentReference();
-            return new XWikiUser(userDocumentReference);
-        } catch (Throwable e) {
+            DocumentReference ref = userByTokenCache.get(Pair.of(idTokenHeader, accessTokenHeader));
+            if (ref == null)
+                return null;
+            return new XWikiUser(ref);
+        } catch (ExecutionException e) {
             logger.error("Error while validating access token", e);
             return null;
         }
     }
+
+    private LoadingCache<Pair<String, String>, DocumentReference> userByTokenCache = CacheBuilder.newBuilder()
+        .expireAfterWrite(1, TimeUnit.MINUTES).build(new CacheLoader<Pair<String, String>, DocumentReference>()
+        {
+
+            @Override
+            public DocumentReference load(Pair<String, String> key) throws Exception
+            {
+                String idTokenHeader = key.getLeft();
+                String accessTokenHeader = key.getRight();
+
+                // check id token signature
+                IDTokenClaimsSet idToken = new IDTokenClaimsSet(jwtProcessor.process(idTokenHeader, null));
+
+                if (!idToken.getAudience().stream().anyMatch(aud -> {
+                    try {
+                        return aud.toString().equals(configuration.getClientID().getValue());
+                    } catch (Exception e) {
+                        throw new RuntimeException(e);
+                    }
+                }))
+                    throw new OIDCException("ID Token Audience mismatch. Expected " + configuration.getClientID()
+                        + ", found " + idToken.getAudience());
+
+                AccessToken accessToken = new BearerAccessToken(accessTokenHeader);
+                UserInfo userInfo = getUserInfo(accessToken);
+
+                // also checks if the user is allowed to access the wiki
+                updateUser(idToken, userInfo, accessToken);
+
+                StringSubstitutor substitutor = getSubstitutor(idToken, userInfo);
+                String formattedSubject = formatSubject(substitutor);
+                XWikiDocument userDocument = store.searchDocument(idToken.getIssuer().getValue(), formattedSubject);
+
+                return userDocument.getDocumentReference();
+            }
+        });
 
     public void updateUserInfoAsync()
     {
