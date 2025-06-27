@@ -22,29 +22,20 @@ package org.xwiki.contrib.oidc.auth;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.lang.reflect.Type;
-import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.net.URL;
 import java.net.URLEncoder;
-import java.text.ParseException;
 import java.util.List;
 
-import javax.inject.Inject;
-import javax.inject.Singleton;
 import javax.script.ScriptContext;
 import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpSession;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.text.StringSubstitutor;
-import org.securityfilter.filter.SecurityRequestWrapper;
-import org.securityfilter.realm.SimplePrincipal;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xwiki.container.Container;
 import org.xwiki.container.servlet.HttpServletUtils;
-import org.xwiki.container.servlet.ServletSession;
 import org.xwiki.container.servlet.filters.SavedRequestManager;
 import org.xwiki.contrib.oidc.auth.internal.Endpoint;
 import org.xwiki.contrib.oidc.auth.internal.OIDCClientConfiguration;
@@ -55,12 +46,10 @@ import org.xwiki.contrib.oidc.provider.internal.OIDCManager;
 import org.xwiki.properties.ConverterManager;
 import org.xwiki.script.ScriptContextManager;
 
-import com.nimbusds.jose.JOSEException;
 import com.nimbusds.jose.JOSEObjectType;
 import com.nimbusds.jose.JWSAlgorithm;
 import com.nimbusds.jose.jwk.source.JWKSource;
 import com.nimbusds.jose.jwk.source.JWKSourceBuilder;
-import com.nimbusds.jose.proc.BadJOSEException;
 import com.nimbusds.jose.proc.DefaultJOSEObjectTypeVerifier;
 import com.nimbusds.jose.proc.JWSKeySelector;
 import com.nimbusds.jose.proc.JWSVerificationKeySelector;
@@ -85,7 +74,7 @@ import com.xpn.xwiki.web.XWikiRequest;
 
 /**
  * Authenticate user trough an OpenID Connect provider.
- * 
+ *
  * @version $Id$
  */
 public class OIDCAuthServiceImpl extends XWikiAuthServiceImpl
@@ -112,7 +101,8 @@ public class OIDCAuthServiceImpl extends XWikiAuthServiceImpl
 
     private ConfigurableJWTProcessor<SecurityContext> jwtProcessor;
 
-    public OIDCAuthServiceImpl() {
+    public OIDCAuthServiceImpl()
+    {
         jwtProcessor = new DefaultJWTProcessor<>();
 
         try {
@@ -120,7 +110,7 @@ public class OIDCAuthServiceImpl extends XWikiAuthServiceImpl
             jwtProcessor.setJWSTypeVerifier(new DefaultJOSEObjectTypeVerifier<>(new JOSEObjectType("JWT")));
             JWKSource<SecurityContext> keySource;
             keySource = JWKSourceBuilder.create(configuration.getClientProvider().getMetadata().getJWKSetURI().toURL())
-                    .retrying(true).build();
+                .retrying(true).build();
 
             JWSAlgorithm expectedJWSAlg = JWSAlgorithm.RS256;
             // Configure the JWT processor with a key selector to feed matching public
@@ -172,14 +162,15 @@ public class OIDCAuthServiceImpl extends XWikiAuthServiceImpl
         return user;
     }
 
-    private XWikiUser checkAccessToken(String authorizationHeaderValue) {
+    private XWikiUser checkAccessToken(String authorizationHeaderValue)
+    {
         JWTClaimsSet jwtClaimsSet;
         try {
             jwtClaimsSet = jwtProcessor.process(authorizationHeaderValue.substring("Bearer ".length()), null);
 
             ClaimsSet claimsSet = new ClaimsSet();
             claimsSet.putAll(jwtClaimsSet.toJSONObject());
-            
+
             UserInfo userInfo = new UserInfo(jwtClaimsSet);
 
             // Get provider groups
@@ -193,8 +184,8 @@ public class OIDCAuthServiceImpl extends XWikiAuthServiceImpl
             XWikiDocument userDocument = this.store.searchDocument(claimsSet.getIssuer().getValue(), formattedSubject);
 
             return new XWikiUser(userDocument.getDocumentReference());
-        } catch (Throwable  e) {
-            LOGGER.error("Error while validating access token",e);
+        } catch (Throwable e) {
+            LOGGER.error("Error while validating access token", e);
             return null;
         }
     }

@@ -114,7 +114,7 @@ import com.xpn.xwiki.web.XWikiServletRequest;
 
 /**
  * Various OpenID Connect authenticator configurations.
- * 
+ *
  * @version $Id$
  */
 @Component(roles = OIDCClientConfiguration.class)
@@ -334,7 +334,7 @@ public class OIDCClientConfiguration extends OIDCConfiguration
 
     /**
      * The name of the logout mechanism property.
-     * 
+     *
      * @since 1.31
      */
     public static final String PROP_LOGOUT_MECHANISM = "oidc.logoutMechanism";
@@ -357,7 +357,7 @@ public class OIDCClientConfiguration extends OIDCConfiguration
 
     /**
      * The name of the property in which the name of the OIDC configuration should be stored.
-     * 
+     *
      * @since 1.30
      */
     public static final String CLIENT_CONFIGURATION_COOKIE_PROPERTY =
@@ -365,14 +365,14 @@ public class OIDCClientConfiguration extends OIDCConfiguration
 
     /**
      * The default name of the cookie in which the OIDC client configuration is defined.
-     * 
+     *
      * @since 1.30
      */
     public static final String DEFAULT_OIDC_CONFIGURATION_COOKIE = "oidcProvider";
 
     /**
      * The name of the property which stores the name of the default OIDC client configuration.
-     * 
+     *
      * @since 1.30
      */
     public static final String DEFAULT_CLIENT_CONFIGURATION_PROPERTY =
@@ -395,7 +395,7 @@ public class OIDCClientConfiguration extends OIDCConfiguration
 
     /**
      * Default client configuration to use when no configuration is defined.
-     * 
+     *
      * @since 1.30
      */
     public static final String DEFAULT_CLIENT_CONFIGURATION = "default";
@@ -636,11 +636,11 @@ public class OIDCClientConfiguration extends OIDCConfiguration
     }
 
     /**
-     * @since 2.18.3
+     * @since 2.19.0
      */
     public boolean isAllowAccessToken()
     {
-        return getProperty(PROP_ALLOW_ACCESS_TOKEN,false);
+        return getProperty(PROP_ALLOW_ACCESS_TOKEN, false);
     }
 
     public String getProvider()
@@ -1264,7 +1264,6 @@ public class OIDCClientConfiguration extends OIDCConfiguration
 
     /**
      * @return {@code true} if the ID Token should be skipped at logout, or {@code false} otherwise.
-     *
      * @since 2.18.0
      */
     public boolean skipIdTokenFromLogout()
@@ -1288,7 +1287,8 @@ public class OIDCClientConfiguration extends OIDCConfiguration
     public void setAccessToken(AccessToken accessToken, RefreshToken refreshToken)
     {
         if (isAuthenticationConfiguration()) {
-            // Don't store the BearerAccessToken object directly as it could cause classloader problems when an extension is
+            // Don't store the BearerAccessToken object directly as it could cause classloader problems when an
+            // extension is
             // upgraded
             setSessionAttribute(PROP_SESSION_ACCESSTOKEN, accessToken.getValue());
         }
@@ -1296,7 +1296,6 @@ public class OIDCClientConfiguration extends OIDCConfiguration
 
     /**
      * @since 2.15.0
-     *
      * @param accessToken the access token to store
      * @param refreshToken the refresh token to store
      */
@@ -1305,8 +1304,8 @@ public class OIDCClientConfiguration extends OIDCConfiguration
         org.xwiki.contrib.oidc.auth.store.OIDCClientConfiguration wikiConfiguration = getWikiClientConfiguration();
 
         if (wikiConfiguration != null
-            && !org.xwiki.contrib.oidc.auth.store.OIDCClientConfiguration.TokenStorageScope.NONE.equals(
-            wikiConfiguration.getTokenStorageScope())) {
+            && !org.xwiki.contrib.oidc.auth.store.OIDCClientConfiguration.TokenStorageScope.NONE
+                .equals(wikiConfiguration.getTokenStorageScope())) {
             try {
                 XWikiContext context = contextProvider.get();
                 XWikiUser user = context.getWiki().checkAuth(context);
@@ -1316,8 +1315,8 @@ public class OIDCClientConfiguration extends OIDCConfiguration
                     tokenStore.getConfiguredObjectReference(wikiConfiguration), accessToken, refreshToken);
                 tokenStore.saveToken(token);
             } catch (OAuth2Exception | XWikiException e) {
-                logger.error("Failed to save access token [{}] for configuration [{}]",
-                    accessToken, wikiConfiguration, e);
+                logger.error("Failed to save access token [{}] for configuration [{}]", accessToken, wikiConfiguration,
+                    e);
             }
         }
     }
@@ -1465,7 +1464,8 @@ public class OIDCClientConfiguration extends OIDCConfiguration
             return sessionProviderName;
         }
 
-        String cookieName = configuration.getProperty(CLIENT_CONFIGURATION_COOKIE_PROPERTY, DEFAULT_OIDC_CONFIGURATION_COOKIE);
+        String cookieName =
+            configuration.getProperty(CLIENT_CONFIGURATION_COOKIE_PROPERTY, DEFAULT_OIDC_CONFIGURATION_COOKIE);
 
         String fallbackProviderName =
             configuration.getProperty(DEFAULT_CLIENT_CONFIGURATION_PROPERTY, DEFAULT_CLIENT_CONFIGURATION);

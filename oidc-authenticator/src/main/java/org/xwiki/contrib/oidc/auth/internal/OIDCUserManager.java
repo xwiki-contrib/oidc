@@ -485,7 +485,8 @@ public class OIDCUserManager
         return new SimplePrincipal(userDocument.getPrefixedFullName());
     }
 
-    public StringSubstitutor getSubstitutor(ClaimsSet idToken, UserInfo userInfo) throws MalformedURLException {
+    public StringSubstitutor getSubstitutor(ClaimsSet idToken, UserInfo userInfo) throws MalformedURLException
+    {
         Map<String, String> formatMap = createFormatMap(idToken, userInfo);
 
         // Change the default StringSubstitutor behavior to produce an empty String
@@ -827,8 +828,7 @@ public class OIDCUserManager
         }
     }
 
-    private Map<String, String> createFormatMap(ClaimsSet idToken, UserInfo userInfo)
-        throws MalformedURLException
+    private Map<String, String> createFormatMap(ClaimsSet idToken, UserInfo userInfo) throws MalformedURLException
     {
         Map<String, String> formatMap = new HashMap<>();
 
@@ -942,9 +942,8 @@ public class OIDCUserManager
             redirectURI = new URI(context.getWiki().getURL(context.getWikiReference(), "view", context));
         }
 
-        LogoutRequest logoutRequest =
-            new LogoutRequest(logoutEndpoint.getURI(), !this.configuration.skipIdTokenFromLogout() ? idToken : null,
-                null, clientID, redirectURI, null, null);
+        LogoutRequest logoutRequest = new LogoutRequest(logoutEndpoint.getURI(),
+            !this.configuration.skipIdTokenFromLogout() ? idToken : null, null, clientID, redirectURI, null, null);
         // Redirect to the provider
         this.manager.redirect(logoutRequest.toURI().toString(), true);
     }
