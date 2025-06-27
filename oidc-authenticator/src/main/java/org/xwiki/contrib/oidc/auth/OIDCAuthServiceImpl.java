@@ -32,14 +32,12 @@ import javax.servlet.http.HttpServletRequest;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.xwiki.container.Container;
 import org.xwiki.container.servlet.HttpServletUtils;
 import org.xwiki.container.servlet.filters.SavedRequestManager;
 import org.xwiki.contrib.oidc.auth.internal.Endpoint;
 import org.xwiki.contrib.oidc.auth.internal.OIDCClientConfiguration;
 import org.xwiki.contrib.oidc.auth.internal.OIDCUserManager;
 import org.xwiki.contrib.oidc.auth.internal.endpoint.CallbackOIDCEndpoint;
-import org.xwiki.contrib.oidc.auth.store.OIDCUserStore;
 import org.xwiki.contrib.oidc.provider.internal.OIDCManager;
 import org.xwiki.properties.ConverterManager;
 import org.xwiki.script.ScriptContextManager;
@@ -78,10 +76,6 @@ public class OIDCAuthServiceImpl extends XWikiAuthServiceImpl
     private OIDCUserManager users = Utils.getComponent(OIDCUserManager.class);
 
     private ScriptContextManager scriptContextManager = Utils.getComponent(ScriptContextManager.class);
-
-    private Container container = Utils.getComponent(Container.class);
-
-    private OIDCUserStore store = Utils.getComponent(OIDCUserStore.class);;
 
     @Override
     public XWikiUser checkAuth(XWikiContext context) throws XWikiException

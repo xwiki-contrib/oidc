@@ -219,7 +219,7 @@ public class OIDCClientConfiguration extends OIDCConfiguration
     public static final String PROP_SKIPPED = "oidc.skipped";
 
     /**
-     * @since @since 2.18.3
+     * @since @since 2.19.0
      */
     public static final String PROP_ALLOW_ACCESS_TOKEN = "oidc.allow_access_token";
 
