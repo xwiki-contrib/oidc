@@ -762,7 +762,7 @@ public class OIDCUserManager
         xobject.set(key, cleanValue, xcontext);
     }
 
-    private XWikiDocument getNewUserDocument(StringSubstitutor substitutor) throws XWikiException
+    private XWikiDocument getNewUserDocument(StringSubstitutor substitutor) throws XWikiException, OIDCException
     {
         XWikiContext xcontext = this.xcontextProvider.get();
         BaseClass userClass = xcontext.getWiki().getUserClass(xcontext);
@@ -772,6 +772,11 @@ public class OIDCUserManager
 
         // Generate default document name
         String documentName = formatXWikiUserName(substitutor);
+
+        if (StringUtils.isEmpty(documentName)) {
+            throw new OIDCException("The user document name resulting from the format ["
+                + this.configuration.getXWikiUserNameFormater() + "] is empty");
+        }
 
         // Find not already existing document
         DocumentReference reference = new DocumentReference(documentName, spaceReference);
