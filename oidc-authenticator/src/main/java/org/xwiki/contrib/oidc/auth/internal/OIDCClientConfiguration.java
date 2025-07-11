@@ -219,6 +219,11 @@ public class OIDCClientConfiguration extends OIDCConfiguration
     public static final String PROP_SKIPPED = "oidc.skipped";
 
     /**
+     * @since @since 2.19.0
+     */
+    public static final String PROP_ALLOW_ACCESS_TOKEN = "oidc.allow_access_token";
+
+    /**
      * @since 1.13
      */
     public static final String PROP_ENDPOINT_TOKEN_AUTH_METHOD =
@@ -628,6 +633,14 @@ public class OIDCClientConfiguration extends OIDCConfiguration
     public Map<String, String> getUserMapping()
     {
         return getMap(PROP_USER_MAPPING);
+    }
+
+    /**
+     * @since 2.19.0
+     */
+    public boolean isAllowAccessToken()
+    {
+        return getProperty(PROP_ALLOW_ACCESS_TOKEN, false);
     }
 
     public String getProvider()
