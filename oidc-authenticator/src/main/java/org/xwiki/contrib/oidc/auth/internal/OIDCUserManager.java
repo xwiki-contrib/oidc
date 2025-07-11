@@ -37,8 +37,10 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import javax.inject.Inject;
@@ -56,6 +58,8 @@ import org.securityfilter.realm.SimplePrincipal;
 import org.slf4j.Logger;
 import org.xwiki.component.annotation.Component;
 import org.xwiki.component.manager.ComponentManager;
+import org.xwiki.component.phase.Initializable;
+import org.xwiki.component.phase.InitializationException;
 import org.xwiki.context.concurrent.ExecutionContextRunnable;
 import org.xwiki.contrib.oidc.OIDCUserInfo;
 import org.xwiki.contrib.oidc.auth.internal.OIDCClientConfiguration.GroupMapping;
@@ -73,14 +77,27 @@ import org.xwiki.observation.ObservationManager;
 import org.xwiki.query.QueryException;
 import org.xwiki.user.SuperAdminUserReference;
 
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
 import com.nimbusds.jose.JOSEException;
+import com.nimbusds.jose.JOSEObjectType;
+import com.nimbusds.jose.JWSAlgorithm;
+import com.nimbusds.jose.jwk.source.JWKSource;
+import com.nimbusds.jose.jwk.source.JWKSourceBuilder;
 import com.nimbusds.jose.proc.BadJOSEException;
+import com.nimbusds.jose.proc.DefaultJOSEObjectTypeVerifier;
+import com.nimbusds.jose.proc.JWSKeySelector;
+import com.nimbusds.jose.proc.JWSVerificationKeySelector;
+import com.nimbusds.jose.proc.SecurityContext;
 import com.nimbusds.jwt.JWT;
+import com.nimbusds.jwt.proc.ConfigurableJWTProcessor;
+import com.nimbusds.jwt.proc.DefaultJWTProcessor;
 import com.nimbusds.oauth2.sdk.GeneralException;
 import com.nimbusds.oauth2.sdk.http.HTTPRequest;
 import com.nimbusds.oauth2.sdk.http.HTTPResponse;
 import com.nimbusds.oauth2.sdk.id.ClientID;
 import com.nimbusds.oauth2.sdk.token.AccessToken;
+import com.nimbusds.oauth2.sdk.token.BearerAccessToken;
 import com.nimbusds.openid.connect.sdk.LogoutRequest;
 import com.nimbusds.openid.connect.sdk.UserInfoErrorResponse;
 import com.nimbusds.openid.connect.sdk.UserInfoRequest;
@@ -96,6 +113,7 @@ import com.xpn.xwiki.doc.XWikiAttachment;
 import com.xpn.xwiki.doc.XWikiDocument;
 import com.xpn.xwiki.objects.BaseObject;
 import com.xpn.xwiki.objects.classes.BaseClass;
+import com.xpn.xwiki.user.api.XWikiUser;
 import com.xpn.xwiki.web.XWikiRequest;
 
 /**
@@ -106,7 +124,7 @@ import com.xpn.xwiki.web.XWikiRequest;
  */
 @Component(roles = OIDCUserManager.class)
 @Singleton
-public class OIDCUserManager
+public class OIDCUserManager implements Initializable
 {
     @Inject
     private Provider<XWikiContext> xcontextProvider;
@@ -142,6 +160,81 @@ public class OIDCUserManager
     private static final String XWIKI_USER_ACTIVEFIELD = "active";
 
     private static final String XWIKI_GROUP_PREFIX = "XWiki.";
+
+    private ConfigurableJWTProcessor<SecurityContext> jwtProcessor;
+
+    private Cache<String, DocumentReference> userByAccessTokenCache =
+        CacheBuilder.newBuilder().expireAfterWrite(1, TimeUnit.MINUTES).build();
+
+    @Override
+    public void initialize() throws InitializationException
+    {
+
+        try {
+            ClientProvider clientProvider = configuration.getClientProvider();
+            if (clientProvider != null) {
+                jwtProcessor = new DefaultJWTProcessor<>();
+                jwtProcessor.setJWSTypeVerifier(new DefaultJOSEObjectTypeVerifier<>(new JOSEObjectType("JWT")));
+                JWKSource<SecurityContext> keySource;
+                keySource =
+                    JWKSourceBuilder.create(configuration.getClientProvider().getMetadata().getJWKSetURI().toURL())
+                        .retrying(true).build();
+
+                JWSAlgorithm expectedJWSAlg = JWSAlgorithm.RS256;
+                // Configure the JWT processor with a key selector to feed matching public
+                // RSA keys sourced from the JWK set URL
+                JWSKeySelector<SecurityContext> keySelector =
+                    new JWSVerificationKeySelector<>(expectedJWSAlg, keySource);
+                jwtProcessor.setJWSKeySelector(keySelector);
+            }
+        } catch (IOException | GeneralException | URISyntaxException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public XWikiUser checkAccessToken(String idTokenHeader, String accessTokenHeader)
+    {
+        try {
+            DocumentReference ref = userByAccessTokenCache.get(accessTokenHeader, () -> {
+                // check id token signature
+                IDTokenClaimsSet idToken = new IDTokenClaimsSet(jwtProcessor.process(idTokenHeader, null));
+
+                if (!idToken.getAudience().stream().anyMatch(aud -> {
+                    try {
+                        return aud.toString().equals(configuration.getClientID().getValue());
+                    } catch (Exception e) {
+                        throw new RuntimeException(e);
+                    }
+                }))
+                    throw new OIDCException("ID Token Audience mismatch. Expected " + configuration.getClientID()
+                        + ", found " + idToken.getAudience());
+
+                AccessToken accessToken = new BearerAccessToken(accessTokenHeader);
+
+                UserInfo userInfo = getUserInfo(accessToken);
+
+                if (!idToken.getSubject().equals(userInfo.getSubject())) {
+                    throw new OIDCException("Subject of ID Token " + idToken.getSubject()
+                        + " does not match subject of user info retrieved using access token " + userInfo.getSubject());
+                }
+
+                // also checks if the user is allowed to access the wiki
+                updateUser(idToken, userInfo, accessToken);
+
+                StringSubstitutor substitutor = getSubstitutor(idToken, userInfo);
+                String formattedSubject = formatSubject(substitutor);
+                XWikiDocument userDocument = store.searchDocument(idToken.getIssuer().getValue(), formattedSubject);
+
+                return userDocument.getDocumentReference();
+            });
+            if (ref == null)
+                return null;
+            return new XWikiUser(ref);
+        } catch (ExecutionException e) {
+            logger.error("Error while validating access token", e);
+            return null;
+        }
+    }
 
     public void updateUserInfoAsync()
     {
@@ -282,6 +375,7 @@ public class OIDCUserManager
         }
     }
 
+    @SuppressWarnings("unchecked")
     private <T> T getClaim(String claim, ClaimsSet claims)
     {
         T value = (T) claims.getClaim(claim);
@@ -330,10 +424,7 @@ public class OIDCUserManager
         // Check allowed/forbidden groups
         checkAllowedGroups(providerGroups);
 
-        Map<String, String> formatMap = createFormatMap(idToken, userInfo);
-        // Change the default StringSubstitutor behavior to produce an empty String instead of an unresolved pattern by
-        // default
-        StringSubstitutor substitutor = new StringSubstitutor(new OIDCStringLookup(formatMap));
+        StringSubstitutor substitutor = getSubstitutor(idToken, userInfo);
 
         String formattedSubject = formatSubject(substitutor);
 
@@ -486,6 +577,16 @@ public class OIDCUserManager
         }
 
         return new SimplePrincipal(userDocument.getPrefixedFullName());
+    }
+
+    private StringSubstitutor getSubstitutor(IDTokenClaimsSet idToken, UserInfo userInfo) throws MalformedURLException
+    {
+        Map<String, String> formatMap = createFormatMap(idToken, userInfo);
+
+        // Change the default StringSubstitutor behavior to produce an empty String
+        // instead of an unresolved pattern by
+        // default
+        return new StringSubstitutor(new OIDCStringLookup(formatMap));
     }
 
     private void updateUserMapping(XWikiDocument userDocument, BaseClass userClass, BaseObject userObject,
