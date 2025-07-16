@@ -136,10 +136,10 @@ public class DefaultOAuth2ClientManager implements OAuth2ClientManager
     @Override
     public Job renew(OAuth2Token token, boolean force) throws OAuth2Exception
     {
-        // For now, only renew access tokens if they expire within the next 24 hours.
+        // For now, only renew access tokens if they expire within the next 5 minutes.
         // TODO: Update the client configuration to allow users to define when a token should be renewed
         if (token instanceof NimbusOAuth2Token
-            && (force || ((NimbusOAuth2Token) token).toAccessToken().getLifetime() < 3600 * 24)) {
+            && (force || ((NimbusOAuth2Token) token).toAccessToken().getLifetime() < 60 * 5)) {
             DefaultRequest request = new DefaultRequest();
             request.setId("oauth2", token.getConfiguration().getConfigurationName(),
                 entityReferenceSerializer.serialize(token.getReference()));
