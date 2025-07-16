@@ -269,7 +269,7 @@ public class NimbusOAuth2Token implements OAuth2Token
             throw new OAuth2Exception(
                 String.format("Failed to convert access token : type [%s] is unsupported.", getType().toString()));
         } else {
-            long lifetime = Math.min(((getExpiresAt() - System.currentTimeMillis()) / 1000), 0);
+            long lifetime = Math.max(((getExpiresAt() - System.currentTimeMillis()) / 1000), 0);
             return new BearerAccessToken(getAccessToken(), lifetime, Scope.parse(getScopes()));
         }
     }
