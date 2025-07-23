@@ -669,12 +669,15 @@ public class OIDCUserManager
         this.logger.debug("The user belongs to following XWiki groups: {}", xwikiUserGroupList);
 
         GroupMapping groupMapping = this.configuration.getGroupMapping();
+        String mappingIncludeRegex = this.configuration.getGroupMappingIncludeRegex();
+        String mappingExcludeRegex = this.configuration.getGroupMappingExcludeRegex();
 
         // Add missing group membership
         for (String providerGroupName : providerGroups) {
             if (groupMapping == null) {
                 String xwikiGroup = this.configuration.toXWikiGroup(providerGroupName);
-                if (!xwikiUserGroupList.contains(xwikiGroup)) {
+                if (groupMatchesMappingRegex(providerGroupName, mappingIncludeRegex, mappingExcludeRegex)
+                    && !xwikiUserGroupList.contains(xwikiGroup)) {
                     addUserToXWikiGroup(xwikiUserName, xwikiGroup, context);
                     userUpdated = true;
                 }
@@ -698,9 +701,12 @@ public class OIDCUserManager
                 // * the user is not part of the associated oidc groups returned by the provided
                 // * and the group is not part of configured initial groups (it would
                 // be inconsistent with the fact that all new users are supposed to be in them)
+                // * the group on XWiki matches the regex for groups to be mapped, if any such configuration is present
                 if (!this.configuration.getInitialXWikiGroups().contains(xwikiGroupName)
                     && !providerGroups.contains(xwikiGroupName)
-                    && !providerGroups.contains(xwikiGroupName.substring(XWIKI_GROUP_PREFIX.length()))) {
+                    && !providerGroups.contains(xwikiGroupName.substring(XWIKI_GROUP_PREFIX.length()))
+                    && groupMatchesMappingRegex(xwikiGroupName.substring(XWIKI_GROUP_PREFIX.length()),
+                        mappingIncludeRegex, mappingExcludeRegex)) {
                     removeUserFromXWikiGroup(xwikiUserName, xwikiGroupName, context);
                     userUpdated = true;
                 }
@@ -715,6 +721,29 @@ public class OIDCUserManager
 
         return userUpdated;
 
+    }
+
+    /**
+     * Checks if a group name matches the mapping regular expressions. If both inclusions and exclusions are present,
+     * the group name needs to match the inclusion and not match the exclusions. If only one is present, then only
+     * matching inclusion or nor matching exclusion is checked. If none is present, any group name matches.<br>
+     * Note: this regex applies to the group name after application of the groups prefix configuration, if any.
+     *
+     * @param includeRegex regex of group names to include in the mapping
+     * @param excludeRegex regex of group names to exclude from the mapping
+     * @return true if the group name matches the regular expressions, false otherwise.
+     */
+    private boolean groupMatchesMappingRegex(String groupName, String includeRegex, String excludeRegex)
+    {
+        if (includeRegex != null && !groupName.matches(includeRegex)) {
+            return false;
+        }
+        // either matches the inclusion or there is no inclusion, check the exclusion
+        if (excludeRegex != null && groupName.matches(excludeRegex)) {
+            return false;
+        }
+        // either matches both or there is no inclusion or exclusion mentioned
+        return true;
     }
 
     private void updateXWikiClaims(XWikiDocument userDocument, BaseClass userClass, BaseObject userObject,
