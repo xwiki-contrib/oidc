@@ -39,6 +39,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import javax.inject.Inject;
@@ -669,14 +670,14 @@ public class OIDCUserManager
         this.logger.debug("The user belongs to following XWiki groups: {}", xwikiUserGroupList);
 
         GroupMapping groupMapping = this.configuration.getGroupMapping();
-        String mappingIncludeRegex = this.configuration.getGroupMappingIncludeRegex();
-        String mappingExcludeRegex = this.configuration.getGroupMappingExcludeRegex();
+        Pattern mappingIncludePattern = this.configuration.getGroupMappingIncludePattern();
+        Pattern mappingExcludePattern = this.configuration.getGroupMappingExcludePattern();
 
         // Add missing group membership
         for (String providerGroupName : providerGroups) {
             if (groupMapping == null) {
                 String xwikiGroup = this.configuration.toXWikiGroup(providerGroupName);
-                if (groupMatchesMappingRegex(xwikiGroup, mappingIncludeRegex, mappingExcludeRegex)
+                if (groupMatchesMappingRegex(xwikiGroup, mappingIncludePattern, mappingExcludePattern)
                     && !xwikiUserGroupList.contains(xwikiGroup)) {
                     addUserToXWikiGroup(xwikiUserName, xwikiGroup, context);
                     userUpdated = true;
@@ -705,7 +706,7 @@ public class OIDCUserManager
                 if (!this.configuration.getInitialXWikiGroups().contains(xwikiGroupName)
                     && !providerGroups.contains(xwikiGroupName)
                     && !providerGroups.contains(xwikiGroupName.substring(XWIKI_GROUP_PREFIX.length()))
-                    && groupMatchesMappingRegex(xwikiGroupName, mappingIncludeRegex, mappingExcludeRegex)) {
+                    && groupMatchesMappingRegex(xwikiGroupName, mappingIncludePattern, mappingExcludePattern)) {
                     removeUserFromXWikiGroup(xwikiUserName, xwikiGroupName, context);
                     userUpdated = true;
                 }
@@ -728,21 +729,21 @@ public class OIDCUserManager
      * matching inclusion or nor matching exclusion is checked. If none is present, any group name matches.<br>
      * Note: this regex applies to the group name after application of the groups prefix configuration, if any.
      *
-     * @param includeRegex regex of group names to include in the mapping
-     * @param excludeRegex regex of group names to exclude from the mapping
+     * @param includePattern regex of group names to include in the mapping
+     * @param excludePattern regex of group names to exclude from the mapping
      * @return true if the group name matches the regular expressions, false otherwise.
      */
-    private boolean groupMatchesMappingRegex(String groupName, String includeRegex, String excludeRegex)
+    private boolean groupMatchesMappingRegex(String groupName, Pattern includePattern, Pattern excludePattern)
     {
-        this.logger.debug("Checking if group name {} matches inclusion {} and exclusion {}", groupName, includeRegex,
-            excludeRegex);
-        if (includeRegex != null && !groupName.matches(includeRegex)) {
-            this.logger.debug("Match faiure: group name {} doesn't match the inclusion regex {}", includeRegex);
+        this.logger.debug("Checking if group name {} matches inclusion {} and exclusion {}", groupName, includePattern,
+            excludePattern);
+        if (includePattern != null && !includePattern.matcher(groupName).matches()) {
+            this.logger.debug("Match faiure: group name {} doesn't match the inclusion regex {}", includePattern);
             return false;
         }
         // either matches the inclusion or there is no inclusion, check the exclusion
-        if (excludeRegex != null && groupName.matches(excludeRegex)) {
-            this.logger.debug("Match faiure: group name {} matches the exclusion regex {}", excludeRegex);
+        if (excludePattern != null && excludePattern.matcher(groupName).matches()) {
+            this.logger.debug("Match faiure: group name {} matches the exclusion regex {}", excludePattern);
             return false;
         }
         // either matches both or there is no inclusion or exclusion mentioned

@@ -36,6 +36,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
+import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
 
 import javax.inject.Inject;
 import javax.inject.Named;
@@ -1129,19 +1131,33 @@ public class OIDCClientConfiguration extends OIDCConfiguration
     /**
      * @since 2.19.0
      */
-    public String getGroupMappingIncludeRegex()
+    public Pattern getGroupMappingIncludePattern()
     {
-        String regex = getProperty(PROP_GROUPS_MAPPING_INCLUDE, String.class);
-        return regex != null && !regex.isEmpty() ? regex : null;
+        return compilePropertyIntoPattern(PROP_GROUPS_MAPPING_INCLUDE);
     }
 
     /**
      * @since 2.19.0
      */
-    public String getGroupMappingExcludeRegex()
+    public Pattern getGroupMappingExcludePattern()
     {
-        String regex = getProperty(PROP_GROUPS_MAPPING_EXCLUDE, String.class);
-        return regex != null && !regex.isEmpty() ? regex : null;
+        return compilePropertyIntoPattern(PROP_GROUPS_MAPPING_EXCLUDE);
+    }
+
+    private Pattern compilePropertyIntoPattern(String propertyName)
+    {
+        String regex = getProperty(propertyName, String.class);
+
+        if (StringUtils.isEmpty(regex)) {
+            return null;
+        }
+        try {
+            return Pattern.compile(regex);
+        } catch (PatternSyntaxException e) {
+            logger.warn("Exception while compiling regex {} configured for {}, skipping configuration", regex,
+                propertyName, e);
+            return null;
+        }
     }
 
     /**
