@@ -676,7 +676,7 @@ public class OIDCUserManager
         for (String providerGroupName : providerGroups) {
             if (groupMapping == null) {
                 String xwikiGroup = this.configuration.toXWikiGroup(providerGroupName);
-                if (groupMatchesMappingRegex(providerGroupName, mappingIncludeRegex, mappingExcludeRegex)
+                if (groupMatchesMappingRegex(xwikiGroup, mappingIncludeRegex, mappingExcludeRegex)
                     && !xwikiUserGroupList.contains(xwikiGroup)) {
                     addUserToXWikiGroup(xwikiUserName, xwikiGroup, context);
                     userUpdated = true;
@@ -705,8 +705,7 @@ public class OIDCUserManager
                 if (!this.configuration.getInitialXWikiGroups().contains(xwikiGroupName)
                     && !providerGroups.contains(xwikiGroupName)
                     && !providerGroups.contains(xwikiGroupName.substring(XWIKI_GROUP_PREFIX.length()))
-                    && groupMatchesMappingRegex(xwikiGroupName.substring(XWIKI_GROUP_PREFIX.length()),
-                        mappingIncludeRegex, mappingExcludeRegex)) {
+                    && groupMatchesMappingRegex(xwikiGroupName, mappingIncludeRegex, mappingExcludeRegex)) {
                     removeUserFromXWikiGroup(xwikiUserName, xwikiGroupName, context);
                     userUpdated = true;
                 }
@@ -735,14 +734,20 @@ public class OIDCUserManager
      */
     private boolean groupMatchesMappingRegex(String groupName, String includeRegex, String excludeRegex)
     {
+        this.logger.debug("Checking if group name {} matches inclusion {} and exclusion {}", groupName, includeRegex,
+            excludeRegex);
         if (includeRegex != null && !groupName.matches(includeRegex)) {
+            this.logger.debug("Match faiure: group name {} doesn't match the inclusion regex {}", includeRegex);
             return false;
         }
         // either matches the inclusion or there is no inclusion, check the exclusion
         if (excludeRegex != null && groupName.matches(excludeRegex)) {
+            this.logger.debug("Match faiure: group name {} matches the exclusion regex {}", excludeRegex);
             return false;
         }
         // either matches both or there is no inclusion or exclusion mentioned
+        this.logger.debug("Match success: group name {} passes both inclusion and exclusion, or none is specified",
+            groupName);
         return true;
     }
 
