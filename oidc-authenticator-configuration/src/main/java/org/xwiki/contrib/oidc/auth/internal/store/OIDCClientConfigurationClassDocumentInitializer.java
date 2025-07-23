@@ -59,6 +59,10 @@ public class OIDCClientConfigurationClassDocumentInitializer extends AbstractMan
         xclass.addTextField(OIDCClientConfiguration.FIELD_CLAIM_GROUP, "Group claim", 255);
         xclass.addTextAreaField(OIDCClientConfiguration.FIELD_GROUP_MAPPING, "Group mapping", 50, 10,
             TextAreaClass.EditorType.PURE_TEXT, TextAreaClass.ContentType.PURE_TEXT);
+        xclass.addTextAreaField(OIDCClientConfiguration.FIELD_GROUP_MAPPING_INCLUDE, "Group mapping inclusions regex",
+            255, 1, TextAreaClass.EditorType.PURE_TEXT, TextAreaClass.ContentType.PURE_TEXT);
+        xclass.addTextAreaField(OIDCClientConfiguration.FIELD_GROUP_MAPPING_EXCLUDE, "Group mapping exclusions regex ",
+            255, 1, TextAreaClass.EditorType.PURE_TEXT, TextAreaClass.ContentType.PURE_TEXT);
         xclass.addTextAreaField(OIDCClientConfiguration.FIELD_ALLOWED_GROUPS, "Allowed groups", 50, 10,
             TextAreaClass.EditorType.PURE_TEXT, TextAreaClass.ContentType.PURE_TEXT);
         xclass.addTextAreaField(OIDCClientConfiguration.FIELD_FORBIDDEN_GROUPS, "Forbidden groups", 50, 10,

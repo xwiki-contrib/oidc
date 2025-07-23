@@ -1537,6 +1537,12 @@ public class OIDCClientConfiguration extends OIDCConfiguration
             case PROP_GROUPS_MAPPING:
                 returnValue = clientConfiguration.getGroupMapping();
                 break;
+            case PROP_GROUPS_MAPPING_INCLUDE:
+                returnValue = clientConfiguration.getGroupMappingInclude();
+                break;
+            case PROP_GROUPS_MAPPING_EXCLUDE:
+                returnValue = clientConfiguration.getGroupMappingExclude();
+                break;
             case PROP_GROUPS_ALLOWED:
                 returnValue = clientConfiguration.getAllowedGroups();
                 break;
