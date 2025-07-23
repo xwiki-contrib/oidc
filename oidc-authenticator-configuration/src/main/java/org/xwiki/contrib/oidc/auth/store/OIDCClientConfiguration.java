@@ -385,14 +385,14 @@ public class OIDCClientConfiguration
     }
 
     /**
-     * @param groupMappingInclude the regex of groups to be excluded from synchronization if no explicit mapping is
+     * @param groupMappingExclude the regex of groups to be excluded from synchronization if no explicit mapping is
      *            present.
      *
      * @since 2.19.0
      */
-    public void setGroupMappingExclude(String groupMappingInclude)
+    public void setGroupMappingExclude(String groupMappingExclude)
     {
-        this.xobject.setLargeStringValue(FIELD_GROUP_MAPPING_EXCLUDE, groupMappingInclude);
+        this.xobject.setLargeStringValue(FIELD_GROUP_MAPPING_EXCLUDE, groupMappingExclude);
     }
 
     /**
