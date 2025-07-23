@@ -64,11 +64,15 @@ public class OIDCClientConfiguration
 
     /**
      * Name of the property containing the group mapping include regex (when group mapping is not specified).
+     *
+     * @since 2.19.0
      */
     public static final String FIELD_GROUP_MAPPING_INCLUDE = "groupsMappingInclude";
 
     /**
      * Name of the property containing the group mapping exclude regex (when group mapping is not specified).
+     *
+     * @since 2.19.0
      */
     public static final String FIELD_GROUP_MAPPING_EXCLUDE = "groupsMappingExclude";
 
@@ -362,6 +366,8 @@ public class OIDCClientConfiguration
 
     /**
      * @param groupMappingInclude the regex of groups to be synchronized if no explicit mapping is present.
+     *
+     * @since 2.19.0
      */
     public void setGroupMappingInclude(String groupMappingInclude)
     {
@@ -381,6 +387,8 @@ public class OIDCClientConfiguration
     /**
      * @param groupMappingInclude the regex of groups to be excluded from synchronization if no explicit mapping is
      *            present.
+     *
+     * @since 2.19.0
      */
     public void setGroupMappingExclude(String groupMappingInclude)
     {
