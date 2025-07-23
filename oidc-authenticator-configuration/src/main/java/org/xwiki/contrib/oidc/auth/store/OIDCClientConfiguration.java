@@ -352,6 +352,8 @@ public class OIDCClientConfiguration
 
     /**
      * @return the regex of groups to be synchronized if no explicit mapping is present.
+     *
+     * @since 2.19.0
      */
     public String getGroupMappingInclude()
     {
@@ -368,6 +370,8 @@ public class OIDCClientConfiguration
 
     /**
      * @return the regex of groups to be excluded from synchronization if no explicit mapping is present.
+     *
+     * @since 2.19.0
      */
     public String getGroupMappingExclude()
     {

@@ -288,12 +288,12 @@ public class OIDCClientConfiguration extends OIDCConfiguration
     public static final String PROP_GROUPS_MAPPING = "oidc.groups.mapping";
 
     /**
-     * @since 2.18.3
+     * @since 2.19.0
      */
     public static final String PROP_GROUPS_MAPPING_INCLUDE = "oidc.groups.mapping.include";
 
     /**
-     * @since 2.18.3
+     * @since 2.19.0
      */
     public static final String PROP_GROUPS_MAPPING_EXCLUDE = "oidc.groups.mapping.exclude";
 
@@ -1127,7 +1127,7 @@ public class OIDCClientConfiguration extends OIDCConfiguration
     }
 
     /**
-     * @since 2.18.3
+     * @since 2.19.0
      */
     public String getGroupMappingIncludeRegex()
     {
@@ -1136,7 +1136,7 @@ public class OIDCClientConfiguration extends OIDCConfiguration
     }
 
     /**
-     * @since 2.18.3
+     * @since 2.19.0
      */
     public String getGroupMappingExcludeRegex()
     {
