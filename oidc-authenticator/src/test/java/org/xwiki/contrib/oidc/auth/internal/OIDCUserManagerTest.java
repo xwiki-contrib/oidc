@@ -401,6 +401,244 @@ class OIDCUserManagerTest
         assertFalse(groupContains(this.existinggroupReference, userDocument.getFullName()));
         assertTrue(groupContains(this.xwikiallgroupReference, userFullName));
     }
+    
+    @Test
+    void updateUserInfoWithGroupSyncWithoutMappingAndIncludeRegex()
+        throws XWikiException, QueryException, OIDCException, MalformedURLException
+    {
+        this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_GROUPS_CLAIM, "groupclaim");
+        this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_GROUPS_MAPPING_INCLUDE,
+            "^XWiki\\.[A-Za-z]*group[A-Za-z]*1$");
+        this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_USERINFOCLAIMS,
+            ListUtils.sum(OIDCClientConfiguration.DEFAULT_USERINFOCLAIMS, Arrays.asList(
+                this.oldcore.getConfigurationSource().<String>getProperty(OIDCClientConfiguration.PROP_GROUPS_CLAIM))));
+
+        Issuer issuer = new Issuer("http://issuer");
+        Subject subject = new Subject("subject");
+        IDTokenClaimsSet idToken = createIDTokenClaimsSet(issuer, subject);
+        UserInfo userInfo = new UserInfo(subject);
+
+        userInfo.setClaim("groupclaim", Arrays.asList("pgroup1", "pgroup2"));
+
+        String userFullName = "XWiki.issuer-subject";
+
+        when(this.oldcore.getMockGroupService().getAllGroupsNamesForMember(userFullName, 0, 0,
+            this.oldcore.getXWikiContext())).thenReturn(Arrays.asList("XWiki.existinggroup"));
+        addMember(this.existinggroupReference, userFullName);
+        addMember(this.xwikiallgroupReference, userFullName);
+
+        assertFalse(groupContains(this.group1Reference, userFullName));
+        assertFalse(groupContains(this.group2Reference, userFullName));
+        assertTrue(groupContains(this.existinggroupReference, userFullName));
+        assertTrue(groupContains(this.xwikiallgroupReference, userFullName));
+
+        Principal principal = this.manager.updateUser(idToken, userInfo, new BearerAccessToken());
+
+        assertEquals("xwiki:XWiki.issuer-subject", principal.getName());
+
+        XWikiDocument userDocument = this.oldcore.getSpyXWiki().getDocument(
+            new DocumentReference(this.oldcore.getXWikiContext().getWikiId(), "XWiki", "issuer-subject"),
+            this.oldcore.getXWikiContext());
+
+        assertFalse(userDocument.isNew());
+
+        BaseObject userObject = userDocument
+            .getXObject(new DocumentReference(this.oldcore.getXWikiContext().getWikiId(), "XWiki", "XWikiUsers"));
+
+        assertNotNull(userObject);
+
+        OIDCUser oidcObject = new OIDCUser(userDocument.getXObject(this.oidcClassReference));
+
+        assertNotNull(oidcObject);
+        assertEquals("http://issuer", oidcObject.getIssuer());
+        assertEquals("subject", oidcObject.getSubject());
+
+        // we're expecting: user stays in initial group, gets synced in the first group, doesn't get synced in the
+        // second group and doesn't get removed from existing group, because existing group doesn't match the mapping
+        // regex
+        assertTrue(groupContains(this.pgroup1Reference, userDocument.getFullName()));
+        assertFalse(groupContains(this.pgroup2Reference, userDocument.getFullName()));
+        assertTrue(groupContains(this.existinggroupReference, userDocument.getFullName()));
+        assertTrue(groupContains(this.xwikiallgroupReference, userFullName));
+    }
+
+    @Test
+    void updateUserInfoWithGroupSyncWithoutMappingAndExcludeRegex()
+        throws XWikiException, QueryException, OIDCException, MalformedURLException
+    {
+        this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_GROUPS_CLAIM, "groupclaim");
+        this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_GROUPS_MAPPING_EXCLUDE,
+            "^XWiki\\.[A-Za-z]*group[A-Za-z]*1$");
+        this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_USERINFOCLAIMS,
+            ListUtils.sum(OIDCClientConfiguration.DEFAULT_USERINFOCLAIMS, Arrays.asList(
+                this.oldcore.getConfigurationSource().<String>getProperty(OIDCClientConfiguration.PROP_GROUPS_CLAIM))));
+
+        Issuer issuer = new Issuer("http://issuer");
+        Subject subject = new Subject("subject");
+        IDTokenClaimsSet idToken = createIDTokenClaimsSet(issuer, subject);
+        UserInfo userInfo = new UserInfo(subject);
+
+        userInfo.setClaim("groupclaim", Arrays.asList("pgroup1", "pgroup2"));
+
+        String userFullName = "XWiki.issuer-subject";
+
+        when(this.oldcore.getMockGroupService().getAllGroupsNamesForMember(userFullName, 0, 0,
+            this.oldcore.getXWikiContext())).thenReturn(Arrays.asList("XWiki.existinggroup"));
+        addMember(this.existinggroupReference, userFullName);
+        addMember(this.xwikiallgroupReference, userFullName);
+
+        assertFalse(groupContains(this.group1Reference, userFullName));
+        assertFalse(groupContains(this.group2Reference, userFullName));
+        assertTrue(groupContains(this.existinggroupReference, userFullName));
+        assertTrue(groupContains(this.xwikiallgroupReference, userFullName));
+
+        Principal principal = this.manager.updateUser(idToken, userInfo, new BearerAccessToken());
+
+        assertEquals("xwiki:XWiki.issuer-subject", principal.getName());
+
+        XWikiDocument userDocument = this.oldcore.getSpyXWiki().getDocument(
+            new DocumentReference(this.oldcore.getXWikiContext().getWikiId(), "XWiki", "issuer-subject"),
+            this.oldcore.getXWikiContext());
+
+        assertFalse(userDocument.isNew());
+
+        BaseObject userObject = userDocument
+            .getXObject(new DocumentReference(this.oldcore.getXWikiContext().getWikiId(), "XWiki", "XWikiUsers"));
+
+        assertNotNull(userObject);
+
+        OIDCUser oidcObject = new OIDCUser(userDocument.getXObject(this.oidcClassReference));
+
+        assertNotNull(oidcObject);
+        assertEquals("http://issuer", oidcObject.getIssuer());
+        assertEquals("subject", oidcObject.getSubject());
+
+        // we're expecting: user stays in initial group, gets synced out of the first group, gets synced in the
+        // second group and doesn't get removed from existing group, because existing group doesn't match the mapping
+        // exclusion, so it's included
+        assertFalse(groupContains(this.pgroup1Reference, userDocument.getFullName()));
+        assertTrue(groupContains(this.pgroup2Reference, userDocument.getFullName()));
+        assertFalse(groupContains(this.existinggroupReference, userDocument.getFullName()));
+        assertTrue(groupContains(this.xwikiallgroupReference, userFullName));
+    }
+
+    @Test
+    void updateUserInfoWithGroupSyncWithoutMappingAndIncludeExcludeRegex()
+        throws XWikiException, QueryException, OIDCException, MalformedURLException
+    {
+        this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_GROUPS_CLAIM, "groupclaim");
+        this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_GROUPS_MAPPING_INCLUDE,
+            "^.*pgroup.*$");
+        this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_GROUPS_MAPPING_EXCLUDE, ".*2$");
+        this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_USERINFOCLAIMS,
+            ListUtils.sum(OIDCClientConfiguration.DEFAULT_USERINFOCLAIMS, Arrays.asList(
+                this.oldcore.getConfigurationSource().<String>getProperty(OIDCClientConfiguration.PROP_GROUPS_CLAIM))));
+
+        Issuer issuer = new Issuer("http://issuer");
+        Subject subject = new Subject("subject");
+        IDTokenClaimsSet idToken = createIDTokenClaimsSet(issuer, subject);
+        UserInfo userInfo = new UserInfo(subject);
+
+        userInfo.setClaim("groupclaim", Arrays.asList("pgroup1", "pgroup2"));
+
+        String userFullName = "XWiki.issuer-subject";
+
+        when(this.oldcore.getMockGroupService().getAllGroupsNamesForMember(userFullName, 0, 0,
+            this.oldcore.getXWikiContext())).thenReturn(Arrays.asList("XWiki.existinggroup"));
+        addMember(this.existinggroupReference, userFullName);
+        addMember(this.xwikiallgroupReference, userFullName);
+
+        assertFalse(groupContains(this.group1Reference, userFullName));
+        assertFalse(groupContains(this.group2Reference, userFullName));
+        assertTrue(groupContains(this.existinggroupReference, userFullName));
+        assertTrue(groupContains(this.xwikiallgroupReference, userFullName));
+
+        Principal principal = this.manager.updateUser(idToken, userInfo, new BearerAccessToken());
+
+        assertEquals("xwiki:XWiki.issuer-subject", principal.getName());
+
+        XWikiDocument userDocument = this.oldcore.getSpyXWiki().getDocument(
+            new DocumentReference(this.oldcore.getXWikiContext().getWikiId(), "XWiki", "issuer-subject"),
+            this.oldcore.getXWikiContext());
+
+        assertFalse(userDocument.isNew());
+
+        BaseObject userObject = userDocument
+            .getXObject(new DocumentReference(this.oldcore.getXWikiContext().getWikiId(), "XWiki", "XWikiUsers"));
+
+        assertNotNull(userObject);
+
+        OIDCUser oidcObject = new OIDCUser(userDocument.getXObject(this.oidcClassReference));
+
+        assertNotNull(oidcObject);
+        assertEquals("http://issuer", oidcObject.getIssuer());
+        assertEquals("subject", oidcObject.getSubject());
+
+        // we're expecting: user stays in initial group, gets synced in the first group, does not get synced in the
+        // second group and doesn't get removed from existing group, because existing group doesn't match the inclusion,
+        // so it's not updated included
+        assertTrue(groupContains(this.pgroup1Reference, userDocument.getFullName()));
+        assertFalse(groupContains(this.pgroup2Reference, userDocument.getFullName()));
+        assertTrue(groupContains(this.existinggroupReference, userDocument.getFullName()));
+        assertTrue(groupContains(this.xwikiallgroupReference, userFullName));
+    }
+
+    @Test
+    void updateUserInfoWithGroupSyncWithExplicitMappingIgnoresRegex()
+        throws XWikiException, QueryException, OIDCException, MalformedURLException
+    {
+        this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_GROUPS_MAPPING,
+            Arrays.asList("group1=pgroup1", "group1=pgroup2", "XWiki.group2=pgroup2", "existinggroup=othergroup"));
+        // it doesn't matter that these are including and excluding the same group, we're testing that they are ignored
+        this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_GROUPS_MAPPING_INCLUDE, "\\d+");
+        this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_GROUPS_MAPPING_EXCLUDE, "\\d+");
+        this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_GROUPS_CLAIM, "groupclaim");
+        this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_USERINFOCLAIMS,
+            ListUtils.sum(OIDCClientConfiguration.DEFAULT_USERINFOCLAIMS, Arrays.asList(
+                this.oldcore.getConfigurationSource().<String>getProperty(OIDCClientConfiguration.PROP_GROUPS_CLAIM))));
+
+        Issuer issuer = new Issuer("http://issuer");
+        Subject subject = new Subject("subject");
+        IDTokenClaimsSet idToken = createIDTokenClaimsSet(issuer, subject);
+        UserInfo userInfo = new UserInfo(subject);
+
+        userInfo.setClaim("groupclaim", Arrays.asList("pgroup1", "pgroup2"));
+
+        String userFullName = "XWiki.issuer-subject";
+
+        when(this.oldcore.getMockGroupService().getAllGroupsNamesForMember(userFullName, 0, 0,
+            this.oldcore.getXWikiContext())).thenReturn(Arrays.asList("XWiki.existinggroup"));
+        addMember(this.existinggroupReference, "XWiki.issuer-subject");
+
+        assertFalse(groupContains(this.group1Reference, userFullName));
+        assertFalse(groupContains(this.group2Reference, userFullName));
+        assertTrue(groupContains(this.existinggroupReference, userFullName));
+
+        Principal principal = this.manager.updateUser(idToken, userInfo, new BearerAccessToken());
+
+        assertEquals("xwiki:XWiki.issuer-subject", principal.getName());
+
+        XWikiDocument userDocument = this.oldcore.getSpyXWiki().getDocument(
+            new DocumentReference(this.oldcore.getXWikiContext().getWikiId(), "XWiki", "issuer-subject"),
+            this.oldcore.getXWikiContext());
+
+        assertFalse(userDocument.isNew());
+
+        BaseObject userObject = userDocument
+            .getXObject(new DocumentReference(this.oldcore.getXWikiContext().getWikiId(), "XWiki", "XWikiUsers"));
+
+        assertNotNull(userObject);
+
+        OIDCUser oidcObject = new OIDCUser(userDocument.getXObject(this.oidcClassReference));
+
+        assertNotNull(oidcObject);
+        assertEquals("http://issuer", oidcObject.getIssuer());
+        assertEquals("subject", oidcObject.getSubject());
+
+        assertTrue(groupContains(this.group1Reference, userDocument.getFullName()));
+        assertTrue(groupContains(this.group2Reference, userDocument.getFullName()));
+        assertFalse(groupContains(this.existinggroupReference, userDocument.getFullName()));
+    }
 
     @Test
     void updateUserInfoWithGroupSyncWithMapping()

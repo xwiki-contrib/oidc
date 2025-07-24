@@ -39,6 +39,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import javax.inject.Inject;
@@ -669,12 +670,15 @@ public class OIDCUserManager
         this.logger.debug("The user belongs to following XWiki groups: {}", xwikiUserGroupList);
 
         GroupMapping groupMapping = this.configuration.getGroupMapping();
+        Pattern mappingIncludePattern = this.configuration.getGroupMappingIncludePattern();
+        Pattern mappingExcludePattern = this.configuration.getGroupMappingExcludePattern();
 
         // Add missing group membership
         for (String providerGroupName : providerGroups) {
             if (groupMapping == null) {
                 String xwikiGroup = this.configuration.toXWikiGroup(providerGroupName);
-                if (!xwikiUserGroupList.contains(xwikiGroup)) {
+                if (groupMatchesMappingRegex(xwikiGroup, mappingIncludePattern, mappingExcludePattern)
+                    && !xwikiUserGroupList.contains(xwikiGroup)) {
                     addUserToXWikiGroup(xwikiUserName, xwikiGroup, context);
                     userUpdated = true;
                 }
@@ -698,9 +702,11 @@ public class OIDCUserManager
                 // * the user is not part of the associated oidc groups returned by the provided
                 // * and the group is not part of configured initial groups (it would
                 // be inconsistent with the fact that all new users are supposed to be in them)
+                // * the group on XWiki matches the regex for groups to be mapped, if any such configuration is present
                 if (!this.configuration.getInitialXWikiGroups().contains(xwikiGroupName)
                     && !providerGroups.contains(xwikiGroupName)
-                    && !providerGroups.contains(xwikiGroupName.substring(XWIKI_GROUP_PREFIX.length()))) {
+                    && !providerGroups.contains(xwikiGroupName.substring(XWIKI_GROUP_PREFIX.length()))
+                    && groupMatchesMappingRegex(xwikiGroupName, mappingIncludePattern, mappingExcludePattern)) {
                     removeUserFromXWikiGroup(xwikiUserName, xwikiGroupName, context);
                     userUpdated = true;
                 }
@@ -715,6 +721,35 @@ public class OIDCUserManager
 
         return userUpdated;
 
+    }
+
+    /**
+     * Checks if a group name matches the mapping regular expressions. If both inclusions and exclusions are present,
+     * the group name needs to match the inclusion and not match the exclusions. If only one is present, then only
+     * matching inclusion or nor matching exclusion is checked. If none is present, any group name matches.<br>
+     * Note: this regex applies to the group name after application of the groups prefix configuration, if any.
+     *
+     * @param includePattern regex of group names to include in the mapping
+     * @param excludePattern regex of group names to exclude from the mapping
+     * @return true if the group name matches the regular expressions, false otherwise.
+     */
+    private boolean groupMatchesMappingRegex(String groupName, Pattern includePattern, Pattern excludePattern)
+    {
+        this.logger.debug("Checking if group name {} matches inclusion {} and exclusion {}", groupName, includePattern,
+            excludePattern);
+        if (includePattern != null && !includePattern.matcher(groupName).matches()) {
+            this.logger.debug("Match faiure: group name {} doesn't match the inclusion regex {}", includePattern);
+            return false;
+        }
+        // either matches the inclusion or there is no inclusion, check the exclusion
+        if (excludePattern != null && excludePattern.matcher(groupName).matches()) {
+            this.logger.debug("Match faiure: group name {} matches the exclusion regex {}", excludePattern);
+            return false;
+        }
+        // either matches both or there is no inclusion or exclusion mentioned
+        this.logger.debug("Match success: group name {} passes both inclusion and exclusion, or none is specified",
+            groupName);
+        return true;
     }
 
     private void updateXWikiClaims(XWikiDocument userDocument, BaseClass userClass, BaseObject userObject,

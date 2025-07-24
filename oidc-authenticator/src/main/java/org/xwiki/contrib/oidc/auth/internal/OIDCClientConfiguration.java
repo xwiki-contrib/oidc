@@ -36,6 +36,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
+import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
 
 import javax.inject.Inject;
 import javax.inject.Named;
@@ -286,6 +288,16 @@ public class OIDCClientConfiguration extends OIDCConfiguration
      * @since 1.10
      */
     public static final String PROP_GROUPS_MAPPING = "oidc.groups.mapping";
+
+    /**
+     * @since 2.19.0
+     */
+    public static final String PROP_GROUPS_MAPPING_INCLUDE = "oidc.groups.mapping.include";
+
+    /**
+     * @since 2.19.0
+     */
+    public static final String PROP_GROUPS_MAPPING_EXCLUDE = "oidc.groups.mapping.exclude";
 
     /**
      * @since 1.10
@@ -1117,6 +1129,38 @@ public class OIDCClientConfiguration extends OIDCConfiguration
     }
 
     /**
+     * @since 2.19.0
+     */
+    public Pattern getGroupMappingIncludePattern()
+    {
+        return compilePropertyIntoPattern(PROP_GROUPS_MAPPING_INCLUDE);
+    }
+
+    /**
+     * @since 2.19.0
+     */
+    public Pattern getGroupMappingExcludePattern()
+    {
+        return compilePropertyIntoPattern(PROP_GROUPS_MAPPING_EXCLUDE);
+    }
+
+    private Pattern compilePropertyIntoPattern(String propertyName)
+    {
+        String regex = getProperty(propertyName, String.class);
+
+        if (StringUtils.isEmpty(regex)) {
+            return null;
+        }
+        try {
+            return Pattern.compile(regex);
+        } catch (PatternSyntaxException e) {
+            logger.warn("Exception while compiling regex {} configured for {}, skipping configuration", regex,
+                propertyName, e);
+            return null;
+        }
+    }
+
+    /**
      * @since 1.10
      */
     public String toXWikiGroup(String group)
@@ -1508,6 +1552,12 @@ public class OIDCClientConfiguration extends OIDCConfiguration
                 break;
             case PROP_GROUPS_MAPPING:
                 returnValue = clientConfiguration.getGroupMapping();
+                break;
+            case PROP_GROUPS_MAPPING_INCLUDE:
+                returnValue = clientConfiguration.getGroupMappingInclude();
+                break;
+            case PROP_GROUPS_MAPPING_EXCLUDE:
+                returnValue = clientConfiguration.getGroupMappingExclude();
                 break;
             case PROP_GROUPS_ALLOWED:
                 returnValue = clientConfiguration.getAllowedGroups();

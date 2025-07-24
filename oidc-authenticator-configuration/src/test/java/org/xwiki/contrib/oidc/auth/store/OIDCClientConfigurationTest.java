@@ -83,6 +83,25 @@ class OIDCClientConfigurationTest
     }
 
     @Test
+    void getGroupsMappingRegex()
+    {
+        assertNull(this.configuration.getGroupMappingInclude());
+        assertNull(this.configuration.getGroupMappingExclude());
+
+        // check that empty string doesn't count as a set configuration
+        this.xobject.setLargeStringValue(OIDCClientConfiguration.FIELD_GROUP_MAPPING_INCLUDE, "");
+        this.xobject.setLargeStringValue(OIDCClientConfiguration.FIELD_GROUP_MAPPING_EXCLUDE, "");
+        assertNull(this.configuration.getGroupMappingInclude());
+        assertNull(this.configuration.getGroupMappingExclude());
+
+        // check that an explicit configuration counts as a config and is returned as is
+        this.xobject.setLargeStringValue(OIDCClientConfiguration.FIELD_GROUP_MAPPING_INCLUDE, "\\d+");
+        this.xobject.setLargeStringValue(OIDCClientConfiguration.FIELD_GROUP_MAPPING_EXCLUDE, "\\d+");
+        assertEquals(this.configuration.getGroupMappingInclude(), "\\d+");
+        assertEquals(this.configuration.getGroupMappingInclude(), "\\d+");
+    }
+
+    @Test
     void getUserInfoRefreshRate()
     {
         assertNull(this.configuration.getUserInfoRefreshRate());

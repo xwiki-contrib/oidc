@@ -63,6 +63,20 @@ public class OIDCClientConfiguration
     public static final String FIELD_GROUP_MAPPING = "groupsMapping";
 
     /**
+     * Name of the property containing the group mapping include regex (when group mapping is not specified).
+     *
+     * @since 2.19.0
+     */
+    public static final String FIELD_GROUP_MAPPING_INCLUDE = "groupsMappingInclude";
+
+    /**
+     * Name of the property containing the group mapping exclude regex (when group mapping is not specified).
+     *
+     * @since 2.19.0
+     */
+    public static final String FIELD_GROUP_MAPPING_EXCLUDE = "groupsMappingExclude";
+
+    /**
      * Name of the property containing the allowed groups.
      */
     public static final String FIELD_ALLOWED_GROUPS = "allowedGroups";
@@ -338,6 +352,47 @@ public class OIDCClientConfiguration
     public void setGroupMapping(List<String> groupMapping)
     {
         this.xobject.setLargeStringValue(FIELD_GROUP_MAPPING, String.join(JOIN_CHAR, groupMapping));
+    }
+
+    /**
+     * @return the regex of groups to be synchronized if no explicit mapping is present.
+     *
+     * @since 2.19.0
+     */
+    public String getGroupMappingInclude()
+    {
+        return StringUtils.trimToNull(this.xobject.getLargeStringValue(FIELD_GROUP_MAPPING_INCLUDE));
+    }
+
+    /**
+     * @param groupMappingInclude the regex of groups to be synchronized if no explicit mapping is present.
+     *
+     * @since 2.19.0
+     */
+    public void setGroupMappingInclude(String groupMappingInclude)
+    {
+        this.xobject.setLargeStringValue(FIELD_GROUP_MAPPING_INCLUDE, groupMappingInclude);
+    }
+
+    /**
+     * @return the regex of groups to be excluded from synchronization if no explicit mapping is present.
+     *
+     * @since 2.19.0
+     */
+    public String getGroupMappingExclude()
+    {
+        return StringUtils.trimToNull(this.xobject.getLargeStringValue(FIELD_GROUP_MAPPING_EXCLUDE));
+    }
+
+    /**
+     * @param groupMappingExclude the regex of groups to be excluded from synchronization if no explicit mapping is
+     *            present.
+     *
+     * @since 2.19.0
+     */
+    public void setGroupMappingExclude(String groupMappingExclude)
+    {
+        this.xobject.setLargeStringValue(FIELD_GROUP_MAPPING_EXCLUDE, groupMappingExclude);
     }
 
     /**
