@@ -24,8 +24,6 @@
 #end
 {{/velocity}}
 
-$xcontext.userReference
-
 {{velocity}}
 #set ($discard = $xwiki.jsrx.use('templates/oidc/provider/userapplications.js'))
 #set ($obj = $doc.getObject("XWiki.XWikiUsers"))
