@@ -52,4 +52,10 @@ public class WikiOAuth2TokenStore extends AbstractNimbusOAuth2TokenStore
         return new DocumentReference(XWikiPreferencesDocumentInitializer.LOCAL_REFERENCE,
             documentAccessBridge.getCurrentDocumentReference().getWikiReference());
     }
+
+    @Override
+    protected String getCacheId()
+    {
+        return "oidc.client.token.wiki";
+    }
 }

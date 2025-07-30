@@ -47,8 +47,8 @@ public interface OAuth2TokenStore
     void saveToken(OAuth2Token token) throws OAuth2Exception;
 
     /**
-     * Retrieve the OAuth2 token stored in XWiki, related to the given client configuration. Returns null if no token
-     * is found.
+     * Retrieve the OAuth2 token stored in XWiki, related to the given client configuration. Returns null if no token is
+     * found.
      *
      * @param configuration the client configuration to use
      * @return the corresponding token, or null if no token is found
@@ -94,4 +94,14 @@ public interface OAuth2TokenStore
      * @since 2.17.0
      */
     Set<OAuth2Token> getTokens(DocumentReference documentReference) throws OAuth2Exception;
+
+    /**
+     * @param documentReference the reference of the document which changed and need to be removed from the cache.
+     */
+    void invalidateCache(DocumentReference documentReference);
+
+    /**
+     * Clean all entry in the token store cache.
+     */
+    void clearCache();
 }

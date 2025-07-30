@@ -49,4 +49,10 @@ public class UserOAuth2TokenStore extends AbstractNimbusOAuth2TokenStore
     {
         return documentAccessBridge.getCurrentUserReference();
     }
+
+    @Override
+    protected String getCacheId()
+    {
+        return "oidc.client.token.user";
+    }
 }

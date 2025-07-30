@@ -101,4 +101,10 @@ public class DefaultOAuth2TokenStore extends AbstractNimbusOAuth2TokenStore
             throw new OAuth2Exception(String.format("No access token store is available with hint [%s]", hint));
         }
     }
+
+    @Override
+    protected String getCacheId()
+    {
+        return "oidc.client.token.default";
+    }
 }

@@ -104,12 +104,14 @@ public class OAuth2TokenRenewalJob extends AbstractJob<DefaultRequest, DefaultJo
     private void renewToken(OIDCClientConfiguration configuration, NimbusOAuth2Token token) throws Exception
     {
         try {
-            OIDCTokenResponse response = requestTokenFromRefreshToken(token, configuration);
+            synchronized (token) {
+                OIDCTokenResponse response = requestTokenFromRefreshToken(token, configuration);
 
-            token.fromAccessToken(response.getTokens().getAccessToken());
-            token.fromRefreshToken(response.getTokens().getRefreshToken());
+                token.fromAccessToken(response.getTokens().getAccessToken());
+                token.fromRefreshToken(response.getTokens().getRefreshToken());
 
-            tokenStore.saveToken(token);
+                tokenStore.saveToken(token);
+            }
         } catch (Exception e) {
             logger.error("Failed to renew token [{}]", token.getReference(), e);
 
