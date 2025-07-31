@@ -61,6 +61,18 @@
         <artifactId>nimbus-jose-jwt</artifactId>
         <version>10.4</version>
       </dependency>
+      <dependency>
+        <groupId>org.xwiki.commons</groupId>
+        <artifactId>xwiki-commons-velocity</artifactId>
+        <version>${commons.version}</version>
+        <exclusions>
+          <!-- Exclude commons-lang from the transitive dependencies to make sure we 'ont use it in the extension code -->
+          <exclusion>
+            <groupId>commons-lang</groupId>
+            <artifactId>commons-lang</artifactId>
+          </exclusion>
+        </exclusions>
+      </dependency>
     </dependencies>
   </dependencyManagement>
 
