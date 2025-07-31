@@ -158,22 +158,6 @@
                 </item>
               </differences>
             </revapi.differences>
-            <revapi.differences>
-              <criticality>allowed</criticality>
-              <justification>We added a cache on the OAuth token</justification>
-              <differences>
-                <item>
-                  <ignore>true</ignore>
-                  <code>java.method.addedToInterface</code>
-                  <new>method void org.xwiki.contrib.oidc.OAuth2TokenStore::clearCache()</new>
-                </item>
-                <item>
-                  <ignore>true</ignore>
-                  <code>java.method.addedToInterface</code>
-                  <new>method void org.xwiki.contrib.oidc.OAuth2TokenStore::invalidateCache(org.xwiki.model.reference.DocumentReference)</new>
-                </item>
-              </differences>
-            </revapi.differences>
           </analysisConfiguration>
         </configuration>
       </plugin>

@@ -23,29 +23,26 @@ import java.util.List;
 
 import javax.inject.Inject;
 import javax.inject.Named;
-import javax.inject.Provider;
 import javax.inject.Singleton;
 
 import org.apache.commons.collections4.ListUtils;
 import org.slf4j.Logger;
 import org.xwiki.bridge.event.WikiDeletedEvent;
 import org.xwiki.component.annotation.Component;
-import org.xwiki.component.manager.ComponentLookupException;
-import org.xwiki.component.manager.ComponentManager;
-import org.xwiki.contrib.oidc.OAuth2TokenStore;
 import org.xwiki.model.reference.DocumentReference;
 import org.xwiki.observation.AbstractEventListener;
 import org.xwiki.observation.event.Event;
 
 import com.xpn.xwiki.doc.XWikiDocument;
 import com.xpn.xwiki.internal.event.XObjectEvent;
+import com.xpn.xwiki.objects.BaseObject;
 import com.xpn.xwiki.objects.BaseObjectReference;
 
 /**
  * Listener dedicated to invalidate the token store cache when needed.
  *
  * @version $Id$
- * @since 2.18.3
+ * @since 2.19.1
  */
 @Component
 @Named(OAuth2TokenStoreListener.NAME)
@@ -58,8 +55,7 @@ public class OAuth2TokenStoreListener extends AbstractEventListener
     public static final String NAME = "OAuth2TokenStoreListener";
 
     @Inject
-    @Named("context")
-    private Provider<ComponentManager> componentManagerProvider;
+    private OAuth2TokenStoreCache oAuth2TokenStoreCache;
 
     @Inject
     private Logger logger;
@@ -76,29 +72,16 @@ public class OAuth2TokenStoreListener extends AbstractEventListener
     @Override
     public void onEvent(Event event, Object source, Object data)
     {
-
-        List<OAuth2TokenStore> oauth2TokenStores = null;
-        try {
-            oauth2TokenStores = getOAuth2TokenStore();
-        } catch (ComponentLookupException e) {
-            logger.error("Can't get instances of OAuth2TokenStore", e);
-            return;
-        }
         if (event instanceof XObjectEvent) {
+            XObjectEvent objectEvent = (XObjectEvent) event;
             XWikiDocument document = (XWikiDocument) source;
+            BaseObject eventObject = document.getXObject(objectEvent.getReference());
+            String configurationName =
+                eventObject.getStringValue(NimbusOAuth2Token.FIELD_CLIENT_CONFIGURATION_NAME);
             DocumentReference documentToInvalidate = document.getDocumentReference();
-            for (OAuth2TokenStore store : oauth2TokenStores) {
-                store.invalidateCache(documentToInvalidate);
-            }
+            oAuth2TokenStoreCache.invalidateCache(documentToInvalidate, configurationName);
         } else if (event instanceof WikiDeletedEvent) {
-            for (OAuth2TokenStore store : oauth2TokenStores) {
-                store.clearCache();
-            }
+            oAuth2TokenStoreCache.clearCache();
         }
-    }
-
-    private List<OAuth2TokenStore> getOAuth2TokenStore() throws ComponentLookupException
-    {
-        return componentManagerProvider.get().getInstanceList(OAuth2TokenStore.class);
     }
 }

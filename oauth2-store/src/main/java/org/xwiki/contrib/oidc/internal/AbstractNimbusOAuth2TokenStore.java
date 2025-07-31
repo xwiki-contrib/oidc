@@ -19,29 +19,19 @@
  */
 package org.xwiki.contrib.oidc.internal;
 
-import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 import javax.inject.Inject;
 import javax.inject.Provider;
 
-import org.xwiki.cache.Cache;
-import org.xwiki.cache.CacheException;
-import org.xwiki.cache.CacheManager;
-import org.xwiki.cache.config.LRUCacheConfiguration;
-import org.xwiki.component.manager.ComponentLifecycleException;
-import org.xwiki.component.phase.Disposable;
-import org.xwiki.component.phase.Initializable;
-import org.xwiki.component.phase.InitializationException;
 import org.xwiki.contrib.oidc.OAuth2Exception;
 import org.xwiki.contrib.oidc.OAuth2Token;
 import org.xwiki.contrib.oidc.OAuth2TokenStore;
 import org.xwiki.contrib.oidc.auth.store.OIDCClientConfiguration;
 import org.xwiki.contrib.oidc.auth.store.OIDCClientConfigurationStore;
 import org.xwiki.model.reference.DocumentReference;
-import org.xwiki.model.reference.EntityReferenceSerializer;
 import org.xwiki.model.reference.ObjectReference;
 import org.xwiki.query.QueryException;
 import org.xwiki.security.authorization.ContextualAuthorizationManager;
@@ -59,7 +49,7 @@ import com.xpn.xwiki.objects.BaseObject;
  * @version $Id$
  * @since 2.15.0
  */
-public abstract class AbstractNimbusOAuth2TokenStore implements OAuth2TokenStore, Initializable, Disposable
+public abstract class AbstractNimbusOAuth2TokenStore implements OAuth2TokenStore
 {
     @Inject
     protected Provider<XWikiContext> contextProvider;
@@ -71,30 +61,7 @@ public abstract class AbstractNimbusOAuth2TokenStore implements OAuth2TokenStore
     protected OIDCClientConfigurationStore oidcClientConfigurationStore;
 
     @Inject
-    private EntityReferenceSerializer<String> serializer;
-
-    @Inject
-    private CacheManager cacheManager;
-
-    private Cache<Map<String, OAuth2Token>> cache;
-
-    @Override
-    public void initialize() throws InitializationException
-    {
-        try {
-            this.cache = this.cacheManager.createNewCache(new LRUCacheConfiguration(getCacheId(), 1000));
-        } catch (CacheException e) {
-            throw new InitializationException("Failed to create cache with if [oidc.client.token]");
-        }
-    }
-
-    @Override
-    public void dispose() throws ComponentLifecycleException
-    {
-        this.cache.dispose();
-    }
-
-    protected abstract String getCacheId();
+    protected OAuth2TokenStoreCache oAuth2TokenStoreCache;
 
     /**
      * Provide the document to be used for storing oauth2 tokens for the given configuration.
@@ -163,12 +130,10 @@ public abstract class AbstractNimbusOAuth2TokenStore implements OAuth2TokenStore
         OIDCClientConfiguration configuration)
         throws OAuth2Exception
     {
-
-        String cacheKey = serializer.serialize(documentReference);
-        Map<String, OAuth2Token> tokenCacheMap = cache.get(cacheKey);
-        String cacheMapKey = configuration.getConfigurationName();
-        if (tokenCacheMap != null && tokenCacheMap.containsKey(cacheMapKey)) {
-            return tokenCacheMap.get(cacheMapKey);
+        Optional<OAuth2Token> tokenCache = oAuth2TokenStoreCache.get(documentReference,
+            configuration.getConfigurationName());
+        if (tokenCache.isPresent()) {
+            return tokenCache.get();
         }
         return getTokenFromDocument(documentReference, configuration);
     }
@@ -177,15 +142,15 @@ public abstract class AbstractNimbusOAuth2TokenStore implements OAuth2TokenStore
         OIDCClientConfiguration configuration) throws OAuth2Exception
     {
         // Check again if the entry was added in cache while this thread was waiting to enter this method
-        String cacheKey = serializer.serialize(documentReference);
-        Map<String, OAuth2Token> tokenCacheMap = cache.get(cacheKey);
-        String cacheMapKey = configuration.getConfigurationName();
-        if (tokenCacheMap != null && tokenCacheMap.containsKey(cacheMapKey)) {
-            return tokenCacheMap.get(cacheMapKey);
+        Optional<OAuth2Token> tokenCache = oAuth2TokenStoreCache.get(documentReference,
+            configuration.getConfigurationName());
+        if (tokenCache.isPresent()) {
+            return tokenCache.get();
         }
 
         XWikiContext context = contextProvider.get();
         XWiki xwiki = context.getWiki();
+
         try {
             XWikiDocument document = xwiki.getDocument(documentReference, context);
             BaseObject tokenObj = document.getXObject(
@@ -196,11 +161,7 @@ public abstract class AbstractNimbusOAuth2TokenStore implements OAuth2TokenStore
                 return null;
             } else {
                 NimbusOAuth2Token newToken = new NimbusOAuth2Token(configuration, tokenObj);
-                if (tokenCacheMap == null) {
-                    tokenCacheMap = new HashMap<>();
-                    cache.set(cacheKey, tokenCacheMap);
-                }
-                tokenCacheMap.put(configuration.getConfigurationName(), newToken);
+                oAuth2TokenStoreCache.add(newToken, documentReference, configuration.getConfigurationName());
                 return newToken;
             }
         } catch (XWikiException e) {
@@ -253,6 +214,7 @@ public abstract class AbstractNimbusOAuth2TokenStore implements OAuth2TokenStore
             try {
                 XWikiDocument document = xwiki.getDocument(getConfiguredDocumentReference(configuration), context);
                 return document.newXObject(NimbusOAuth2Token.CLASS_REFERENCE, context).getReference();
+
             } catch (XWikiException e) {
                 throw new OAuth2Exception(String.format(
                     "Failed to get configured object reference for configuration [%s]",
@@ -286,26 +248,5 @@ public abstract class AbstractNimbusOAuth2TokenStore implements OAuth2TokenStore
             throw new OAuth2Exception(
                 String.format("Failed to get registered tokens tokens from document [%s]", documentReference), e);
         }
-    }
-
-    /**
-     * @param documentReference the reference of the document which changed and need to be removed from the cache.
-     */
-    @Override
-    public void invalidateCache(DocumentReference documentReference)
-    {
-        String name = serializer.serialize(documentReference);
-        if (name != null) {
-            this.cache.remove(name);
-        }
-    }
-
-    /**
-     * Clean all entry in the token store cache.
-     */
-    @Override
-    public void clearCache()
-    {
-        this.cache.removeAll();
     }
 }

@@ -1,5 +1,6 @@
 org.xwiki.contrib.oidc.internal.DefaultOAuth2TokenStore
 org.xwiki.contrib.oidc.internal.OAuth2TokenClassDocumentInitializer
+org.xwiki.contrib.oidc.internal.OAuth2TokenStoreCache
 org.xwiki.contrib.oidc.internal.OAuth2TokenStoreListener
 org.xwiki.contrib.oidc.internal.UserOAuth2TokenStore
 org.xwiki.contrib.oidc.internal.WikiOAuth2TokenStore
