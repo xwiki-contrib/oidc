@@ -34,6 +34,7 @@ import org.xwiki.observation.AbstractEventListener;
 import org.xwiki.observation.event.Event;
 
 import com.xpn.xwiki.doc.XWikiDocument;
+import com.xpn.xwiki.internal.event.XObjectDeletedEvent;
 import com.xpn.xwiki.internal.event.XObjectEvent;
 import com.xpn.xwiki.objects.BaseObject;
 import com.xpn.xwiki.objects.BaseObjectReference;
@@ -42,7 +43,7 @@ import com.xpn.xwiki.objects.BaseObjectReference;
  * Listener dedicated to invalidate the token store cache when needed.
  *
  * @version $Id$
- * @since 2.19.1
+ * @since 2.19.2
  */
 @Component
 @Named(OAuth2TokenStoreListener.NAME)
@@ -75,7 +76,12 @@ public class OAuth2TokenStoreListener extends AbstractEventListener
         if (event instanceof XObjectEvent) {
             XObjectEvent objectEvent = (XObjectEvent) event;
             XWikiDocument document = (XWikiDocument) source;
-            BaseObject eventObject = document.getXObject(objectEvent.getReference());
+            BaseObject eventObject;
+            if (event instanceof XObjectDeletedEvent) {
+                eventObject = document.getOriginalDocument().getXObject(objectEvent.getReference());
+            } else {
+                eventObject = document.getXObject(objectEvent.getReference());
+            }
             String configurationName =
                 eventObject.getStringValue(NimbusOAuth2Token.FIELD_CLIENT_CONFIGURATION_NAME);
             DocumentReference documentToInvalidate = document.getDocumentReference();

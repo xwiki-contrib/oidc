@@ -130,10 +130,10 @@ public abstract class AbstractNimbusOAuth2TokenStore implements OAuth2TokenStore
         OIDCClientConfiguration configuration)
         throws OAuth2Exception
     {
-        Optional<OAuth2Token> tokenCache = oAuth2TokenStoreCache.get(documentReference,
+        Optional<OAuth2Token> cachedToken = oAuth2TokenStoreCache.get(documentReference,
             configuration.getConfigurationName());
-        if (tokenCache.isPresent()) {
-            return tokenCache.get();
+        if (cachedToken != null) {
+            return cachedToken.orElse(null);
         }
         return getTokenFromDocument(documentReference, configuration);
     }
@@ -142,10 +142,10 @@ public abstract class AbstractNimbusOAuth2TokenStore implements OAuth2TokenStore
         OIDCClientConfiguration configuration) throws OAuth2Exception
     {
         // Check again if the entry was added in cache while this thread was waiting to enter this method
-        Optional<OAuth2Token> tokenCache = oAuth2TokenStoreCache.get(documentReference,
+        Optional<OAuth2Token> cachedToken = oAuth2TokenStoreCache.get(documentReference,
             configuration.getConfigurationName());
-        if (tokenCache.isPresent()) {
-            return tokenCache.get();
+        if (cachedToken != null) {
+            return cachedToken.orElse(null);
         }
 
         XWikiContext context = contextProvider.get();
@@ -158,10 +158,12 @@ public abstract class AbstractNimbusOAuth2TokenStore implements OAuth2TokenStore
                 configuration.getConfigurationName(), false);
 
             if (document.isNew() || tokenObj == null) {
+                oAuth2TokenStoreCache.add(Optional.empty(), documentReference, configuration.getConfigurationName());
                 return null;
             } else {
                 NimbusOAuth2Token newToken = new NimbusOAuth2Token(configuration, tokenObj);
-                oAuth2TokenStoreCache.add(newToken, documentReference, configuration.getConfigurationName());
+                oAuth2TokenStoreCache.add(Optional.of(newToken), documentReference,
+                    configuration.getConfigurationName());
                 return newToken;
             }
         } catch (XWikiException e) {
@@ -214,7 +216,6 @@ public abstract class AbstractNimbusOAuth2TokenStore implements OAuth2TokenStore
             try {
                 XWikiDocument document = xwiki.getDocument(getConfiguredDocumentReference(configuration), context);
                 return document.newXObject(NimbusOAuth2Token.CLASS_REFERENCE, context).getReference();
-
             } catch (XWikiException e) {
                 throw new OAuth2Exception(String.format(
                     "Failed to get configured object reference for configuration [%s]",

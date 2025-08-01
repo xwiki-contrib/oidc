@@ -41,16 +41,18 @@ import org.xwiki.model.reference.EntityReferenceSerializer;
  * Cache for OAuth token store.
  *
  * @version $Id$
- * @since 2.19.1
+ * @since 2.19.2
  */
 @Component(roles = OAuth2TokenStoreCache.class)
 @Singleton
 public class OAuth2TokenStoreCache implements Initializable, Disposable
 {
+    private static final String CACHE_KEY_SEPARATOR = "_";
+
     @Inject
     private CacheManager cacheManager;
 
-    private Cache<OAuth2Token> cache;
+    private Cache<Optional<OAuth2Token>> cache;
 
     @Inject
     private EntityReferenceSerializer<String> serializer;
@@ -76,22 +78,26 @@ public class OAuth2TokenStoreCache implements Initializable, Disposable
      *
      * @param documentReference the document reference of the related token (where the token is stored).
      * @param configurationName the configuration name of the related token.
-     * @return the token if it exists in the cache.
+     * @return the token if it exists in the cache. Note that if {@code Optional.empty()} is returned, it will mean that
+     *     we have a cache entry for this configuration, but we don't have any token for this configuration. If
+     *     {@code null} is returned, it means that we don't have a cache entry for this configuration and the value need
+     *     to be got from the original document.
      */
     public Optional<OAuth2Token> get(DocumentReference documentReference, String configurationName)
     {
         String cacheKey = getCacheKey(documentReference, configurationName);
-        return Optional.ofNullable(cache.get(cacheKey));
+        return cache.get(cacheKey);
     }
 
     /**
      * Add a new token into the cache.
      *
-     * @param token the token to add in the cache.
+     * @param token the token to add in the cache. Could be {@code Optional.empty()} to mean that we don't have any
+     *     token for this configuration.
      * @param documentReference the document reference of the related token (where the token is stored).
      * @param configurationName the configuration name of the related token.
      */
-    public void add(OAuth2Token token, DocumentReference documentReference, String configurationName)
+    public void add(Optional<OAuth2Token> token, DocumentReference documentReference, String configurationName)
     {
         String cacheKey = getCacheKey(documentReference, configurationName);
         cache.set(cacheKey, token);
@@ -119,6 +125,8 @@ public class OAuth2TokenStoreCache implements Initializable, Disposable
 
     private String getCacheKey(DocumentReference documentReference, String configurationName)
     {
-        return serializer.serialize(documentReference) + "__" + configurationName;
+        return serializer.serialize(documentReference) + CACHE_KEY_SEPARATOR
+            // Escape "_" with "\" to avoid any collisions
+            + configurationName.replace("\\", "\\\\").replace(CACHE_KEY_SEPARATOR, "\\_");
     }
 }

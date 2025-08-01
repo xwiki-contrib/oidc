@@ -105,6 +105,11 @@ public class OAuth2TokenRenewalJob extends AbstractJob<DefaultRequest, DefaultJo
     {
         try {
             synchronized (token) {
+                // In case multiple thread are waiting to renew the same token,
+                // we need to avoid that the seconds thread renew also the token.
+                if (token.toAccessToken().getLifetime() > 60 * 5) {
+                    return;
+                }
                 OIDCTokenResponse response = requestTokenFromRefreshToken(token, configuration);
 
                 token.fromAccessToken(response.getTokens().getAccessToken());
