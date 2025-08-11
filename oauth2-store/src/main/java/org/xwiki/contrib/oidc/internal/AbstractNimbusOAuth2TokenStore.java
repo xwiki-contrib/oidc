@@ -138,7 +138,7 @@ public abstract class AbstractNimbusOAuth2TokenStore implements OAuth2TokenStore
         return getTokenFromDocument(documentReference, configuration);
     }
 
-    private synchronized OAuth2Token getTokenFromDocument(DocumentReference documentReference,
+    private OAuth2Token getTokenFromDocument(DocumentReference documentReference,
         OIDCClientConfiguration configuration) throws OAuth2Exception
     {
         // Check again if the entry was added in cache while this thread was waiting to enter this method
