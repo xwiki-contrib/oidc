@@ -20,11 +20,14 @@
 package org.xwiki.contrib.oidc.auth.internal.store;
 
 import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
 
 import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
 
+import org.apache.commons.lang3.StringUtils;
 import org.xwiki.component.annotation.Component;
 import org.xwiki.contrib.oidc.auth.internal.store.OIDCClientConfigurationCache.CacheEntry;
 import org.xwiki.contrib.oidc.auth.store.OIDCClientConfiguration;
@@ -40,6 +43,7 @@ import com.xpn.xwiki.XWiki;
 import com.xpn.xwiki.XWikiContext;
 import com.xpn.xwiki.XWikiException;
 import com.xpn.xwiki.doc.XWikiDocument;
+import com.xpn.xwiki.objects.BaseObject;
 
 /**
  * Default implementation for the {@link OIDCClientConfigurationStore}.
@@ -116,8 +120,15 @@ public class DefaultOIDCClientConfigurationStore implements OIDCClientConfigurat
         OIDCClientConfiguration configuration = null;
         XWikiDocument configurationDocument = getOIDCClientConfigurationDocument(name);
         if (configurationDocument != null) {
-            configuration =
-                new OIDCClientConfiguration(configurationDocument.getXObject(OIDCClientConfiguration.CLASS_REFERENCE));
+            Optional<BaseObject> configObj = configurationDocument.getXObjects(OIDCClientConfiguration.CLASS_REFERENCE)
+                .stream()
+                .filter(Objects::nonNull)
+                .filter(
+                    x -> StringUtils.equals(name, x.getStringValue(OIDCClientConfiguration.FIELD_CONFIGURATION_NAME)))
+                .findFirst();
+            if (configObj.isPresent()) {
+                configuration = new OIDCClientConfiguration(configObj.get());
+            }
         }
 
         // Cache the configuration
