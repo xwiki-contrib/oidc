@@ -20,6 +20,7 @@
 package org.xwiki.contrib.oidc.internal;
 
 import java.net.URI;
+import java.util.concurrent.locks.Lock;
 
 import javax.inject.Inject;
 import javax.inject.Named;
@@ -27,6 +28,7 @@ import javax.inject.Singleton;
 
 import org.xwiki.component.annotation.Component;
 import org.xwiki.contrib.oidc.OAuth2Exception;
+import org.xwiki.contrib.oidc.OAuth2Token;
 import org.xwiki.contrib.oidc.OAuth2TokenStore;
 import org.xwiki.contrib.oidc.auth.internal.OIDCTokenRequestHelper;
 import org.xwiki.contrib.oidc.auth.store.OIDCClientConfiguration;
@@ -34,6 +36,7 @@ import org.xwiki.job.AbstractJob;
 import org.xwiki.job.DefaultJobStatus;
 import org.xwiki.job.DefaultRequest;
 
+import com.google.common.util.concurrent.Striped;
 import com.nimbusds.oauth2.sdk.AuthorizationGrant;
 import com.nimbusds.oauth2.sdk.RefreshTokenGrant;
 import com.nimbusds.oauth2.sdk.TokenRequest;
@@ -63,6 +66,8 @@ public class OAuth2TokenRenewalJob extends AbstractJob<DefaultRequest, DefaultJo
      * The name of the property used to get the token to renew.
      */
     public static final String TOKEN_PROPERTY = "token";
+
+    private final Striped<Lock> renewLock = Striped.lock(10);
 
     @Inject
     private org.xwiki.contrib.oidc.auth.internal.OIDCClientConfiguration authConfig;
@@ -103,13 +108,28 @@ public class OAuth2TokenRenewalJob extends AbstractJob<DefaultRequest, DefaultJo
 
     private void renewToken(OIDCClientConfiguration configuration, NimbusOAuth2Token token) throws Exception
     {
+        // lock on the object reference
+        Lock lock = renewLock.get(token.getReference());
+        lock.lock();
         try {
-            OIDCTokenResponse response = requestTokenFromRefreshToken(token, configuration);
+            // Get again the token to ensure that we have the last token even if another thread did a renewal while
+            // this one was waiting on this lock.
+            OAuth2Token tokenFromStore = tokenStore.getToken(configuration);
+            if (!(tokenFromStore instanceof NimbusOAuth2Token)) {
+                return;
+            }
+            NimbusOAuth2Token nimbusTokenFromStore = (NimbusOAuth2Token) tokenFromStore;
+            // In case multiple thread are waiting to renew the same token,
+            // we need to avoid that the seconds thread renew also the token.
+            if (nimbusTokenFromStore.toAccessToken().getLifetime() > 60 * 5) {
+                return;
+            }
+            OIDCTokenResponse response = requestTokenFromRefreshToken(nimbusTokenFromStore, configuration);
 
-            token.fromAccessToken(response.getTokens().getAccessToken());
-            token.fromRefreshToken(response.getTokens().getRefreshToken());
+            nimbusTokenFromStore.fromAccessToken(response.getTokens().getAccessToken());
+            nimbusTokenFromStore.fromRefreshToken(response.getTokens().getRefreshToken());
 
-            tokenStore.saveToken(token);
+            tokenStore.saveToken(nimbusTokenFromStore);
         } catch (Exception e) {
             logger.error("Failed to renew token [{}]", token.getReference(), e);
 
@@ -121,6 +141,8 @@ public class OAuth2TokenRenewalJob extends AbstractJob<DefaultRequest, DefaultJo
 
             throw new OAuth2Exception(String.format("Failed to renew token [%s] for configuration [%s]",
                 token.getReference(), configuration.getConfigurationName()));
+        } finally {
+            lock.unlock();
         }
     }
 

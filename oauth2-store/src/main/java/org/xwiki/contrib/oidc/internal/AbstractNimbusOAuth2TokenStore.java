@@ -20,14 +20,15 @@
 package org.xwiki.contrib.oidc.internal;
 
 import java.util.HashSet;
+import java.util.Optional;
 import java.util.Set;
 
 import javax.inject.Inject;
 import javax.inject.Provider;
 
+import org.xwiki.contrib.oidc.OAuth2Exception;
 import org.xwiki.contrib.oidc.OAuth2Token;
 import org.xwiki.contrib.oidc.OAuth2TokenStore;
-import org.xwiki.contrib.oidc.OAuth2Exception;
 import org.xwiki.contrib.oidc.auth.store.OIDCClientConfiguration;
 import org.xwiki.contrib.oidc.auth.store.OIDCClientConfigurationStore;
 import org.xwiki.model.reference.DocumentReference;
@@ -58,6 +59,9 @@ public abstract class AbstractNimbusOAuth2TokenStore implements OAuth2TokenStore
 
     @Inject
     protected OIDCClientConfigurationStore oidcClientConfigurationStore;
+
+    @Inject
+    protected OAuth2TokenStoreCache oAuth2TokenStoreCache;
 
     /**
      * Provide the document to be used for storing oauth2 tokens for the given configuration.
@@ -122,10 +126,28 @@ public abstract class AbstractNimbusOAuth2TokenStore implements OAuth2TokenStore
         return getToken(getConfiguredDocumentReference(configuration), configuration);
     }
 
-    protected NimbusOAuth2Token getToken(DocumentReference documentReference,
+    protected OAuth2Token getToken(DocumentReference documentReference,
         OIDCClientConfiguration configuration)
         throws OAuth2Exception
     {
+        Optional<OAuth2Token> cachedToken = oAuth2TokenStoreCache.get(documentReference,
+            configuration.getConfigurationName());
+        if (cachedToken != null) {
+            return cachedToken.orElse(null);
+        }
+        return getTokenFromDocument(documentReference, configuration);
+    }
+
+    private OAuth2Token getTokenFromDocument(DocumentReference documentReference,
+        OIDCClientConfiguration configuration) throws OAuth2Exception
+    {
+        // Check again if the entry was added in cache while this thread was waiting to enter this method
+        Optional<OAuth2Token> cachedToken = oAuth2TokenStoreCache.get(documentReference,
+            configuration.getConfigurationName());
+        if (cachedToken != null) {
+            return cachedToken.orElse(null);
+        }
+
         XWikiContext context = contextProvider.get();
         XWiki xwiki = context.getWiki();
 
@@ -136,9 +158,13 @@ public abstract class AbstractNimbusOAuth2TokenStore implements OAuth2TokenStore
                 configuration.getConfigurationName(), false);
 
             if (document.isNew() || tokenObj == null) {
+                oAuth2TokenStoreCache.add(Optional.empty(), documentReference, configuration.getConfigurationName());
                 return null;
             } else {
-                return new NimbusOAuth2Token(configuration, tokenObj);
+                NimbusOAuth2Token newToken = new NimbusOAuth2Token(configuration, tokenObj);
+                oAuth2TokenStoreCache.add(Optional.of(newToken), documentReference,
+                    configuration.getConfigurationName());
+                return newToken;
             }
         } catch (XWikiException e) {
             throw new OAuth2Exception(String.format("Failed to get token for [%s] in [%s]",
@@ -179,7 +205,7 @@ public abstract class AbstractNimbusOAuth2TokenStore implements OAuth2TokenStore
     @Override
     public ObjectReference getConfiguredObjectReference(OIDCClientConfiguration configuration) throws OAuth2Exception
     {
-        NimbusOAuth2Token existingToken = getToken(getConfiguredDocumentReference(configuration), configuration);
+        OAuth2Token existingToken = getToken(getConfiguredDocumentReference(configuration), configuration);
 
         if (existingToken != null) {
             return existingToken.getReference();
@@ -190,7 +216,6 @@ public abstract class AbstractNimbusOAuth2TokenStore implements OAuth2TokenStore
             try {
                 XWikiDocument document = xwiki.getDocument(getConfiguredDocumentReference(configuration), context);
                 return document.newXObject(NimbusOAuth2Token.CLASS_REFERENCE, context).getReference();
-
             } catch (XWikiException e) {
                 throw new OAuth2Exception(String.format(
                     "Failed to get configured object reference for configuration [%s]",
