@@ -117,7 +117,8 @@ public class DefaultOIDCClientConfigurationStore implements OIDCClientConfigurat
         XWikiDocument configurationDocument = getOIDCClientConfigurationDocument(name);
         if (configurationDocument != null) {
             configuration =
-                new OIDCClientConfiguration(configurationDocument.getXObject(OIDCClientConfiguration.CLASS_REFERENCE));
+                new OIDCClientConfiguration(configurationDocument.getXObject(OIDCClientConfiguration.CLASS_REFERENCE,
+                    OIDCClientConfiguration.FIELD_CONFIGURATION_NAME, name, false));
         }
 
         // Cache the configuration
