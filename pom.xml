@@ -66,7 +66,7 @@
         <artifactId>xwiki-commons-velocity</artifactId>
         <version>${commons.version}</version>
         <exclusions>
-          <!-- Exclude commons-lang from the transitive dependencies to make sure we 'ont use it in the extension code -->
+          <!-- Exclude commons-lang from the transitive dependencies to make sure we don't use it in the extension code -->
           <exclusion>
             <groupId>commons-lang</groupId>
             <artifactId>commons-lang</artifactId>
