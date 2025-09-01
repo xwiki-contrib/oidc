@@ -23,6 +23,7 @@ import java.util.Set;
 
 import javax.inject.Inject;
 import javax.inject.Named;
+import javax.inject.Provider;
 import javax.inject.Singleton;
 
 import org.slf4j.Logger;
@@ -58,7 +59,7 @@ public class TokenRenewalOnAuthenticationEventListener extends AbstractEventList
     private UserReferenceSerializer<DocumentReference> serializer;
 
     @Inject
-    private OAuth2ClientManager clientManager;
+    private Provider<OAuth2ClientManager> clientManager;
 
     @Inject
     private OAuth2TokenStore tokenStore;
@@ -86,7 +87,7 @@ public class TokenRenewalOnAuthenticationEventListener extends AbstractEventList
 
                 for (OAuth2Token token : tokens) {
                     logger.debug("Attempting renewal of token [{}]", token.getReference());
-                    clientManager.renew(token, false);
+                    clientManager.get().renew(token, false);
                 }
             } catch (OAuth2Exception e) {
                 logger.error("Failed to retrieve OAuth2 tokens for user [{}]", reference, e);
