@@ -154,23 +154,6 @@
               </differences>
             </revapi.differences>
             -->
-            <revapi.differences>
-              <differences>
-                <item>
-                  <ignore>true</ignore>
-                  <code>java.method.addedToInterface</code>
-                  <new>method java.util.Set&lt;org.xwiki.contrib.oidc.OAuth2Token&gt; org.xwiki.contrib.oidc.OAuth2TokenStore::getTokens(org.xwiki.model.reference.DocumentReference) throws org.xwiki.contrib.oidc.OAuth2Exception</new>
-                  <justification>Update of an unstable API</justification>
-                </item>
-                <item>
-                  <ignore>true</ignore>
-                  <code>java.method.addedToInterface</code>
-                  <new>method org.xwiki.job.Job org.xwiki.contrib.oidc.OAuth2ClientManager::renew(org.xwiki.contrib.oidc.OAuth2Token, boolean) throws org.xwiki.contrib.oidc.OAuth2Exception</new>
-                  <justification>Update of an unstable API</justification>
-                </item>
-              </differences>
-            </revapi.differences>
-          </analysisConfiguration>
         </configuration>
       </plugin>
     </plugins>
