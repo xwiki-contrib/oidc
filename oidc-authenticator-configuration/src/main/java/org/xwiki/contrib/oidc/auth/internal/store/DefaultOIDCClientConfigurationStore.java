@@ -25,6 +25,7 @@ import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
 
+import org.slf4j.Logger;
 import org.xwiki.component.annotation.Component;
 import org.xwiki.contrib.oidc.auth.internal.store.OIDCClientConfigurationCache.CacheEntry;
 import org.xwiki.contrib.oidc.auth.store.OIDCClientConfiguration;
@@ -66,9 +67,14 @@ public class DefaultOIDCClientConfigurationStore implements OIDCClientConfigurat
     @Inject
     private AuthorizationManager authorizationManager;
 
+    @Inject
+    private Logger logger;
+
     @Override
     public XWikiDocument getOIDCClientConfigurationDocument(String name) throws XWikiException, QueryException
     {
+        this.logger.debug("Looking for OIDC client configuration document with name [{}]", name);
+
         XWikiContext context = contextProvider.get();
         XWiki xwiki = context.getWiki();
 
@@ -78,16 +84,27 @@ public class DefaultOIDCClientConfigurationStore implements OIDCClientConfigurat
             results.addAll(getOIDCClientConfigurationDocumentQuery(name).setWiki(XWiki.DEFAULT_MAIN_WIKI).execute());
         }
 
-        if (results.size() > 0) {
+        this.logger.debug("  - Found document(s) {}", results);
+
+        if (!results.isEmpty()) {
             for (String result : results) {
-                XWikiDocument document = xwiki.getDocument(documentReferenceResolver.resolve(result), context);
+                XWikiDocument document = xwiki.getDocument(this.documentReferenceResolver.resolve(result), context);
 
                 if (authorizationManager.hasAccess(Right.ADMIN, document.getAuthorReference(),
                     document.getDocumentReference().getWikiReference())) {
+
+                    this.logger.debug("    - Selecting document [{}]", document.getDocumentReference());
+
                     return document;
                 }
+
+                this.logger.debug(
+                    "    - Cannot use configuration from document [{}] because the author [{}] does not have wiki ADMIN right",
+                    document.getDocumentReference(), document.getAuthorReference());
             }
         }
+
+        this.logger.debug("No valid OIDC client configuration could be found for name [{}]", name);
 
         return null;
     }
