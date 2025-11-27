@@ -99,7 +99,8 @@ public class DefaultOIDCClientConfigurationStore implements OIDCClientConfigurat
                 }
 
                 this.logger.debug(
-                    "    - Cannot use configuration from document [{}] because the author [{}] does not have wiki ADMIN right",
+                    "    - Cannot use configuration from document [{}]"
+                        + " because the author [{}] does not have wiki ADMIN right",
                     document.getDocumentReference(), document.getAuthorReference());
             }
         }
