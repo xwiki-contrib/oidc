@@ -1436,6 +1436,8 @@ public class OIDCClientConfiguration extends OIDCConfiguration
      */
     public boolean isGroupSync()
     {
+        this.logger.debug("I group sync disabled ?");
+
         String groupClaim = getGroupClaim();
 
         // Trying the userinfo claims (it should be the most common way to request the user's membership)
@@ -1443,20 +1445,28 @@ public class OIDCClientConfiguration extends OIDCConfiguration
             return true;
         }
 
+        this.logger.debug("    - Group claim [{}] not found in userinfo claims ({})", groupClaim, getUserInfoClaims());
+
         // Trying the idtoken claims
         if (getIDTokenClaims().contains(groupClaim)) {
             return true;
         }
+
+        this.logger.debug("    - Group claim [{}] not found in id token claims ({})", groupClaim, getIDTokenClaims());
 
         // Checking if the group claim name is custom
         if (!DEFAULT_GROUPSCLAIM.equals(groupClaim)) {
             return true;
         }
 
-        // Checking of the group mapping has been configured
+        this.logger.debug("    - Group claim [{}] is the default one", groupClaim);
+
+        // Checking if the group mapping has been configured
         if (getGroupMapping() != null) {
             return true;
         }
+
+        this.logger.debug("    - No group mapping configured");
 
         return false;
     }

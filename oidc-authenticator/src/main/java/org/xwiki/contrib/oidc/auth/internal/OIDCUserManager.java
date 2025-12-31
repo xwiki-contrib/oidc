@@ -492,6 +492,8 @@ public class OIDCUserManager
     private void updateUserMapping(XWikiDocument userDocument, BaseClass userClass, BaseObject userObject,
         XWikiContext xcontext, StringSubstitutor substitutor)
     {
+        this.logger.debug("Updating User mapping");
+
         Map<String, String> mapping = this.configuration.getUserMapping();
         if (mapping != null) {
             for (Map.Entry<String, String> entry : mapping.entrySet()) {
@@ -756,6 +758,7 @@ public class OIDCUserManager
         UserInfo userInfo, XWikiContext xcontext)
     {
         this.logger.debug("Updating XWiki claims");
+
         for (Map.Entry<String, Object> entry : userInfo.toJSONObject().entrySet()) {
             if (entry.getKey().startsWith(OIDCUserInfo.CLAIMPREFIX_XWIKI_USER)) {
                 String xwikiKey = entry.getKey().substring(OIDCUserInfo.CLAIMPREFIX_XWIKI_USER.length());
