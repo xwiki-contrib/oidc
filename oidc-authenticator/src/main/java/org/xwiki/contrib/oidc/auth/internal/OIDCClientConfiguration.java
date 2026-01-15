@@ -76,6 +76,8 @@ import org.xwiki.contrib.oidc.provider.internal.endpoint.RegisterAddOIDCEndpoint
 import org.xwiki.contrib.oidc.provider.internal.endpoint.TokenOIDCEndpoint;
 import org.xwiki.contrib.oidc.provider.internal.endpoint.UserInfoOIDCEndpoint;
 import org.xwiki.instance.InstanceIdManager;
+import org.xwiki.model.reference.EntityReferenceSerializer;
+import org.xwiki.model.reference.LocalDocumentReference;
 import org.xwiki.properties.ConverterManager;
 import org.xwiki.query.QueryException;
 
@@ -358,7 +360,9 @@ public class OIDCClientConfiguration extends OIDCConfiguration
      */
     public static final String PROP_SKIP_LOGOUT_ID_TOKEN = "oidc.skipLogoutIdToken";
 
-    private static final String XWIKI_GROUP_PREFIX = "XWiki.";
+    private static final String XWIKI_SPACE = "XWiki";
+
+    private static final String XWIKI_GROUP_PREFIX = XWIKI_SPACE + '.';
 
     private static final Set<String> SAFE_PROPERTIES = SetUtils.hashSet(PROP_SKIPPED);
 
@@ -439,6 +443,9 @@ public class OIDCClientConfiguration extends OIDCConfiguration
 
     @Inject
     private OAuth2TokenStore tokenStore;
+
+    @Inject
+    private EntityReferenceSerializer<String> entityReferenceResolver;
 
     /**
      * @since 2.4.0
@@ -1165,7 +1172,8 @@ public class OIDCClientConfiguration extends OIDCConfiguration
      */
     public String toXWikiGroup(String group)
     {
-        return group.startsWith(XWIKI_GROUP_PREFIX) ? group : XWIKI_GROUP_PREFIX + group;
+        return group.startsWith(XWIKI_GROUP_PREFIX) ? group
+            : this.entityReferenceResolver.serialize(new LocalDocumentReference(XWIKI_SPACE, group));
     }
 
     /**

@@ -53,6 +53,7 @@ import com.nimbusds.oauth2.sdk.ResponseType;
 import com.nimbusds.openid.connect.sdk.OIDCClaimsRequest;
 import com.nimbusds.openid.connect.sdk.claims.ClaimRequirement;
 import com.nimbusds.openid.connect.sdk.claims.ClaimsSetRequest;
+import com.xpn.xwiki.test.reference.ReferenceComponentList;
 import com.xpn.xwiki.web.XWikiServletRequestStub;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -72,6 +73,7 @@ import static org.mockito.Mockito.when;
  * @version $Id$
  */
 @ComponentTest
+@ReferenceComponentList
 class OIDCClientConfigurationTest
 {
     @InjectMockComponents
@@ -399,5 +401,15 @@ class OIDCClientConfigurationTest
         when(this.container.getRequest()).thenReturn(request);
 
         assertEquals("true", this.configuration.getProperty(OIDCClientConfiguration.PROP_SKIPPED, (String) null));
+    }
+
+    @Test
+    void toXWikiGroup()
+    {
+        assertEquals("XWiki.mygroup", this.configuration.toXWikiGroup("XWiki.mygroup"));
+        assertEquals("XWiki.my\\.group", this.configuration.toXWikiGroup("XWiki.my\\.group"));
+
+        assertEquals("XWiki.mygroup", this.configuration.toXWikiGroup("mygroup"));
+        assertEquals("XWiki.my\\.group", this.configuration.toXWikiGroup("my.group"));
     }
 }
