@@ -27,6 +27,7 @@ import javax.inject.Named;
 import javax.inject.Singleton;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpSession;
 
 import org.slf4j.Logger;
 import org.xwiki.component.annotation.Component;
@@ -35,6 +36,7 @@ import org.xwiki.container.Container;
 import org.xwiki.container.Request;
 import org.xwiki.container.servlet.ServletRequest;
 import org.xwiki.container.servlet.ServletResponse;
+import org.xwiki.container.servlet.ServletSession;
 import org.xwiki.context.Execution;
 import org.xwiki.contrib.oidc.provider.internal.endpoint.OIDCEndpoint;
 import org.xwiki.resource.AbstractResourceReferenceHandler;
@@ -100,11 +102,35 @@ public class OIDCResourceReferenceHandler extends AbstractResourceReferenceHandl
             throw new ResourceReferenceHandlerException("Unsupported request type [" + request.getClass() + "]");
         }
 
-        HttpServletRequest httpServletRequest = ((ServletRequest) request).getHttpServletRequest();
+        ServletRequest servletRequest = (ServletRequest) request;
+
+        if (this.logger.isDebugEnabled()) {
+            this.logger.debug("ServletRequest: {}", servletRequest.toString());
+
+            ServletSession session = (ServletSession) this.container.getSession();
+            if (session != null) {
+                this.logger.debug("  ServletRequest: {}", session.toString());
+
+                HttpSession httpSession = session.getHttpSession();
+
+                if (httpSession != null) {
+                    this.logger.debug("    HttpSession: {}", httpSession.toString());
+                    this.logger.debug("      HttpSession->id: {}", httpSession.getId());
+                }
+            } else {
+                this.logger.debug("  ServletRequest: null");
+            }
+        }
+
+        HttpServletRequest httpServletRequest = servletRequest.getHttpServletRequest();
         HttpServletResponse httpServletReponse =
             ((ServletResponse) this.container.getResponse()).getHttpServletResponse();
 
-        initializeXWikiContext(httpServletRequest, httpServletReponse);
+        XWikiContext xcontext = initializeXWikiContext(httpServletRequest, httpServletReponse);
+
+        this.logger.debug("XWikiContext->request: {}", xcontext.getRequest().toString());
+        this.logger.debug("XWikiContext->request->session: {}",
+            xcontext.getRequest().getSession() != null ? xcontext.getRequest().getSession().toString() : null);
 
         try {
             handle(reference, httpServletRequest, httpServletReponse);
@@ -151,7 +177,7 @@ public class OIDCResourceReferenceHandler extends AbstractResourceReferenceHandl
         }
     }
 
-    protected void initializeXWikiContext(HttpServletRequest request, HttpServletResponse response)
+    protected XWikiContext initializeXWikiContext(HttpServletRequest request, HttpServletResponse response)
         throws ResourceReferenceHandlerException
     {
         try {
@@ -173,6 +199,8 @@ public class OIDCResourceReferenceHandler extends AbstractResourceReferenceHandl
 
             // Put the XWikiContext in the ExecutionContext
             context.declareInExecutionContext(this.execution.getContext());
+
+            return context;
         } catch (XWikiException e) {
             throw new ResourceReferenceHandlerException("Failed to initialize the XWiki context.", e);
         }
