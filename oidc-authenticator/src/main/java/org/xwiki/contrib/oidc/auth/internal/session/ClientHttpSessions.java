@@ -131,9 +131,13 @@ public class ClientHttpSessions
         this.lock.writeLock().lock();
 
         try {
-            // Destroy the whole session, if any, so that any private data stored in the session won't be accessible by
-            // the next user on the same computer
-            session.invalidate();
+            try {
+                // Destroy the whole session, if any, so that any private data stored in the session won't be accessible
+                // by the next user on the same computer
+                session.invalidate();
+            } catch (IllegalStateException e) {
+                // The session is already invalidated, nothing to do
+            }
 
             // Forget the session
             this.sessions.remove(session);
