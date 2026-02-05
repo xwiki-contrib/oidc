@@ -109,7 +109,7 @@ public class OIDCResourceReferenceHandler extends AbstractResourceReferenceHandl
 
             ServletSession session = (ServletSession) this.container.getSession();
             if (session != null) {
-                this.logger.debug("  ServletRequest: {}", session.toString());
+                this.logger.debug("  ServletSession: {}", session.toString());
 
                 HttpSession httpSession = session.getHttpSession();
 
