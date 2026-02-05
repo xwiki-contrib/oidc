@@ -456,15 +456,17 @@ public class OIDCClientConfiguration extends OIDCConfiguration
         if (session instanceof ServletSession) {
             HttpSession httpSession = ((ServletSession) session).getHttpSession();
 
-            this.logger.trace("Session: {}", httpSession.getId());
+            if (httpSession != null) {
+                this.logger.trace("Session: {}", httpSession.getId());
 
-            Map<String, Object> oidcSession = (Map<String, Object>) httpSession.getAttribute(SESSION);
-            if (oidcSession == null && create) {
-                oidcSession = new ConcurrentHashMap<>();
-                httpSession.setAttribute(SESSION, oidcSession);
+                Map<String, Object> oidcSession = (Map<String, Object>) httpSession.getAttribute(SESSION);
+                if (oidcSession == null && create) {
+                    oidcSession = new ConcurrentHashMap<>();
+                    httpSession.setAttribute(SESSION, oidcSession);
+                }
+
+                return oidcSession;
             }
-
-            return oidcSession;
         }
 
         return null;
