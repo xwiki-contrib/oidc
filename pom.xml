@@ -47,7 +47,7 @@
       <dependency>
         <groupId>com.nimbusds</groupId>
         <artifactId>oauth2-oidc-sdk</artifactId>
-        <version>11.32</version>
+        <version>11.33</version>
         <exclusions>
           <!-- We don't really need ASM in this context and it often conflicts with the version in the XWiki Standard WAR -->
           <exclusion>
