@@ -19,6 +19,7 @@
  */
 package org.xwiki.contrib.oidc.auth.internal;
 
+import com.nimbusds.oauth2.sdk.pkce.CodeVerifier;
 import java.io.IOException;
 import java.lang.reflect.Type;
 import java.net.MalformedURLException;
@@ -410,6 +411,12 @@ public class OIDCClientConfiguration extends OIDCConfiguration
      * @since 1.30
      */
     public static final String DEFAULT_CLIENT_CONFIGURATION = "default";
+
+    /**
+     * Support for PKCE
+     * @since 2.19.11
+     */
+    public static final String PROP_CODE_VERIFIER = "oidc.codeverifier";
 
     @Inject
     private InstanceIdManager instance;
@@ -939,6 +946,20 @@ public class OIDCClientConfiguration extends OIDCConfiguration
     public String getSessionState()
     {
         return getSessionAttribute(PROP_STATE);
+    }
+
+    /**
+     * PKCE support
+     * @since 2.19.11
+     */
+    public CodeVerifier getSessionCodeVerifier()
+    {
+        return getSessionAttribute(PROP_CODE_VERIFIER);
+    }
+
+    public void setSessionCodeVerifier(CodeVerifier codeVerifier)
+    {
+        setSessionAttribute(PROP_CODE_VERIFIER, codeVerifier);
     }
 
     public void setSessionState(String state)

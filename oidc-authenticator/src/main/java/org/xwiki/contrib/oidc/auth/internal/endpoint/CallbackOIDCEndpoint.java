@@ -19,6 +19,7 @@
  */
 package org.xwiki.contrib.oidc.auth.internal.endpoint;
 
+import com.nimbusds.oauth2.sdk.pkce.CodeVerifier;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -109,6 +110,9 @@ public class CallbackOIDCEndpoint implements OIDCEndpoint
 
     @Inject
     private OIDCManager oidc;
+
+    @Inject
+    private org.xwiki.contrib.oidc.auth.internal.OIDCClientConfiguration authConfig;
 
     @Inject
     private OIDCUserManager users;
@@ -337,9 +341,12 @@ public class CallbackOIDCEndpoint implements OIDCEndpoint
         // Generate callback URL
         URI callback = this.oidc.createEndPointURI(CallbackOIDCEndpoint.HINT);
 
+        // PKCE support
+        CodeVerifier codeVerifier = this.authConfig.getSessionCodeVerifier();
+
         // Get access token
         AuthorizationGrant authorizationGrant =
-            new AuthorizationCodeGrant(authenticationSuccessResponse.getAuthorizationCode(), callback);
+            new AuthorizationCodeGrant(authenticationSuccessResponse.getAuthorizationCode(), callback, codeVerifier);
 
         Endpoint tokenEndpoint = this.configuration.getTokenOIDCEndpoint();
         Scope scope = this.configuration.getScope();

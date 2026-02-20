@@ -175,4 +175,12 @@
     <url>https://github.com/xwiki-contrib/oidc/tree/master</url>
     <tag>HEAD</tag>
   </scm>
+
+  <repositories>
+    <repository>
+      <id>xwiki</id>
+      <name>XWiki repo</name>
+      <url>https://nexus.xwiki.org/nexus/content/groups/public</url>
+    </repository>
+  </repositories>
 </project>

@@ -19,6 +19,8 @@
  */
 package org.xwiki.contrib.oidc.internal;
 
+import com.nimbusds.oauth2.sdk.pkce.CodeChallengeMethod;
+import com.nimbusds.oauth2.sdk.pkce.CodeVerifier;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -103,12 +105,17 @@ public class DefaultOAuth2ClientManager implements OAuth2ClientManager
             Scope scope = (config.getScope() != null)
                 ? new Scope(config.getScope().toArray(new String[0])) : new Scope();
 
+            // PKCE support
+            CodeVerifier codeVerifier = new CodeVerifier();
+            this.authConfig.setSessionCodeVerifier(codeVerifier);
+
             // Create the request URL
             AuthorizationRequest.Builder requestBuilder =
                 new AuthorizationRequest.Builder(responseType, clientId)
                     .redirectionURI(this.oidcManager.createEndPointURI(CallbackOIDCEndpoint.HINT))
                     .state(state)
                     .scope(scope)
+                    .codeChallenge(codeVerifier, CodeChallengeMethod.S256) // PKCE support
                     .endpointURI(this.authConfig.getAuthorizationOIDCEndpoint().getURI());
 
             // Redirect the user to the provider
