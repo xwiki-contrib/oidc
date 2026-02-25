@@ -416,7 +416,7 @@ public class OIDCClientConfiguration extends OIDCConfiguration
      * Support for PKCE
      * @since 2.30.0
      */
-    public static final String PROP_CODE_VERIFIER = "oidc.codeverifier";
+    public static final String PROP_SESSION_CODE_VERIFIER = "oidc.codeverifier";
 
     @Inject
     private InstanceIdManager instance;
@@ -950,17 +950,19 @@ public class OIDCClientConfiguration extends OIDCConfiguration
 
     /**
      * PKCE support
-     * @since 2.19.11
+     * @since 2.30.0
      */
     public CodeVerifier getSessionCodeVerifier()
     {
-        return getSessionAttribute(PROP_CODE_VERIFIER);
+        String secret = getSessionAttribute(PROP_SESSION_CODE_VERIFIER);
+        return secret != null ? new CodeVerifier(secret) : null;
     }
 
     public void setSessionCodeVerifier(CodeVerifier codeVerifier)
     {
-        setSessionAttribute(PROP_CODE_VERIFIER, codeVerifier);
+        setSessionAttribute(PROP_SESSION_CODE_VERIFIER, codeVerifier.getValue());
     }
+
 
     public void setSessionState(String state)
     {
