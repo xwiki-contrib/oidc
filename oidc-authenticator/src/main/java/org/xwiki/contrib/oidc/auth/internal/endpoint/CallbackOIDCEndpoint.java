@@ -112,9 +112,6 @@ public class CallbackOIDCEndpoint implements OIDCEndpoint
     private OIDCManager oidc;
 
     @Inject
-    private org.xwiki.contrib.oidc.auth.internal.OIDCClientConfiguration authConfig;
-
-    @Inject
     private OIDCUserManager users;
 
     @Inject
@@ -342,7 +339,7 @@ public class CallbackOIDCEndpoint implements OIDCEndpoint
         URI callback = this.oidc.createEndPointURI(CallbackOIDCEndpoint.HINT);
 
         // PKCE support
-        CodeVerifier codeVerifier = this.authConfig.getSessionCodeVerifier();
+        CodeVerifier codeVerifier = this.configuration.getSessionCodeVerifier();
 
         // Get access token
         AuthorizationGrant authorizationGrant =

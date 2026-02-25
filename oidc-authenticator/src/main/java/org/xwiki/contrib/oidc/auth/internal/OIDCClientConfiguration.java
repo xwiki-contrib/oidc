@@ -414,7 +414,7 @@ public class OIDCClientConfiguration extends OIDCConfiguration
 
     /**
      * Support for PKCE
-     * @since 2.19.11
+     * @since 2.30.0
      */
     public static final String PROP_CODE_VERIFIER = "oidc.codeverifier";
 
