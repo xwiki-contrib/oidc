@@ -19,6 +19,8 @@
  */
 package org.xwiki.contrib.oidc.auth;
 
+import com.nimbusds.oauth2.sdk.pkce.CodeChallengeMethod;
+import com.nimbusds.oauth2.sdk.pkce.CodeVerifier;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.lang.reflect.Type;
@@ -269,6 +271,11 @@ public class OIDCAuthServiceImpl extends XWikiAuthServiceImpl
 
         // State
         requestBuilder.state(state);
+
+        // PKCE
+        CodeVerifier codeVerifier = new CodeVerifier();
+        this.configuration.setSessionCodeVerifier(codeVerifier);
+        requestBuilder.codeChallenge(codeVerifier, CodeChallengeMethod.S256);
 
         // Redirect the user to the provider
         String redirectURL = requestBuilder.build().toURI().toString();
