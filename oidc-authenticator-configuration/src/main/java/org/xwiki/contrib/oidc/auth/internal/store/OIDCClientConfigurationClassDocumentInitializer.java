@@ -77,7 +77,7 @@ public class OIDCClientConfigurationClassDocumentInitializer extends AbstractMan
         xclass.addTextField(OIDCClientConfiguration.FIELD_ENDPOINT_USERINFO, "User info OIDC endpoint", 255);
         xclass.addTextField(OIDCClientConfiguration.FIELD_ENDPOINT_LOGOUT, "Logout OIDC endpoint", 255);
         xclass.addTextField(OIDCClientConfiguration.FIELD_CLIENT_ID, "Client ID", 255);
-        xclass.addTextField(OIDCClientConfiguration.FIELD_CLIENT_SECRET, "Secret", 255);
+        xclass.addPasswordField(OIDCClientConfiguration.FIELD_CLIENT_SECRET, "Secret", 255);
         xclass.addStaticListField(OIDCClientConfiguration.FIELD_ENDPOINT_TOKEN_METHOD, "Token endpoint authentication method",
             String.join(PIPE, "client_secret_basic", "client_secret_post"),
             OIDCClientConfiguration.DEFAULT_TOKEN_ENDPOINT_METHOD);
