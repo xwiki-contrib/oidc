@@ -430,7 +430,7 @@ public class OIDCUserManager
                 }
                 userObject.set("avatar", filename, xcontext);
             } catch (IOException e) {
-                this.logger.warn("Failed to get user avatar from URL [{}]: {}", userInfo.getPicture(),
+                this.logger.debug("Failed to get user avatar from URL [{}]: {}", userInfo.getPicture(),
                     ExceptionUtils.getRootCauseMessage(e));
             }
         }
