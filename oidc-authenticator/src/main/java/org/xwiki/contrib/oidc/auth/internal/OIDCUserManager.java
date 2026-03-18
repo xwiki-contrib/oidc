@@ -48,11 +48,11 @@ import javax.inject.Singleton;
 
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.io.FilenameUtils;
-import org.apache.commons.lang3.RegExUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
-import org.apache.commons.text.StringSubstitutor;
 import org.apache.http.client.utils.URIBuilder;
+import org.xwiki.contrib.usercommon.formatter.UserFormatter;
+import org.xwiki.contrib.usercommon.formatter.UserFormatterFactory;
 import org.securityfilter.realm.SimplePrincipal;
 import org.slf4j.Logger;
 import org.xwiki.component.annotation.Component;
@@ -135,6 +135,9 @@ public class OIDCUserManager
 
     @Inject
     private Logger logger;
+
+    @Inject
+    private UserFormatterFactory userFormatterFactory;
 
     private Executor executor = Executors.newFixedThreadPool(1);
 
@@ -331,18 +334,15 @@ public class OIDCUserManager
         // Check allowed/forbidden groups
         checkAllowedGroups(providerGroups);
 
-        Map<String, String> formatMap = createFormatMap(idToken, userInfo);
-        // Change the default StringSubstitutor behavior to produce an empty String instead of an unresolved pattern by
-        // default
-        StringSubstitutor substitutor = new StringSubstitutor(new OIDCStringLookup(formatMap));
+        UserFormatter userFormatter = userFormatterFactory.create(createFormatMap(idToken, userInfo));
 
-        String formattedSubject = formatSubject(substitutor);
+        String formattedSubject = userFormatter.format(this.configuration.getSubjectFormater());
 
         XWikiDocument userDocument = this.store.searchDocument(idToken.getIssuer().getValue(), formattedSubject);
 
         XWikiDocument modifiableDocument;
         if (userDocument == null) {
-            userDocument = getNewUserDocument(substitutor);
+            userDocument = getNewUserDocument(userFormatter);
 
             modifiableDocument = userDocument;
         } else {
@@ -442,7 +442,7 @@ public class OIDCUserManager
         this.store.updateOIDCUser(modifiableDocument, idToken.getIssuer().getValue(), formattedSubject);
 
         // Configured user mapping
-        updateUserMapping(modifiableDocument, userClass, userObject, xcontext, substitutor);
+        updateUserMapping(modifiableDocument, userClass, userObject, xcontext, userFormatter);
 
         // Data to send with the event
         OIDCUserEventData eventData =
@@ -491,7 +491,7 @@ public class OIDCUserManager
     }
 
     private void updateUserMapping(XWikiDocument userDocument, BaseClass userClass, BaseObject userObject,
-        XWikiContext xcontext, StringSubstitutor substitutor)
+        XWikiContext xcontext, UserFormatter userFormatter)
     {
         this.logger.debug("Updating User mapping");
 
@@ -501,7 +501,7 @@ public class OIDCUserManager
                 String xwikiProperty = entry.getKey();
                 String oidcFormat = entry.getValue();
 
-                String oidcValue = substitutor.replace(oidcFormat);
+                String oidcValue = userFormatter.format(oidcFormat);
 
                 setValue(userDocument, userClass, userObject, xwikiProperty, oidcValue, xcontext);
             }
@@ -809,7 +809,7 @@ public class OIDCUserManager
         xobject.set(key, cleanValue, xcontext);
     }
 
-    private XWikiDocument getNewUserDocument(StringSubstitutor substitutor) throws XWikiException, OIDCException
+    private XWikiDocument getNewUserDocument(UserFormatter userFormatter) throws XWikiException, OIDCException
     {
         XWikiContext xcontext = this.xcontextProvider.get();
         BaseClass userClass = xcontext.getWiki().getUserClass(xcontext);
@@ -818,7 +818,7 @@ public class OIDCUserManager
         SpaceReference spaceReference = new SpaceReference(xcontext.getMainXWiki(), "XWiki");
 
         // Generate default document name
-        String documentName = formatXWikiUserName(substitutor);
+        String documentName = userFormatter.format(this.configuration.getXWikiUserNameFormater());
 
         if (StringUtils.isEmpty(documentName)) {
             throw new OIDCException("The user document name resulting from the format ["
@@ -848,66 +848,41 @@ public class OIDCUserManager
         return document;
     }
 
-    private String clean(String str)
-    {
-        return RegExUtils.removePattern(str, "[\\.\\:\\s,@\\^]");
-    }
-
-    private void putVariable(Map<String, String> map, String key, String value)
-    {
-        if (value != null) {
-            map.put(key, value);
-
-            map.put(key + ".lowerCase", value.toLowerCase());
-            map.put(key + "._lowerCase", value.toLowerCase());
-            map.put(key + ".upperCase", value.toUpperCase());
-            map.put(key + "._upperCase", value.toUpperCase());
-
-            String cleanValue = clean(value);
-            map.put(key + ".clean", cleanValue);
-            map.put(key + "._clean", cleanValue);
-            map.put(key + ".clean.lowerCase", cleanValue.toLowerCase());
-            map.put(key + "._clean._lowerCase", cleanValue.toLowerCase());
-            map.put(key + ".clean.upperCase", cleanValue.toUpperCase());
-            map.put(key + "._clean._upperCase", cleanValue.toUpperCase());
-        }
-    }
-
     private Map<String, String> createFormatMap(IDTokenClaimsSet idToken, UserInfo userInfo)
         throws MalformedURLException
     {
         Map<String, String> formatMap = new HashMap<>();
 
         // User information
-        putVariable(formatMap, "oidc.user.subject", userInfo.getSubject().getValue());
+        formatMap.put("oidc.user.subject", userInfo.getSubject().getValue());
         if (userInfo.getPreferredUsername() != null) {
-            putVariable(formatMap, "oidc.user.preferredUsername", userInfo.getPreferredUsername());
+            formatMap.put("oidc.user.preferredUsername", userInfo.getPreferredUsername());
         } else {
-            putVariable(formatMap, "oidc.user.preferredUsername", userInfo.getSubject().getValue());
+            formatMap.put("oidc.user.preferredUsername", userInfo.getSubject().getValue());
         }
-        putVariable(formatMap, "oidc.user.mail", userInfo.getEmailAddress() == null ? "" : userInfo.getEmailAddress());
-        putVariable(formatMap, "oidc.user.familyName", userInfo.getFamilyName());
-        putVariable(formatMap, "oidc.user.givenName", userInfo.getGivenName());
+        formatMap.put("oidc.user.mail", userInfo.getEmailAddress() == null ? "" : userInfo.getEmailAddress());
+        formatMap.put("oidc.user.familyName", userInfo.getFamilyName());
+        formatMap.put("oidc.user.givenName", userInfo.getGivenName());
 
         // Provider
         String providerString = this.configuration.getProvider();
         if (providerString != null) {
             URL providerURL = new URL(providerString);
-            putVariable(formatMap, "oidc.provider", providerURL.toString());
-            putVariable(formatMap, "oidc.provider.host", providerURL.getHost());
-            putVariable(formatMap, "oidc.provider.path", providerURL.getPath());
-            putVariable(formatMap, "oidc.provider.protocol", providerURL.getProtocol());
-            putVariable(formatMap, "oidc.provider.port", String.valueOf(providerURL.getPort()));
+            formatMap.put("oidc.provider", providerURL.toString());
+            formatMap.put("oidc.provider.host", providerURL.getHost());
+            formatMap.put("oidc.provider.path", providerURL.getPath());
+            formatMap.put("oidc.provider.protocol", providerURL.getProtocol());
+            formatMap.put("oidc.provider.port", String.valueOf(providerURL.getPort()));
         }
 
         // Issuer
-        putVariable(formatMap, "oidc.issuer", idToken.getIssuer().getValue());
+        formatMap.put("oidc.issuer", idToken.getIssuer().getValue());
         try {
             URI issuerURI = new URI(idToken.getIssuer().getValue());
-            putVariable(formatMap, "oidc.issuer.host", issuerURI.getHost());
-            putVariable(formatMap, "oidc.issuer.path", issuerURI.getPath());
-            putVariable(formatMap, "oidc.issuer.scheme", issuerURI.getScheme());
-            putVariable(formatMap, "oidc.issuer.port", String.valueOf(issuerURI.getPort()));
+            formatMap.put("oidc.issuer.host", issuerURI.getHost());
+            formatMap.put("oidc.issuer.path", issuerURI.getPath());
+            formatMap.put("oidc.issuer.scheme", issuerURI.getScheme());
+            formatMap.put("oidc.issuer.port", String.valueOf(issuerURI.getPort()));
         } catch (URISyntaxException e) {
             // TODO: log something ?
         }
@@ -926,20 +901,10 @@ public class OIDCUserManager
                 if (entry.getValue() instanceof Map) {
                     addJSON(prefix + entry.getKey() + '.', (Map) entry.getValue(), formatMap);
                 } else {
-                    putVariable(formatMap, prefix + entry.getKey(), entry.getValue().toString());
+                    formatMap.put(prefix + entry.getKey(), entry.getValue().toString());
                 }
             }
         }
-    }
-
-    private String formatXWikiUserName(StringSubstitutor substitutor)
-    {
-        return substitutor.replace(this.configuration.getXWikiUserNameFormater());
-    }
-
-    private String formatSubject(StringSubstitutor substitutor)
-    {
-        return substitutor.replace(this.configuration.getSubjectFormater());
     }
 
     public void logout() throws URISyntaxException, GeneralException, IOException
