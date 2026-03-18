@@ -32,6 +32,7 @@ import java.util.Map;
 import javax.inject.Named;
 
 import org.apache.commons.collections4.ListUtils;
+import org.xwiki.contrib.usercommon.formatter.internal.DefaultUserFormatterFactory;
 import org.joda.time.LocalDateTime;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -96,7 +97,7 @@ import static org.mockito.Mockito.when;
 @OldcoreTest
 @ComponentList({OIDCManager.class, OIDCClientConfiguration.class, DefaultOIDCUserStore.class,
     OIDCProviderConfiguration.class, OIDCStore.class, ProviderOIDCSessions.class, OIDCClients.class,
-    ClientProviders.class})
+    ClientProviders.class, DefaultUserFormatterFactory.class})
 @ReferenceComponentList
 class OIDCUserManagerTest
 {
