@@ -27,7 +27,7 @@ import com.xpn.xwiki.XWiki;
 import com.xpn.xwiki.objects.BaseObject;
 
 /**
- * An helper wrapping a BaseObject to make easier to manipulate OIDC metadta stored in a user profile.
+ * An helper wrapping a BaseObject to make easier to manipulate OIDC metadata stored in a user profile.
  * 
  * @version $Id$
  * @since 1.25
