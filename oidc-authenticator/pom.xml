@@ -82,7 +82,7 @@
     <dependency>
       <groupId>org.xwiki.contrib.user-common</groupId>
       <artifactId>user-common-formatter</artifactId>
-      <version>1.0.0-rc-1</version>
+      <version>1.0.0</version>
     </dependency>
 
     <!-- Test dependencies -->
