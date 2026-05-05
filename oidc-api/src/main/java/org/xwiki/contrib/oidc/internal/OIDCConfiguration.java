@@ -41,6 +41,13 @@ public class OIDCConfiguration
     public static final String PREFIX_PROP = "oidc.";
 
     /**
+     * The prefix used for OpenID Connect Provider configuration properties related to endpoints.
+     * 
+     * @since 2.21.0
+     */
+    public static final String PREFIX_PROP_ENDPOINT = PREFIX_PROP + "endpoint.";
+
+    /**
      * The name of the claim used to get the groups a user is member of.
      * 
      * @since 1.10
@@ -53,6 +60,11 @@ public class OIDCConfiguration
      * @since 1.10
      */
     public static final String DEFAULT_GROUPSCLAIM = "xwiki_groups";
+
+    /**
+     * The template for the name of the property indicating if the endpoint is enabled or not.
+     */
+    private static final String TEMPLATE_PROP_ENDPOINT_ENABLED = PREFIX_PROP_ENDPOINT + "%s.enabled";
 
     @Inject
     protected ConfigurationSource configuration;
@@ -85,5 +97,17 @@ public class OIDCConfiguration
     public String getGroupClaim()
     {
         return getProperty(PROP_GROUPS_CLAIM, DEFAULT_GROUPSCLAIM);
+    }
+
+    /**
+     * Indicates if the passed endpoint is enabled or not.
+     * 
+     * @param endpointHint the hint of the endpoint to check (e.g. "authorization")
+     * @return {@code true} if the authorization endpoint is enabled, {@code false} otherwise
+     * @since 2.21.0
+     */
+    public boolean isEndpointEnabled(String endpointHint)
+    {
+        return getProperty(String.format(TEMPLATE_PROP_ENDPOINT_ENABLED, endpointHint), true);
     }
 }

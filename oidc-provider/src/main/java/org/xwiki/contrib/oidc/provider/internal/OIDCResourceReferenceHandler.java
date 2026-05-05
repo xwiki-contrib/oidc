@@ -38,8 +38,10 @@ import org.xwiki.container.servlet.ServletRequest;
 import org.xwiki.container.servlet.ServletResponse;
 import org.xwiki.container.servlet.ServletSession;
 import org.xwiki.context.Execution;
+import org.xwiki.contrib.oidc.internal.OIDCConfiguration;
 import org.xwiki.contrib.oidc.provider.internal.endpoint.OIDCEndpoint;
 import org.xwiki.resource.AbstractResourceReferenceHandler;
+import org.xwiki.resource.NotFoundResourceHandlerException;
 import org.xwiki.resource.ResourceReference;
 import org.xwiki.resource.ResourceReferenceHandlerChain;
 import org.xwiki.resource.ResourceReferenceHandlerException;
@@ -82,6 +84,9 @@ public class OIDCResourceReferenceHandler extends AbstractResourceReferenceHandl
     private Execution execution;
 
     @Inject
+    private OIDCConfiguration configuration;
+
+    @Inject
     private Logger logger;
 
     @Override
@@ -95,6 +100,14 @@ public class OIDCResourceReferenceHandler extends AbstractResourceReferenceHandl
         throws ResourceReferenceHandlerException
     {
         OIDCResourceReference reference = (OIDCResourceReference) resourceReference;
+
+        // Check if the endpoint is enabled
+        if (!this.configuration.isEndpointEnabled(reference.getEndpoint())) {
+            this.logger.debug("Endpoint [{}] is disabled.", reference.getEndpoint());
+
+            // Return an error
+            throw new NotFoundResourceHandlerException(reference);
+        }
 
         Request request = this.container.getRequest();
 
