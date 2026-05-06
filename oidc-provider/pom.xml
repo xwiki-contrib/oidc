@@ -75,11 +75,6 @@
       <version>${platform.version}</version>
     </dependency>
     <dependency>
-      <groupId>org.xwiki.contrib</groupId>
-      <artifactId>authservice-backport-api</artifactId>
-      <version>1.1.1</version>
-    </dependency>
-    <dependency>
       <groupId>org.xwiki.platform</groupId>
       <artifactId>xwiki-platform-uiextension-api</artifactId>
       <version>${platform.version}</version>
@@ -99,6 +94,17 @@
       <artifactId>xwiki-platform-rendering-macro-code</artifactId>
       <version>${platform.version}</version>
     </dependency>
+    <dependency>
+      <groupId>org.xwiki.contrib.oidc</groupId>
+      <artifactId>oidc-consent</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <!--
+		Not really needed by the provider, but added for retro compatibility reasons
+        (to not loose it and break authentication when upgrading for an old version of
+        the provider which used to include the token authenticator).
+    -->
     <dependency>
       <groupId>org.xwiki.contrib.oidc</groupId>
       <artifactId>token-authenticator</artifactId>
