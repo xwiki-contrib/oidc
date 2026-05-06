@@ -73,6 +73,18 @@
           </exclusion>
         </exclusions>
       </dependency>
+      <dependency>
+        <groupId>org.xwiki.contrib.user-common</groupId>
+        <artifactId>user-common-formatter</artifactId>
+        <version>1.0.0</version>
+      </dependency>
+
+      <!-- TODO: remove when upgrading to XWiki 15.3+ -->
+      <dependency>
+        <groupId>org.xwiki.contrib</groupId>
+        <artifactId>authservice-backport-api</artifactId>
+        <version>1.1.1</version>
+      </dependency>
     </dependencies>
   </dependencyManagement>
 
