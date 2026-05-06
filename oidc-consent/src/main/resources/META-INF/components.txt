@@ -1,0 +1,5 @@
+org.xwiki.contrib.oidc.consent.internal.store.OIDCConsentClassDocumentInitializer
+org.xwiki.contrib.oidc.consent.internal.store.OIDCConsentListener
+org.xwiki.contrib.oidc.consent.internal.store.OIDCConsentStore
+org.xwiki.contrib.oidc.consent.internal.ui.UserApplicationsUIExtension
+org.xwiki.contrib.oidc.consent.script.OIDCConsentScriptService

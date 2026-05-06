@@ -25,11 +25,12 @@ import javax.inject.Singleton;
 
 import org.slf4j.Logger;
 import org.xwiki.component.annotation.Component;
+import org.xwiki.contrib.oidc.consent.internal.store.BaseObjectOIDCConsent;
+import org.xwiki.contrib.oidc.consent.internal.store.OIDCConsentStore;
+import org.xwiki.contrib.oidc.consent.internal.store.XWikiBearerAccessToken;
 import org.xwiki.contrib.oidc.provider.internal.OIDCManager;
 import org.xwiki.contrib.oidc.provider.internal.OIDCResourceReference;
-import org.xwiki.contrib.oidc.provider.internal.store.BaseObjectOIDCConsent;
-import org.xwiki.contrib.oidc.provider.internal.store.OIDCStore;
-import org.xwiki.contrib.oidc.provider.internal.store.XWikiBearerAccessToken;
+import org.xwiki.contrib.oidc.provider.internal.store.OIDCProviderStore;
 
 import com.nimbusds.oauth2.sdk.AuthorizationCodeGrant;
 import com.nimbusds.oauth2.sdk.AuthorizationGrant;
@@ -62,7 +63,10 @@ public class TokenOIDCEndpoint implements OIDCEndpoint
     public static final String HINT = "token";
 
     @Inject
-    private OIDCStore store;
+    private OIDCProviderStore providerStore;
+
+    @Inject
+    private OIDCConsentStore consentStore;
 
     @Inject
     private OIDCManager manager;
@@ -98,20 +102,20 @@ public class TokenOIDCEndpoint implements OIDCEndpoint
                 grant.getAuthorizationCode(), grant.getRedirectionURI(), clientID);
 
             BaseObjectOIDCConsent consent =
-                this.store.getConsent(clientID, grant.getRedirectionURI(), grant.getAuthorizationCode());
+                this.providerStore.getConsent(clientID, grant.getRedirectionURI(), grant.getAuthorizationCode());
 
             if (consent == null) {
                 return new TokenErrorResponse(OAuth2Error.INVALID_GRANT);
             }
 
             // Create and store a new token (impossible to reuse existing one if any)
-            XWikiBearerAccessToken accessToken = this.store.createAndSaveAccessToken(consent);
+            XWikiBearerAccessToken accessToken = this.consentStore.createAndSaveAccessToken(consent);
 
             // Get the stored nonce
-            Nonce nonce = this.store.getNonce(grant.getAuthorizationCode());
+            Nonce nonce = this.providerStore.getNonce(grant.getAuthorizationCode());
 
             // Get rid of the temporary authorization code and associated metadata
-            this.store.deleteAuthorizationCode(grant.getAuthorizationCode());
+            this.providerStore.deleteAuthorizationCode(grant.getAuthorizationCode());
 
             IDTokenClaimsSet idToken =
                 this.manager.createdIdToken(clientID, consent.getUserReference(), nonce, consent.getClaims());

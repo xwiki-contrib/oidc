@@ -32,7 +32,6 @@ import java.util.Map;
 import javax.inject.Named;
 
 import org.apache.commons.collections4.ListUtils;
-import org.xwiki.contrib.usercommon.formatter.internal.DefaultUserFormatterFactory;
 import org.joda.time.LocalDateTime;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -44,12 +43,14 @@ import org.xwiki.contrib.oidc.auth.internal.store.DefaultOIDCUserStore;
 import org.xwiki.contrib.oidc.auth.internal.store.OIDCUserClassDocumentInitializer;
 import org.xwiki.contrib.oidc.auth.store.OIDCClientConfigurationStore;
 import org.xwiki.contrib.oidc.auth.store.OIDCUser;
-import org.xwiki.contrib.oidc.provider.internal.OIDCException;
+import org.xwiki.contrib.oidc.consent.internal.store.OIDCConsentStore;
 import org.xwiki.contrib.oidc.provider.internal.OIDCManager;
 import org.xwiki.contrib.oidc.provider.internal.OIDCProviderConfiguration;
+import org.xwiki.contrib.oidc.provider.internal.OIDCProviderException;
 import org.xwiki.contrib.oidc.provider.internal.session.OIDCClients;
 import org.xwiki.contrib.oidc.provider.internal.session.ProviderOIDCSessions;
-import org.xwiki.contrib.oidc.provider.internal.store.OIDCStore;
+import org.xwiki.contrib.oidc.provider.internal.store.OIDCProviderStore;
+import org.xwiki.contrib.usercommon.formatter.internal.DefaultUserFormatterFactory;
 import org.xwiki.environment.Environment;
 import org.xwiki.instance.InstanceIdManager;
 import org.xwiki.localization.ContextualLocalizationManager;
@@ -96,8 +97,8 @@ import static org.mockito.Mockito.when;
  */
 @OldcoreTest
 @ComponentList({OIDCManager.class, OIDCClientConfiguration.class, DefaultOIDCUserStore.class,
-    OIDCProviderConfiguration.class, OIDCStore.class, ProviderOIDCSessions.class, OIDCClients.class,
-    ClientProviders.class, DefaultUserFormatterFactory.class})
+    OIDCProviderConfiguration.class, OIDCProviderStore.class, OIDCConsentStore.class, ProviderOIDCSessions.class,
+    OIDCClients.class, ClientProviders.class, DefaultUserFormatterFactory.class})
 @ReferenceComponentList
 class OIDCUserManagerTest
 {
@@ -234,7 +235,7 @@ class OIDCUserManagerTest
 
     @Test
     void updateUserInfo()
-        throws XWikiException, QueryException, OIDCException, URISyntaxException, MalformedURLException
+        throws XWikiException, QueryException, OIDCProviderException, URISyntaxException, MalformedURLException
     {
         Issuer issuer = new Issuer("http://issuer");
         Subject subject = new Subject("subject");
@@ -310,7 +311,7 @@ class OIDCUserManagerTest
 
     @Test
     void updateUserInfoWithGroupSyncWithDefaultGroupsClaim()
-        throws XWikiException, QueryException, OIDCException, MalformedURLException
+        throws XWikiException, QueryException, OIDCProviderException, MalformedURLException
     {
         Issuer issuer = new Issuer("http://issuer");
         Subject subject = new Subject("subject");
@@ -350,7 +351,7 @@ class OIDCUserManagerTest
 
     @Test
     void updateUserInfoWithGroupSyncWithoutMapping()
-        throws XWikiException, QueryException, OIDCException, MalformedURLException
+        throws XWikiException, QueryException, OIDCProviderException, MalformedURLException
     {
         this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_GROUPS_CLAIM, "groupclaim");
         this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_USERINFOCLAIMS,
@@ -405,7 +406,7 @@ class OIDCUserManagerTest
     
     @Test
     void updateUserInfoWithGroupSyncWithoutMappingAndIncludeRegex()
-        throws XWikiException, QueryException, OIDCException, MalformedURLException
+        throws XWikiException, QueryException, OIDCProviderException, MalformedURLException
     {
         this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_GROUPS_CLAIM, "groupclaim");
         this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_GROUPS_MAPPING_INCLUDE,
@@ -465,7 +466,7 @@ class OIDCUserManagerTest
 
     @Test
     void updateUserInfoWithGroupSyncWithoutMappingAndExcludeRegex()
-        throws XWikiException, QueryException, OIDCException, MalformedURLException
+        throws XWikiException, QueryException, OIDCProviderException, MalformedURLException
     {
         this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_GROUPS_CLAIM, "groupclaim");
         this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_GROUPS_MAPPING_EXCLUDE,
@@ -525,7 +526,7 @@ class OIDCUserManagerTest
 
     @Test
     void updateUserInfoWithGroupSyncWithoutMappingAndIncludeExcludeRegex()
-        throws XWikiException, QueryException, OIDCException, MalformedURLException
+        throws XWikiException, QueryException, OIDCProviderException, MalformedURLException
     {
         this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_GROUPS_CLAIM, "groupclaim");
         this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_GROUPS_MAPPING_INCLUDE,
@@ -586,7 +587,7 @@ class OIDCUserManagerTest
 
     @Test
     void updateUserInfoWithGroupSyncWithExplicitMappingIgnoresRegex()
-        throws XWikiException, QueryException, OIDCException, MalformedURLException
+        throws XWikiException, QueryException, OIDCProviderException, MalformedURLException
     {
         this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_GROUPS_MAPPING,
             Arrays.asList("group1=pgroup1", "group1=pgroup2", "XWiki.group2=pgroup2", "existinggroup=othergroup"));
@@ -643,7 +644,7 @@ class OIDCUserManagerTest
 
     @Test
     void updateUserInfoWithGroupSyncWithMapping()
-        throws XWikiException, QueryException, OIDCException, MalformedURLException
+        throws XWikiException, QueryException, OIDCProviderException, MalformedURLException
     {
         this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_GROUPS_MAPPING,
             Arrays.asList("group1=pgroup1", "group1=pgroup2", "XWiki.group2=pgroup2", "existinggroup=othergroup"));
@@ -697,7 +698,7 @@ class OIDCUserManagerTest
 
     @Test
     void updateUserInfoWithCustomNameAndIdPattern()
-        throws XWikiException, QueryException, OIDCException, URISyntaxException, MalformedURLException
+        throws XWikiException, QueryException, OIDCProviderException, URISyntaxException, MalformedURLException
     {
         this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_USER_NAMEFORMATER,
             "custom-${oidc.user.mail}-${oidc.user.mail.upperCase}-${oidc.user.mail.clean.upperCase}");
@@ -750,7 +751,7 @@ class OIDCUserManagerTest
 
     @Test
     void updateUserWithCustomNameFromIdToken()
-        throws XWikiException, QueryException, OIDCException, MalformedURLException
+        throws XWikiException, QueryException, OIDCProviderException, MalformedURLException
     {
         this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_USER_NAMEFORMATER,
             "custom-${oidc.idtoken.employeeName}");
@@ -771,7 +772,7 @@ class OIDCUserManagerTest
     }
 
     @Test
-    void updateUserInfoWithAllowedGroup() throws XWikiException, QueryException, OIDCException, MalformedURLException
+    void updateUserInfoWithAllowedGroup() throws XWikiException, QueryException, OIDCProviderException, MalformedURLException
     {
         this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_GROUPS_ALLOWED,
             Arrays.asList("pgroup1", "pgroup2"));
@@ -809,7 +810,7 @@ class OIDCUserManagerTest
 
         userInfo.setClaim("groupclaim", Arrays.asList("pgroup2", "pgroup3"));
 
-        assertThrows(OIDCException.class, () -> this.manager.updateUser(idToken, userInfo, new BearerAccessToken()));
+        assertThrows(OIDCProviderException.class, () -> this.manager.updateUser(idToken, userInfo, new BearerAccessToken()));
     }
 
     @Test
@@ -829,12 +830,12 @@ class OIDCUserManagerTest
 
         userInfo.setClaim("groupclaim", Arrays.asList("pgroup1", "pgroup3"));
 
-        assertThrows(OIDCException.class, () -> this.manager.updateUser(idToken, userInfo, new BearerAccessToken()));
+        assertThrows(OIDCProviderException.class, () -> this.manager.updateUser(idToken, userInfo, new BearerAccessToken()));
     }
 
     @Test
     void updateUserInfoWithNotForbiddenGroup()
-        throws XWikiException, QueryException, OIDCException, MalformedURLException
+        throws XWikiException, QueryException, OIDCProviderException, MalformedURLException
     {
         this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_GROUPS_FORBIDDEN,
             Arrays.asList("pgroup1"));
@@ -857,7 +858,7 @@ class OIDCUserManagerTest
 
     @Test
     void updateUserInfoWithAllowedAndForbiddenGroup()
-        throws XWikiException, QueryException, OIDCException, MalformedURLException
+        throws XWikiException, QueryException, OIDCProviderException, MalformedURLException
     {
         this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_GROUPS_ALLOWED,
             Arrays.asList("pgroup1", "pgroup2"));
@@ -880,7 +881,7 @@ class OIDCUserManagerTest
 
         userInfo.setClaim("groupclaim", Arrays.asList("otherpgroup1", "otherpgroup3"));
 
-        assertThrows(OIDCException.class, () -> this.manager.updateUser(idToken, userInfo, accessToken),
+        assertThrows(OIDCProviderException.class, () -> this.manager.updateUser(idToken, userInfo, accessToken),
             "The user is not allowed to authenticate because it's not a member of the following groups: [pgroup1, pgroup2]");
 
         this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_GROUPS_CLAIM,
@@ -892,7 +893,7 @@ class OIDCUserManagerTest
         userInfo.setClaim("custom",
             Collections.singletonMap("customgroupclaim", Arrays.asList("otherpgroup1", "otherpgroup3")));
 
-        assertThrows(OIDCException.class, () -> this.manager.updateUser(idToken, userInfo, accessToken),
+        assertThrows(OIDCProviderException.class, () -> this.manager.updateUser(idToken, userInfo, accessToken),
             "The user is not allowed to authenticate because it's not a member of the following groups: [pgroup1, pgroup2]");
     }
 }

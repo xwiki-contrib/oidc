@@ -23,7 +23,7 @@ import java.io.IOException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.xwiki.contrib.oidc.provider.internal.OIDCException;
+import org.xwiki.contrib.oidc.provider.internal.OIDCProviderException;
 
 import com.nimbusds.oauth2.sdk.GeneralException;
 import com.nimbusds.oauth2.sdk.TokenErrorResponse;
@@ -85,10 +85,10 @@ public final class OIDCTokenRequestHelper
      * @return the response
      * @throws GeneralException if an error occurred when parsing the response
      * @throws IOException if an error occurred while making the request
-     * @throws OIDCException if no access token is to be found in the response
+     * @throws OIDCProviderException if no access token is to be found in the response
      */
     public static OIDCTokenResponse requestTokenHTTP(TokenRequest tokenRequest, Endpoint tokenEndpoint)
-        throws GeneralException, IOException, OIDCException
+        throws GeneralException, IOException, OIDCProviderException
     {
         HTTPRequest tokenHTTP = tokenRequest.toHTTPRequest();
 
@@ -109,9 +109,9 @@ public final class OIDCTokenRequestHelper
                 error.getErrorObject() != null ? error.getErrorObject() : httpResponse.getStatusCode());
 
             if (error.getErrorObject() != null) {
-                throw new OIDCException("Failed to get access token", error.getErrorObject());
+                throw new OIDCProviderException("Failed to get access token", error.getErrorObject());
             } else {
-                throw new OIDCException(String.format("Failed to get access token (%s) : [%s]",
+                throw new OIDCProviderException(String.format("Failed to get access token (%s) : [%s]",
                     httpResponse.getStatusCode(), httpResponse.getBody()));
             }
         }

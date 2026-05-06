@@ -31,11 +31,12 @@ import javax.script.ScriptContext;
 
 import org.slf4j.Logger;
 import org.xwiki.component.annotation.Component;
+import org.xwiki.contrib.oidc.consent.internal.store.BaseObjectOIDCConsent;
+import org.xwiki.contrib.oidc.consent.internal.store.OIDCConsentStore;
 import org.xwiki.contrib.oidc.provider.internal.OIDCManager;
 import org.xwiki.contrib.oidc.provider.internal.OIDCResourceReference;
 import org.xwiki.contrib.oidc.provider.internal.session.ProviderOIDCSessions;
-import org.xwiki.contrib.oidc.provider.internal.store.BaseObjectOIDCConsent;
-import org.xwiki.contrib.oidc.provider.internal.store.OIDCStore;
+import org.xwiki.contrib.oidc.provider.internal.store.OIDCProviderStore;
 import org.xwiki.csrf.CSRFToken;
 import org.xwiki.script.ScriptContextManager;
 
@@ -77,7 +78,10 @@ public class AuthorizationOIDCEndpoint implements OIDCEndpoint
     private Provider<XWikiContext> xcontextProvider;
 
     @Inject
-    private OIDCStore oidcStore;
+    private OIDCProviderStore providerStore;
+
+    @Inject
+    private OIDCConsentStore consentStore;
 
     @Inject
     private OIDCManager manager;
@@ -152,7 +156,7 @@ public class AuthorizationOIDCEndpoint implements OIDCEndpoint
 
         // Get current consent for provided client id
         BaseObjectOIDCConsent consent =
-            this.oidcStore.getConsent(clientID, request.getRedirectionURI(), xcontext.getUserReference());
+            this.consentStore.getConsent(clientID, request.getRedirectionURI(), xcontext.getUserReference());
 
         this.logger.debug("OIDC: Existing consent: [{}]", consent);
 
@@ -181,7 +185,7 @@ public class AuthorizationOIDCEndpoint implements OIDCEndpoint
             }
 
             // Create new consent
-            consent = this.oidcStore.createCurrentUserConsent();
+            consent = this.consentStore.createCurrentUserConsent();
 
             consent.setClientID(clientID);
             consent.setRedirectURI(request.getRedirectionURI());
@@ -193,18 +197,18 @@ public class AuthorizationOIDCEndpoint implements OIDCEndpoint
 
             // Set access token if needed
             if (request.getResponseType().impliesImplicitFlow()) {
-                this.oidcStore.createAccessToken(consent);
+                this.consentStore.createAccessToken(consent);
             }
 
             // Save consent
-            this.oidcStore.saveConsent(consent, "Add new OIDC consent");
+            this.consentStore.saveConsent(consent, "Add new OIDC consent");
 
             this.logger.debug("OIDC: New consent: [{}]", consent);
         } else if (request.getResponseType().impliesImplicitFlow()) {
             // We have to set a new token in case of implicit flow since we don't know the clear version of the stored
             // one
-            this.oidcStore.createAccessToken(consent);
-            this.oidcStore.saveConsent(consent, "Update token");
+            this.consentStore.createAccessToken(consent);
+            this.consentStore.saveConsent(consent, "Update token");
         }
 
         Nonce nonce = request instanceof AuthenticationRequest ? ((AuthenticationRequest) request).getNonce() : null;
@@ -222,10 +226,10 @@ public class AuthorizationOIDCEndpoint implements OIDCEndpoint
         }
 
         // Remember authorization code
-        this.oidcStore.setAuthorizationCode(authorizationCode, consent.getDocumentReference(), nonce);
+        this.providerStore.setAuthorizationCode(authorizationCode, consent.getDocumentReference(), nonce);
 
         // Remember the user
-        this.sessions.addSession(this.oidcStore.getSubject(consent.getUserReference()), clientID);
+        this.sessions.addSession(this.providerStore.getSubject(consent.getUserReference()), clientID);
 
         // Create response
         if (request.getResponseType().impliesCodeFlow()) {
@@ -256,8 +260,8 @@ public class AuthorizationOIDCEndpoint implements OIDCEndpoint
     {
         if (request instanceof AuthenticationRequest) {
             // OpenID Connect
-            if (((AuthenticationRequest) request).getPrompt() != null) {
-                return ((AuthenticationRequest) request).getPrompt().contains(type);
+            if (request.getPrompt() != null) {
+                return request.getPrompt().contains(type);
             }
         } else {
             // OAuth2

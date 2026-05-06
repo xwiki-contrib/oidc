@@ -66,7 +66,7 @@ import org.xwiki.contrib.oidc.auth.store.OIDCUserStore;
 import org.xwiki.contrib.oidc.event.OIDCUserEventData;
 import org.xwiki.contrib.oidc.event.OIDCUserUpdated;
 import org.xwiki.contrib.oidc.event.OIDCUserUpdating;
-import org.xwiki.contrib.oidc.provider.internal.OIDCException;
+import org.xwiki.contrib.oidc.provider.internal.OIDCProviderException;
 import org.xwiki.contrib.oidc.provider.internal.OIDCManager;
 import org.xwiki.model.reference.DocumentReference;
 import org.xwiki.model.reference.SpaceReference;
@@ -185,7 +185,7 @@ public class OIDCUserManager
         }
     }
 
-    public UserInfo getUserInfo(AccessToken accessToken) throws OIDCException, IOException, URISyntaxException,
+    public UserInfo getUserInfo(AccessToken accessToken) throws OIDCProviderException, IOException, URISyntaxException,
         GeneralException, JOSEException, BadJOSEException, ParseException
     {
         Endpoint userInfoEndpoint = this.configuration.getUserInfoOIDCEndpoint();
@@ -203,7 +203,7 @@ public class OIDCUserManager
 
         if (!userinfoResponse.indicatesSuccess()) {
             UserInfoErrorResponse error = (UserInfoErrorResponse) userinfoResponse;
-            throw new OIDCException("Failed to get user info", error.getErrorObject());
+            throw new OIDCProviderException("Failed to get user info", error.getErrorObject());
         }
 
         // Restart user information expiration counter
@@ -236,14 +236,14 @@ public class OIDCUserManager
     }
 
     public SimplePrincipal updateUser(IDTokenClaimsSet idToken, AccessToken accessToken)
-        throws IOException, OIDCException, XWikiException, QueryException, URISyntaxException, GeneralException,
+        throws IOException, OIDCProviderException, XWikiException, QueryException, URISyntaxException, GeneralException,
         JOSEException, BadJOSEException, ParseException
     {
         // Update/Create XWiki user
         return updateUser(idToken, getUserInfo(accessToken), accessToken);
     }
 
-    private void checkAllowedGroups(List<String> providerGroups) throws OIDCException
+    private void checkAllowedGroups(List<String> providerGroups) throws OIDCProviderException
     {
         this.logger.debug("Checking allowed groups");
 
@@ -258,7 +258,7 @@ public class OIDCUserManager
                     this.logger.debug("User is not allowed");
 
                     // Allowed groups have priority over forbidden groups
-                    throw new OIDCException(
+                    throw new OIDCProviderException(
                         "The user is not allowed to authenticate because it's not a member of the following groups: "
                             + allowedGroups);
                 }
@@ -276,7 +276,7 @@ public class OIDCUserManager
                 if (CollectionUtils.containsAny(providerGroups, forbiddenGroups)) {
                     this.logger.debug("User is not allowed");
 
-                    throw new OIDCException(
+                    throw new OIDCProviderException(
                         "The user is not allowed to authenticate because it's a member of one of the following groups: "
                             + forbiddenGroups);
                 }
@@ -326,7 +326,7 @@ public class OIDCUserManager
     }
 
     public SimplePrincipal updateUser(IDTokenClaimsSet idToken, UserInfo userInfo, AccessToken accessToken)
-        throws XWikiException, QueryException, OIDCException, MalformedURLException
+        throws XWikiException, QueryException, OIDCProviderException, MalformedURLException
     {
         // Get provider groups
         List<String> providerGroups = getProviderGroups(idToken, userInfo);
@@ -809,7 +809,7 @@ public class OIDCUserManager
         xobject.set(key, cleanValue, xcontext);
     }
 
-    private XWikiDocument getNewUserDocument(UserFormatter userFormatter) throws XWikiException, OIDCException
+    private XWikiDocument getNewUserDocument(UserFormatter userFormatter) throws XWikiException, OIDCProviderException
     {
         XWikiContext xcontext = this.xcontextProvider.get();
         BaseClass userClass = xcontext.getWiki().getUserClass(xcontext);
@@ -821,7 +821,7 @@ public class OIDCUserManager
         String documentName = userFormatter.format(this.configuration.getXWikiUserNameFormater());
 
         if (StringUtils.isEmpty(documentName)) {
-            throw new OIDCException("The user document name resulting from the format ["
+            throw new OIDCProviderException("The user document name resulting from the format ["
                 + this.configuration.getXWikiUserNameFormater() + "] is empty");
         }
 

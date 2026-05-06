@@ -19,10 +19,8 @@
  */
 package org.xwiki.contrib.oidc.provider.script;
 
-import java.time.Instant;
 import java.util.Date;
 import java.util.List;
-import java.util.stream.Collectors;
 
 import javax.inject.Inject;
 import javax.inject.Named;
@@ -30,17 +28,12 @@ import javax.inject.Singleton;
 
 import org.xwiki.component.annotation.Component;
 import org.xwiki.contrib.oidc.OIDCConsent;
-import org.xwiki.contrib.oidc.provider.internal.OIDCException;
-import org.xwiki.contrib.oidc.provider.internal.script.SafeOIDCConsent;
-import org.xwiki.contrib.oidc.provider.internal.store.OIDCStore;
+import org.xwiki.contrib.oidc.OIDCException;
+import org.xwiki.contrib.oidc.consent.script.OIDCConsentScriptService;
 import org.xwiki.contrib.oidc.script.OIDCScriptService;
 import org.xwiki.script.service.ScriptService;
 import org.xwiki.security.authorization.AccessDeniedException;
-import org.xwiki.security.authorization.ContextualAuthorizationManager;
-import org.xwiki.security.authorization.Right;
 import org.xwiki.user.UserReference;
-
-import com.nimbusds.oauth2.sdk.id.ClientID;
 
 /**
  * Various script APIs related to the OpenID Connect provider.
@@ -59,19 +52,24 @@ public class OIDCProviderScriptService implements ScriptService
     public static final String ID = "provider";
 
     @Inject
-    private OIDCStore store;
+    @Named(OIDCConsentScriptService.ID)
+    private ScriptService consentScriptService;
 
-    @Inject
-    private ContextualAuthorizationManager authorization;
+    private OIDCConsentScriptService getConsentScriptService()
+    {
+        return (OIDCConsentScriptService) this.consentScriptService;
+    }
 
     /**
      * @param userReference the reference of the user to whom the consent are associated
      * @return the consents
      * @throws OIDCException when failing to load the consents
+     * @deprecated use {@link OIDCConsentScriptService#getConsents(UserReference)} instead
      */
+    @Deprecated(since = "2.21.0")
     public List<OIDCConsent> getConsents(UserReference userReference) throws OIDCException
     {
-        return this.store.getConsents(userReference).stream().map(SafeOIDCConsent::new).collect(Collectors.toList());
+        return this.getConsentScriptService().getConsents(userReference);
     }
 
     /**
@@ -81,14 +79,13 @@ public class OIDCProviderScriptService implements ScriptService
      * @return the created consent
      * @throws OIDCException when failing to add a consent
      * @throws AccessDeniedException when the author if the calling script is not allowed to create a consent
+     * @deprecated use {@link OIDCConsentScriptService#addConsent(UserReference, String, Date)} instead
      */
+    @Deprecated(since = "2.21.0")
     public OIDCConsent addConsent(UserReference userReference, String clientID, long lifetime)
         throws OIDCException, AccessDeniedException
     {
-        this.authorization.checkAccess(Right.PROGRAM);
-
-        return this.store.createAndSaveConsent(userReference, new ClientID(clientID),
-            Date.from(Instant.now().plusSeconds(lifetime)));
+        return this.getConsentScriptService().addConsent(userReference, clientID, lifetime);
     }
 
     /**
@@ -98,24 +95,24 @@ public class OIDCProviderScriptService implements ScriptService
      * @return the created consent
      * @throws OIDCException when failing to add a consent
      * @throws AccessDeniedException when the author if the calling script is not allowed to create a consent
+     * @deprecated use {@link OIDCConsentScriptService#addConsent(UserReference, String, Date)} instead
      */
+    @Deprecated(since = "2.21.0")
     public OIDCConsent addConsent(UserReference userReference, String clientID, Date expirationDate)
         throws OIDCException, AccessDeniedException
     {
-        this.authorization.checkAccess(Right.PROGRAM);
-
-        return this.store.createAndSaveConsent(userReference, new ClientID(clientID), expirationDate);
+        return this.getConsentScriptService().addConsent(userReference, clientID, expirationDate);
     }
 
     /**
      * @param id the identifier of the consent
      * @throws OIDCException when failing to delete the consent
      * @throws AccessDeniedException when the author if the calling script is not allowed to create a consent
+     * @deprecated use {@link OIDCConsentScriptService#deleteConsent(String)} instead
      */
+    @Deprecated(since = "2.21.0")
     public void deleteConsent(String id) throws OIDCException, AccessDeniedException
     {
-        this.authorization.checkAccess(Right.PROGRAM);
-
-        this.store.deleteConsent(id);
+        this.getConsentScriptService().deleteConsent(id);
     }
 }

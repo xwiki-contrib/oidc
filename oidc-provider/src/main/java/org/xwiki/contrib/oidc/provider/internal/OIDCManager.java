@@ -54,7 +54,7 @@ import org.xwiki.contrib.oidc.OIDCIdToken;
 import org.xwiki.contrib.oidc.provider.internal.session.OIDCClients;
 import org.xwiki.contrib.oidc.provider.internal.session.ProviderOIDCSessions;
 import org.xwiki.contrib.oidc.provider.internal.session.ProviderOIDCSessions.ProviderOIDCSession;
-import org.xwiki.contrib.oidc.provider.internal.store.OIDCStore;
+import org.xwiki.contrib.oidc.provider.internal.store.OIDCProviderStore;
 import org.xwiki.contrib.oidc.provider.internal.util.ContentResponse;
 import org.xwiki.environment.Environment;
 import org.xwiki.instance.InstanceIdManager;
@@ -124,7 +124,7 @@ public class OIDCManager implements Initializable, JWKSetSource<SecurityContext>
     private Environment environment;
 
     @Inject
-    private OIDCStore oidcStore;
+    private OIDCProviderStore oidcStore;
 
     @Inject
     private ProviderOIDCSessions sessions;

@@ -34,11 +34,12 @@ import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.slf4j.Logger;
 import org.xwiki.component.annotation.Component;
 import org.xwiki.contrib.oidc.OIDCUserInfo;
+import org.xwiki.contrib.oidc.consent.internal.store.BaseObjectOIDCConsent;
+import org.xwiki.contrib.oidc.consent.internal.store.OIDCConsentStore;
+import org.xwiki.contrib.oidc.consent.internal.store.XWikiBearerAccessToken;
 import org.xwiki.contrib.oidc.internal.OIDCConfiguration;
 import org.xwiki.contrib.oidc.provider.internal.OIDCResourceReference;
-import org.xwiki.contrib.oidc.provider.internal.store.BaseObjectOIDCConsent;
-import org.xwiki.contrib.oidc.provider.internal.store.OIDCStore;
-import org.xwiki.contrib.oidc.provider.internal.store.XWikiBearerAccessToken;
+import org.xwiki.contrib.oidc.provider.internal.store.OIDCProviderStore;
 import org.xwiki.localization.LocaleUtils;
 import org.xwiki.model.reference.DocumentReference;
 import org.xwiki.model.reference.WikiReference;
@@ -76,7 +77,10 @@ public class UserInfoOIDCEndpoint implements OIDCEndpoint
     public static final String HINT = "userinfo";
 
     @Inject
-    private OIDCStore store;
+    private OIDCProviderStore providerStore;
+
+    @Inject
+    private OIDCConsentStore consentStore;
 
     @Inject
     private OIDCConfiguration configuration;
@@ -102,7 +106,7 @@ public class UserInfoOIDCEndpoint implements OIDCEndpoint
             return new UserInfoErrorResponse(BearerTokenError.INVALID_TOKEN);
         }
 
-        BaseObjectOIDCConsent consent = this.store.getConsent(xwikiAccessToken);
+        BaseObjectOIDCConsent consent = this.consentStore.getConsent(xwikiAccessToken);
 
         if (consent == null) {
             return new UserInfoErrorResponse(BearerTokenError.INVALID_TOKEN);
@@ -118,11 +122,11 @@ public class UserInfoOIDCEndpoint implements OIDCEndpoint
 
         DocumentReference userReference = consent.getUserReference();
 
-        UserInfo userInfo = new UserInfo(this.store.getSubject(userReference));
+        UserInfo userInfo = new UserInfo(this.providerStore.getSubject(userReference));
 
         XWikiContext xcontext = this.xcontextProvider.get();
 
-        BaseObject userObject = this.store.getUserObject(consent);
+        BaseObject userObject = this.consentStore.getUserObject(consent);
         XWikiDocument userDocument = userObject.getOwnerDocument();
 
         if (claims != null) {
@@ -140,9 +144,9 @@ public class UserInfoOIDCEndpoint implements OIDCEndpoint
             userInfo.setName(xcontext.getWiki().getPlainUserName(userReference, xcontext));
             userInfo.setPreferredUsername(userReference.getName());
 
-            userInfo.setPicture(this.store.getUserAvatarURI(userDocument));
+            userInfo.setPicture(this.providerStore.getUserAvatarURI(userDocument));
 
-            userInfo.setProfile(this.store.getUserProfileURI(userDocument));
+            userInfo.setProfile(this.providerStore.getUserProfileURI(userDocument));
         }
 
         if (this.logger.isDebugEnabled()) {
@@ -195,10 +199,10 @@ public class UserInfoOIDCEndpoint implements OIDCEndpoint
                     }
                     break;
                 case OIDCUserInfo.CLAIM_PICTURE:
-                    userInfo.setPicture(this.store.getUserAvatarURI(userDocument));
+                    userInfo.setPicture(this.providerStore.getUserAvatarURI(userDocument));
                     break;
                 case OIDCUserInfo.CLAIM_PROFILE:
-                    userInfo.setProfile(this.store.getUserProfileURI(userDocument));
+                    userInfo.setProfile(this.providerStore.getUserProfileURI(userDocument));
                     break;
                 case OIDCUserInfo.CLAIM_UPDATED_AT:
                     userInfo.setUpdatedTime(userDocument.getDate());

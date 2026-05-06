@@ -1,6 +1,4 @@
-org.xwiki.contrib.oidc.provider.internal.OIDCBridgeAuthService
 org.xwiki.contrib.oidc.provider.internal.OIDCManager
-org.xwiki.contrib.oidc.provider.internal.OIDCProviderAuthenticator
 org.xwiki.contrib.oidc.provider.internal.OIDCProviderConfiguration
 org.xwiki.contrib.oidc.provider.internal.OIDCResourceReferenceHandler
 org.xwiki.contrib.oidc.provider.internal.OIDCResourceReferenceResolver
@@ -14,9 +12,6 @@ org.xwiki.contrib.oidc.provider.internal.endpoint.UnknownOIDCEndpoint
 org.xwiki.contrib.oidc.provider.internal.endpoint.UserInfoOIDCEndpoint
 org.xwiki.contrib.oidc.provider.internal.session.OIDCClients
 org.xwiki.contrib.oidc.provider.internal.session.ProviderOIDCSessions
-org.xwiki.contrib.oidc.provider.internal.store.OIDCConsentClassDocumentInitializer
-org.xwiki.contrib.oidc.provider.internal.store.OIDCConsentListener
-org.xwiki.contrib.oidc.provider.internal.store.OIDCStore
-org.xwiki.contrib.oidc.provider.internal.store.OIDCStoreListener
-org.xwiki.contrib.oidc.provider.internal.ui.UserApplicationsUIExtension
+org.xwiki.contrib.oidc.provider.internal.store.OIDCProviderStore
+org.xwiki.contrib.oidc.provider.internal.store.OIDCProviderStoreListener
 org.xwiki.contrib.oidc.provider.script.OIDCProviderScriptService

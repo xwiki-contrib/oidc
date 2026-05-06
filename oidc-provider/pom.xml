@@ -99,6 +99,11 @@
       <artifactId>xwiki-platform-rendering-macro-code</artifactId>
       <version>${platform.version}</version>
     </dependency>
+    <dependency>
+      <groupId>org.xwiki.contrib.oidc</groupId>
+      <artifactId>token-authenticator</artifactId>
+      <version>${project.version}</version>
+    </dependency>
   </dependencies>
 
   <build>

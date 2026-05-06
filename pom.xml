@@ -80,10 +80,12 @@
     <module>oauth2-client</module>
     <module>oauth2-store</module>
     <module>oidc-api</module>
+    <module>oidc-consent</module>
     <module>oidc-provider</module>
     <module>oidc-authenticator-configuration</module>
     <module>oidc-authenticator-user</module>
     <module>oidc-authenticator</module>
+    <module>token-authenticator</module>
   </modules>
 
   <profiles>
@@ -154,6 +156,35 @@
               </differences>
             </revapi.differences>
             -->
+            <revapi.differences>
+              <justification>Moved to a different module</justification>
+              <criticality>allowed</criticality>
+              <differences>
+                <item>
+                  <ignore>true</ignore>
+                  <code>java.class.removed</code>
+                  <old>class org.xwiki.contrib.oidc.OAuth2Exception</old>
+                </item>
+                <item>
+                  <ignore>true</ignore>
+                  <code>java.class.removed</code>
+                  <old>class org.xwiki.contrib.oidc.provider.OIDCBridgeAuth</old>
+                </item>
+              </differences>
+            </revapi.differences>
+            <revapi.differences>
+              <justification>False positiive</justification>
+              <criticality>allowed</criticality>
+              <differences>
+                <item>
+                  <ignore>true</ignore>
+                  <code>java.class.nonFinalClassInheritsFromNewClass</code>
+                  <old>class org.xwiki.contrib.oidc.OAuth2Exception</old>
+                  <new>class org.xwiki.contrib.oidc.OAuth2Exception</new>
+                  <superClass>org.xwiki.contrib.oidc.OIDCException</superClass>
+                </item>
+              </differences>
+            </revapi.differences>
           </analysisConfiguration>
         </configuration>
       </plugin>

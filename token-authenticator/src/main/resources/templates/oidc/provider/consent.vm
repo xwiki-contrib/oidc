@@ -1,0 +1,95 @@
+ ## ---------------------------------------------------------------------------
+## See the NOTICE file distributed with this work for additional
+## information regarding copyright ownership.
+##
+## This is free software; you can redistribute it and/or modify it
+## under the terms of the GNU Lesser General Public License as
+## published by the Free Software Foundation; either version 2.1 of
+## the License, or (at your option) any later version.
+##
+## This software is distributed in the hope that it will be useful,
+## but WITHOUT ANY WARRANTY; without even the implied warranty of
+## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+## Lesser General Public License for more details.
+##
+## You should have received a copy of the GNU Lesser General Public
+## License along with this software; if not, write to the Free
+## Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
+## 02110-1301 USA, or see the FSF site: http://www.fsf.org.
+## ---------------------------------------------------------------------------
+<!DOCTYPE html>
+ <html>
+  <head>
+    <meta http-equiv="Content-type" content="text/html; charset=UTF-8" />
+    <title>$services.localization.render('oidc.template.consent.title')</title>
+
+    <style type="text/css">
+      body{
+        background-color: gray;
+        font-family: sans-serif;
+        font-size: 87.5%;
+      }
+      #content{
+        margin: 1em auto;
+        width: 80%;
+        color: #4D4D4D;
+        border: 1px solid #E8E8E8;
+        background-color: #FFF;
+        border-radius: 4px;
+        box-shadow: 0px 0px 7px #E8E8E8;
+        padding: 1em;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="content">
+      <form class="xform">
+        ## Make sure the answer actually come from the form
+        <input type="hidden" name="form_token" value="$!{services.csrf.getToken()}" />
+
+        ## Repeat input parameters
+        #foreach ($entry in $oidc.httprequest.queryStringParameters.entrySet())
+          #if ($entry.key != 'consent_accept' || $entry.key != 'consent_refuse' || $entry.key != 'form_token')
+            #foreach ($paramElement in $entry.value)
+              <input type="hidden" name="$escapetool.xml($entry.key)" value="$escapetool.xml($paramElement)"/>
+            #end
+          #end
+        #end
+
+        ## Ask the consent
+        <p>$escapetool.xml($services.localization.render('oidc.template.consent.question', [$oidc.request.redirectionURI]))</p>
+
+        ## Id Token claims
+        ## TODO: allow the user to select/unselect individual claims
+        <p>$escapetool.xml($services.localization.render('oidc.template.consent.clais.idtoken'))</p>
+        #set($idTokenClaims = $oidc.resolvedClaims.getIDTokenClaimsRequest())
+        #if (!$idTokenClaims.entries.isEmpty())
+          <ul>
+            #foreach($claim in $idTokenClaims.entries)
+              ## TODO: find nice icon for each (known) claim
+              <li>$claim.claimName</li>
+            #end
+          </ul>
+        #end
+
+        ## User info claims
+        ## TODO: allow the user to select/unselect individual claims
+        <p>$escapetool.xml($services.localization.render('oidc.template.consent.clais.userinfo'))</p>
+        #set($userInfoClaims = $oidc.resolvedClaims.getUserInfoClaimsRequest())
+        #if (!$userInfoClaims.entries.isEmpty())
+          <ul>
+            #foreach($claim in $userInfoClaims.entries)
+              ## TODO: find nice icon for each (known) claim
+              <li>$claim.claimName</li>
+            #end
+          </ul>
+        #end
+
+        <br/><br/>
+
+        <input type="submit" class="button" name="consent_accept" value="$escapetool.xml($services.localization.render('oidc.template.consent.answer.accept'))"/>
+        <input type="submit" class="button" name="consent_refuse" value="$escapetool.xml($services.localization.render('oidc.template.consent.answer.refuse'))"/>
+      </form>
+    </div>
+  </body>
+</html>

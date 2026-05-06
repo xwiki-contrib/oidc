@@ -45,7 +45,7 @@ import org.xwiki.contrib.oidc.auth.internal.OIDCTokenRequestHelper;
 import org.xwiki.contrib.oidc.auth.internal.OIDCUserManager;
 import org.xwiki.contrib.oidc.auth.internal.session.ClientHttpSessions;
 import org.xwiki.contrib.oidc.auth.internal.session.ClientProviders.ClientProvider;
-import org.xwiki.contrib.oidc.provider.internal.OIDCException;
+import org.xwiki.contrib.oidc.provider.internal.OIDCProviderException;
 import org.xwiki.contrib.oidc.provider.internal.OIDCManager;
 import org.xwiki.contrib.oidc.provider.internal.OIDCResourceReference;
 import org.xwiki.contrib.oidc.provider.internal.endpoint.OIDCEndpoint;
@@ -275,7 +275,7 @@ public class CallbackOIDCEndpoint implements OIDCEndpoint
     }
 
     private IDTokenClaimsSet parseIdToken(Nonce nonce, JWT token, Issuer issuer) throws GeneralException, IOException,
-        URISyntaxException, BadJOSEException, JOSEException, ParseException, OIDCException
+        URISyntaxException, BadJOSEException, JOSEException, ParseException, OIDCProviderException
     {
         // Parse and validate the id token
         ClientProvider clientProvider = this.configuration.getClientProvider(issuer);
@@ -309,7 +309,7 @@ public class CallbackOIDCEndpoint implements OIDCEndpoint
                 if (!requestedAcrValues.isEmpty()) {
                     ACR idTokenAcr = idToken.getACR();
                     if (idTokenAcr == null || !requestedAcrValues.contains(idTokenAcr.getValue())) {
-                        throw new OIDCException("Invalid ACR in id token. Requested: "
+                        throw new OIDCProviderException("Invalid ACR in id token. Requested: "
                             + String.join(", ", requestedAcrValues) + " Received: " + idTokenAcr);
                     }
                 }
