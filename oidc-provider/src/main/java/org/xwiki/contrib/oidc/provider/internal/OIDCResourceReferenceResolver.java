@@ -19,8 +19,8 @@
  */
 package org.xwiki.contrib.oidc.provider.internal;
 
-import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -55,15 +55,11 @@ public class OIDCResourceReferenceResolver extends AbstractResourceReferenceReso
         List<String> pathSegments = extendedURL.getSegments();
         if (!pathSegments.isEmpty()) {
             StringBuilder pathBuilder = new StringBuilder();
-            try {
-                for (String pathSegment : extendedURL.getSegments()) {
-                    if (pathBuilder.length() > 0) {
-                        pathBuilder.append('/');
-                    }
-                    pathBuilder.append(URLEncoder.encode(pathSegment, "UTF8"));
+            for (String pathSegment : extendedURL.getSegments()) {
+                if (pathBuilder.length() > 0) {
+                    pathBuilder.append('/');
                 }
-            } catch (UnsupportedEncodingException e) {
-                // Should never happen
+                pathBuilder.append(URLEncoder.encode(pathSegment, StandardCharsets.UTF_8));
             }
             path = pathBuilder.toString();
             endpoint = pathSegments.get(0);
