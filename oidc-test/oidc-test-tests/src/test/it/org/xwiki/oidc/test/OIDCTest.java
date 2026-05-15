@@ -26,12 +26,14 @@ import java.util.Arrays;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.openqa.selenium.By;
+import org.xwiki.contrib.oidc.test.po.OIDCAdministrationSectionPage;
 import org.xwiki.contrib.oidc.test.po.OIDCApplicationsUserProfilePage;
 import org.xwiki.contrib.oidc.test.po.OIDCClientProviderPage;
 import org.xwiki.contrib.oidc.test.po.OIDCProviderConsentPage;
 import org.xwiki.test.integration.XWikiExecutor;
 import org.xwiki.test.ui.AbstractTest;
 import org.xwiki.test.ui.PersistentTestContext;
+import org.xwiki.test.ui.TestUtils;
 import org.xwiki.test.ui.po.LoginPage;
 
 import static org.junit.Assert.assertEquals;
@@ -47,6 +49,7 @@ public class OIDCTest extends AbstractTest
 {
     // We have to use a different domains for the client and the provider or it's going to mess with the session
     private static final String[] HOSTS = new String[] {"localhost:8080", "127.0.0.1:8081"};
+    private static final String[] URL_PREFIXES = new String[] {"http://localhost", "http://127.0.0.1"};
 
     @BeforeClass
     public static void init() throws Exception
@@ -54,7 +57,7 @@ public class OIDCTest extends AbstractTest
         // This will not be null if we are in the middle of allTests
         if (context == null) {
             PersistentTestContext persistentTestContext =
-                new PersistentTestContext(Arrays.asList(new XWikiExecutor(0)/* , new XWikiExecutor(1) */));
+                new PersistentTestContext(Arrays.asList(new XWikiExecutor(0), new XWikiExecutor(1)));
             initializeSystem(persistentTestContext);
 
             // Start XWiki
@@ -65,6 +68,13 @@ public class OIDCTest extends AbstractTest
             // Note that this requires a running XWiki instance.
             getUtil().recacheSecretToken();
         }
+    }
+
+    private void switchExecutor(int index)
+    {
+        getUtil().switchExecutor(index);
+        // Force a different host depending on the instance
+        TestUtils.setURLPrefix(URL_PREFIXES[index]);
     }
 
     private void cleanupProvider() throws Exception
@@ -85,16 +95,28 @@ public class OIDCTest extends AbstractTest
         logout(0);
     }
 
+    private void loginAsSuperAdmin(int index)
+    {
+        gotToLogin(index);
+        LoginPage loginPage = new LoginPage();
+        loginPage.loginAs(TestUtils.SUPER_ADMIN_CREDENTIALS.getUserName(),
+            TestUtils.SUPER_ADMIN_CREDENTIALS.getPassword());
+    }
+
     private void gotToLogin(int index)
     {
         getUtil().switchExecutor(index);
-        getUtil()
-            .gotoPage(getUtil().getBaseBinURL() + "login/XWiki/XWikiLogin?xredirect=%2Fxwiki%2Fbin%2Fview%2FMain%2F");
+        getUtil().gotoPage(getBaseBinURL(index) + "login/XWiki/XWikiLogin?xredirect=%2Fxwiki%2Fbin%2Fview%2FMain%2F");
     }
 
     private String getBaseURL(int index)
     {
         return "http://" + HOSTS[index] + "/xwiki";
+    }
+
+    private String getBaseBinURL(int index)
+    {
+        return getBaseURL(index) + "/bin/";
     }
 
     private String getURL(int index, String path)
@@ -131,9 +153,15 @@ public class OIDCTest extends AbstractTest
         cleanupClient();
         cleanupProvider();
 
+        // Make the provider is in dynamic client mode
+        switchExecutor(1);
+        getUtil().loginAsSuperAdmin();
+        OIDCAdministrationSectionPage administrationSectionPage = OIDCAdministrationSectionPage.gotoPage();
+        administrationSectionPage.setDynamicMode();
+        administrationSectionPage = administrationSectionPage.clickSaveButton();
+        administrationSectionPage.logout();
+
         // Create a user on the provider
-        gotoHome(1);
-        getUtil().recacheSecretToken();
         getUtil().createUser("provideruser", "providerpassword", null);
 
         // Go to token management of provideruser

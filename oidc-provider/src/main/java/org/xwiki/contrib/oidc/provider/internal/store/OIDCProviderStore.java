@@ -36,9 +36,12 @@ import org.xwiki.contrib.oidc.consent.internal.store.BaseObjectOIDCConsent;
 import org.xwiki.contrib.oidc.consent.internal.store.OIDCConsentStore;
 import org.xwiki.contrib.oidc.provider.internal.OIDCProviderConfiguration;
 import org.xwiki.contrib.oidc.provider.internal.OIDCProviderConfiguration.SubFormat;
+import org.xwiki.model.EntityType;
 import org.xwiki.model.reference.DocumentReference;
 import org.xwiki.model.reference.DocumentReferenceResolver;
+import org.xwiki.model.reference.EntityReference;
 import org.xwiki.model.reference.EntityReferenceSerializer;
+import org.xwiki.model.reference.LocalDocumentReference;
 import org.xwiki.observation.ObservationManager;
 import org.xwiki.user.UserReferenceSerializer;
 
@@ -46,9 +49,11 @@ import com.nimbusds.oauth2.sdk.AuthorizationCode;
 import com.nimbusds.oauth2.sdk.id.ClientID;
 import com.nimbusds.oauth2.sdk.id.Subject;
 import com.nimbusds.openid.connect.sdk.Nonce;
+import com.xpn.xwiki.XWiki;
 import com.xpn.xwiki.XWikiContext;
 import com.xpn.xwiki.XWikiException;
 import com.xpn.xwiki.doc.XWikiDocument;
+import com.xpn.xwiki.objects.BaseObject;
 
 /**
  * Allow manipulating consents.
@@ -59,6 +64,23 @@ import com.xpn.xwiki.doc.XWikiDocument;
 @Singleton
 public class OIDCProviderStore
 {
+    /**
+     * @since 2.21.0
+     */
+    public static final EntityReference REFERENCE_SPACE = new EntityReference("Provider", EntityType.SPACE,
+        new EntityReference("OIDC", EntityType.SPACE, XWiki.SYSTEM_SPACE_REFERENCE));
+
+    /**
+     * @since 2.21.0
+     */
+    public static final String REFERENCE_PREFIX = "XWiki.OIDC.Provider.";
+
+    /**
+     * @since 2.21.0
+     */
+    public static final LocalDocumentReference CLIENTS_REFERENCE =
+        new LocalDocumentReference("Clients", REFERENCE_SPACE);
+
     @Inject
     private Provider<XWikiContext> xcontextProvider;
 
@@ -212,5 +234,71 @@ public class OIDCProviderStore
 
             this.observation.notify(new AuthorizationCodeDeletedEvent(code), null);
         }
+    }
+
+    // Clients
+
+    /**
+     * @param clientID the client id
+     * @return the client
+     * @throws XWikiException when failing to load the client
+     * @since 2.21.0
+     */
+    public BaseObjectOIDCClient getClient(ClientID clientID) throws XWikiException
+    {
+        XWikiContext xcontext = this.xcontextProvider.get();
+
+        XWikiDocument userDocument = xcontext.getWiki().getDocument(CLIENTS_REFERENCE, xcontext);
+
+        // Make sure to avoid modifying the cached document
+        userDocument = userDocument.clone();
+
+        return getClient(clientID, userDocument);
+    }
+
+    /**
+     * @param clientID the client id
+     * @param userDocument the document of the user for which to return the consent
+     * @return the consent of the user
+     * @since 2.21.0
+     */
+    public BaseObjectOIDCClient getClient(ClientID clientID, XWikiDocument userDocument)
+    {
+        if (userDocument.isNew()) {
+            return null;
+        }
+
+        this.logger.debug("Get client OIDC: clientIDString={}", clientID != null ? clientID.getValue() : null);
+
+        // Try to find an enabled dynamic configuration first
+        BaseObject dynamicClient =
+            userDocument.getXObject(BaseObjectOIDCClient.REFERENCE, BaseObjectOIDCClient.FIELD_ID, "", false);
+        if (dynamicClient != null && BaseObjectOIDCClient.isEnabled(dynamicClient)) {
+            this.logger.debug("  -> A dynamic configuration was found: [{}]", dynamicClient.getReference());
+
+            // If a dynamic configuration is found and enabled, use it without trying to find a specific one for the
+            // client ID (the dynamic configuration has priority over the static ones)
+            return new BaseObjectOIDCClient(dynamicClient, this.xcontextProvider.get());
+        }
+
+        if (clientID != null) {
+            // Try to find a configuration specific to the client ID
+            BaseObject xobject = userDocument.getXObject(BaseObjectOIDCClient.REFERENCE, BaseObjectOIDCClient.FIELD_ID,
+                clientID.getValue(), false);
+
+            if (xobject != null) {
+                // Return the configuration only if it is enabled
+                if (BaseObjectOIDCClient.isEnabled(xobject)) {
+                    this.logger.debug("  -> A static configuration was found: [{}]", dynamicClient.getReference());
+
+                    return new BaseObjectOIDCClient(xobject, this.xcontextProvider.get());
+                } else {
+                    this.logger.debug("  -> A static configuration was found, but it is disabled: [{}]",
+                        dynamicClient.getReference());
+                }
+            }
+        }
+
+        return null;
     }
 }

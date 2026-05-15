@@ -30,8 +30,10 @@ import org.xwiki.contrib.oidc.consent.internal.store.OIDCConsentStore;
 import org.xwiki.contrib.oidc.consent.internal.store.XWikiBearerAccessToken;
 import org.xwiki.contrib.oidc.provider.internal.OIDCManager;
 import org.xwiki.contrib.oidc.provider.internal.OIDCResourceReference;
+import org.xwiki.contrib.oidc.provider.internal.store.BaseObjectOIDCClient;
 import org.xwiki.contrib.oidc.provider.internal.store.OIDCProviderStore;
 
+import com.nimbusds.oauth2.sdk.AbstractOptionallyIdentifiedRequest;
 import com.nimbusds.oauth2.sdk.AuthorizationCodeGrant;
 import com.nimbusds.oauth2.sdk.AuthorizationGrant;
 import com.nimbusds.oauth2.sdk.GrantType;
@@ -40,12 +42,14 @@ import com.nimbusds.oauth2.sdk.Response;
 import com.nimbusds.oauth2.sdk.TokenErrorResponse;
 import com.nimbusds.oauth2.sdk.TokenRequest;
 import com.nimbusds.oauth2.sdk.auth.ClientAuthentication;
+import com.nimbusds.oauth2.sdk.auth.verifier.InvalidClientException;
 import com.nimbusds.oauth2.sdk.http.HTTPRequest;
 import com.nimbusds.oauth2.sdk.id.ClientID;
 import com.nimbusds.openid.connect.sdk.Nonce;
 import com.nimbusds.openid.connect.sdk.OIDCTokenResponse;
 import com.nimbusds.openid.connect.sdk.claims.IDTokenClaimsSet;
 import com.nimbusds.openid.connect.sdk.token.OIDCTokens;
+import com.xpn.xwiki.XWikiException;
 
 /**
  * Token endpoint for OpenID Connect.
@@ -63,10 +67,10 @@ public class TokenOIDCEndpoint implements OIDCEndpoint
     public static final String HINT = "token";
 
     @Inject
-    private OIDCProviderStore providerStore;
+    private OIDCConsentStore consentStore;
 
     @Inject
-    private OIDCConsentStore consentStore;
+    private OIDCProviderStore providerStore;
 
     @Inject
     private OIDCManager manager;
@@ -82,18 +86,11 @@ public class TokenOIDCEndpoint implements OIDCEndpoint
         // Parse the request
         TokenRequest request = TokenRequest.parse(httpRequest);
 
+        // Check client
+        ClientID clientID = checkAuth(request);
+
+        // Token endpoint behavior
         AuthorizationGrant authorizationGrant = request.getAuthorizationGrant();
-
-        ClientID clientID = request.getClientID();
-
-        ClientAuthentication authentication = request.getClientAuthentication();
-        if (authentication != null) {
-            clientID = authentication.getClientID();
-        }
-
-        if (authorizationGrant.getType().requiresClientAuthentication()) {
-            // TODO: authenticate the client if needed
-        }
 
         if (authorizationGrant.getType() == GrantType.AUTHORIZATION_CODE) {
             AuthorizationCodeGrant grant = (AuthorizationCodeGrant) authorizationGrant;
@@ -125,5 +122,29 @@ public class TokenOIDCEndpoint implements OIDCEndpoint
         }
 
         return new TokenErrorResponse(OAuth2Error.UNSUPPORTED_GRANT_TYPE);
+    }
+
+    private ClientID checkAuth(AbstractOptionallyIdentifiedRequest request)
+        throws InvalidClientException, XWikiException
+    {
+        // Get the client id
+        ClientID clientID = request.getClientID();
+
+        // Get the authentication
+        ClientAuthentication authentication = request.getClientAuthentication();
+        if (authentication != null) {
+            clientID = authentication.getClientID();
+        }
+
+        // Get the corresponding registered client metadata
+        BaseObjectOIDCClient storedClient = this.providerStore.getClient(clientID);
+        if (storedClient == null) {
+            throw InvalidClientException.BAD_ID;
+        }
+
+        // Verify the client secret if needed
+        storedClient.checkSecret(authentication);
+
+        return clientID;
     }
 }

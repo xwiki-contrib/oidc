@@ -1,0 +1,81 @@
+ ## ---------------------------------------------------------------------------
+## See the NOTICE file distributed with this work for additional
+## information regarding copyright ownership.
+##
+## This is free software; you can redistribute it and/or modify it
+## under the terms of the GNU Lesser General Public License as
+## published by the Free Software Foundation; either version 2.1 of
+## the License, or (at your option) any later version.
+##
+## This software is distributed in the hope that it will be useful,
+## but WITHOUT ANY WARRANTY; without even the implied warranty of
+## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+## Lesser General Public License for more details.
+##
+## You should have received a copy of the GNU Lesser General Public
+## License along with this software; if not, write to the Free
+## Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
+## 02110-1301 USA, or see the FSF site: http://www.fsf.org.
+## ---------------------------------------------------------------------------
+##!source.syntax=xwiki/2.1
+== {{translation key="oidc.provider.admin.title"/}}
+
+=== {{translation key="oidc.provider.admin.clients.title"/}}
+
+{{translation key="oidc.provider.admin.clients.description"/}}
+
+{{velocity}}
+#set ($clientsDocument = $xwiki.getDocument('XWiki.OIDC.Provider.Clients'))
+#set ($dynamicObject = $clientsDocument.getObject('XWiki.OIDC.Provider.ClientClass', 'id', ''))
+#if ($dynamicObject)
+  #set ($isDynamic = true)
+#else
+  #set ($isDynamic = false)
+#end
+#if ($request.oidc_client_mode && $services.security.authorization.hasAccess('edit', 'XWiki.OIDC.Provider.Clients'))
+  #if ($request.oidc_client_mode == 'dynamic')
+    #if (!$isDynamic)
+      #set ($dynamicObject = $clientsDocument.newObject('XWiki.OIDC.Provider.ClientClass'))
+      #set ($void = $clientsDocument.save($services.localization.render('oidc.provider.admin.clients.mode.dynamic.save')))
+      #set ($isDynamic = true)
+      {{success}}
+        {{translation key="oidc.provider.admin.clients.mode.dynamic.saved"/}}
+      {{/success}}
+    #end
+  #elseif ($request.oidc_client_mode == 'static')
+    #if ($isDynamic)
+      #set ($void = $clientsDocument.removeObject($dynamicObject))
+      #set ($void = $clientsDocument.save($services.localization.render('oidc.provider.admin.clients.save.static')))
+      #set ($isDynamic = false)
+      {{success}}
+        {{translation key="oidc.provider.admin.clients.mode.static.saved"/}}
+      {{/success}}
+    #end
+  #end
+#end
+{{/velocity}}
+
+{{velocity}}
+{{html}}
+<form method="post">
+<fieldset>
+  <div>
+    <input type="radio" id="client_mode_dynamic" name="oidc_client_mode" value="dynamic"#if ($isDynamic) checked#end/>
+    <label for="client_mode_dynamic">$escapetool.xml($services.localization.render('oidc.provider.admin.clients.mode.dynamic'))</label>
+    <br/>
+    $escapetool.xml($services.localization.render('oidc.provider.admin.clients.mode.dynamic.hint'))
+  </div>
+
+  <div>
+    <input type="radio" id="client_mode_static" name="oidc_client_mode" value="static"#if (!$isDynamic) checked#end/>
+    <label for="client_mode_static">$escapetool.xml($services.localization.render('oidc.provider.admin.clients.mode.static'))</label> (<a href="$xwiki.getURL('XWiki.OIDC.Provider.Clients', 'edit', "editor=object&xredirect=$escapetool.url($xwiki.relativeRequestURL)")">$escapetool.xml($services.localization.render('oidc.provider.admin.editClients'))</a>)
+    <br/>
+    $escapetool.xml($services.localization.render('oidc.provider.admin.clients.mode.static.hint'))
+  </div>
+
+  #if ($services.security.authorization.hasAccess('edit', 'XWiki.OIDC.Provider.Clients'))
+    <button class="btn" id="client_mode_save" name="client_mode_save">$escapetool.xml($services.localization.render('oidc.provider.admin.clients.mode.save'))</button>
+  #end    
+</fieldset>
+{{/html}}
+{{/velocity}}

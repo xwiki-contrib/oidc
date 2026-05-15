@@ -120,15 +120,12 @@
         <artifactId>maven-checkstyle-plugin</artifactId>
         <configuration>
           <excludes>
-              org/xwiki/contrib/oidc/provider/internal/OIDCConfiguration.java,
-              org/xwiki/contrib/oidc/provider/internal/store/OIDCConsent.java,
-              org/xwiki/contrib/oidc/provider/internal/store/OIDCStore.java,
+              org/xwiki/contrib/oidc/provider/internal/store/OIDCProviderStore.java,
               org/xwiki/contrib/oidc/provider/internal/OIDCManager.java,
               org/xwiki/contrib/oidc/provider/internal/OIDCResourceReferenceHandler.java,
-              org/xwiki/contrib/oidc/provider/internal/util/OIDCServletUtils.java,
-              org/xwiki/contrib/oidc/provider/internal/endpoint/AuthorizationOIDCEndpoint.java,
               org/xwiki/contrib/oidc/provider/internal/endpoint/UserInfoOIDCEndpoint.java,
-              org/xwiki/contrib/oidc/provider/internal/util/StoreUtils.java
+              org/xwiki/contrib/oidc/provider/internal/endpoint/TokenOIDCEndpoint.java,
+              org/xwiki/contrib/oidc/provider/internal/endpoint/AuthorizationOIDCEndpoint.java
           </excludes>
         </configuration>
       </plugin>

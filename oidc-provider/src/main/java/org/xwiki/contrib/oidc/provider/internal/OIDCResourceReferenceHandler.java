@@ -47,7 +47,9 @@ import org.xwiki.resource.ResourceReferenceHandlerChain;
 import org.xwiki.resource.ResourceReferenceHandlerException;
 import org.xwiki.resource.ResourceType;
 
+import com.nimbusds.oauth2.sdk.GeneralException;
 import com.nimbusds.oauth2.sdk.Response;
+import com.nimbusds.oauth2.sdk.TokenErrorResponse;
 import com.nimbusds.oauth2.sdk.http.HTTPRequest;
 import com.nimbusds.oauth2.sdk.http.HTTPResponse;
 import com.nimbusds.oauth2.sdk.http.ServletUtils;
@@ -167,16 +169,25 @@ public class OIDCResourceReferenceHandler extends AbstractResourceReferenceHandl
         this.logger.debug("OIDC: Reference: [{}]", reference);
 
         Response response;
-        if (this.componentManager.hasComponent(OIDCEndpoint.class, reference.getEndpoint())) {
-            OIDCEndpoint endpoint = this.componentManager.getInstance(OIDCEndpoint.class, reference.getEndpoint());
+        try {
+            if (this.componentManager.hasComponent(OIDCEndpoint.class, reference.getEndpoint())) {
+                OIDCEndpoint endpoint = this.componentManager.getInstance(OIDCEndpoint.class, reference.getEndpoint());
 
-            response = endpoint.handle(httpRequest, reference);
-        } else if (this.componentManager.hasComponent(OIDCEndpoint.class, reference.getPath())) {
-            OIDCEndpoint endpoint = this.componentManager.getInstance(OIDCEndpoint.class, reference.getPath());
+                response = endpoint.handle(httpRequest, reference);
+            } else if (this.componentManager.hasComponent(OIDCEndpoint.class, reference.getPath())) {
+                OIDCEndpoint endpoint = this.componentManager.getInstance(OIDCEndpoint.class, reference.getPath());
 
-            response = endpoint.handle(httpRequest, reference);
-        } else {
-            response = this.unknown.handle(httpRequest, reference);
+                response = endpoint.handle(httpRequest, reference);
+            } else {
+                response = this.unknown.handle(httpRequest, reference);
+            }
+        } catch (GeneralException e) {
+            if (e.getErrorObject() != null) {
+                // If it's a standard protocol error, return it as is, otherwise rethrow the exception
+                response = new TokenErrorResponse(e.getErrorObject());
+            } else {
+                throw e;
+            }
         }
 
         // response might be null if the handled already answered the client (for example a redirect to the login

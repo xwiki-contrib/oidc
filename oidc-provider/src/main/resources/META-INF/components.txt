@@ -12,6 +12,9 @@ org.xwiki.contrib.oidc.provider.internal.endpoint.UnknownOIDCEndpoint
 org.xwiki.contrib.oidc.provider.internal.endpoint.UserInfoOIDCEndpoint
 org.xwiki.contrib.oidc.provider.internal.session.OIDCClients
 org.xwiki.contrib.oidc.provider.internal.session.ProviderOIDCSessions
+org.xwiki.contrib.oidc.provider.internal.store.OIDCProviderAdminInitializer
+org.xwiki.contrib.oidc.provider.internal.store.OIDCProviderClientClassInitializer
+org.xwiki.contrib.oidc.provider.internal.store.OIDCProviderClientsInitializer
 org.xwiki.contrib.oidc.provider.internal.store.OIDCProviderStore
 org.xwiki.contrib.oidc.provider.internal.store.OIDCProviderStoreListener
 org.xwiki.contrib.oidc.provider.script.OIDCProviderScriptService

@@ -36,6 +36,7 @@ import org.xwiki.contrib.oidc.consent.internal.store.OIDCConsentStore;
 import org.xwiki.contrib.oidc.provider.internal.OIDCManager;
 import org.xwiki.contrib.oidc.provider.internal.OIDCResourceReference;
 import org.xwiki.contrib.oidc.provider.internal.session.ProviderOIDCSessions;
+import org.xwiki.contrib.oidc.provider.internal.store.BaseObjectOIDCClient;
 import org.xwiki.contrib.oidc.provider.internal.store.OIDCProviderStore;
 import org.xwiki.csrf.CSRFToken;
 import org.xwiki.script.ScriptContextManager;
@@ -45,6 +46,7 @@ import com.nimbusds.oauth2.sdk.AuthorizationRequest;
 import com.nimbusds.oauth2.sdk.AuthorizationSuccessResponse;
 import com.nimbusds.oauth2.sdk.OAuth2Error;
 import com.nimbusds.oauth2.sdk.Response;
+import com.nimbusds.oauth2.sdk.auth.verifier.InvalidClientException;
 import com.nimbusds.oauth2.sdk.http.HTTPRequest;
 import com.nimbusds.oauth2.sdk.id.ClientID;
 import com.nimbusds.openid.connect.sdk.AuthenticationErrorResponse;
@@ -57,6 +59,7 @@ import com.nimbusds.openid.connect.sdk.OIDCScopeValue;
 import com.nimbusds.openid.connect.sdk.Prompt;
 import com.nimbusds.openid.connect.sdk.claims.IDTokenClaimsSet;
 import com.xpn.xwiki.XWikiContext;
+import com.xpn.xwiki.XWikiException;
 import com.xpn.xwiki.user.api.XWikiUser;
 
 /**
@@ -114,6 +117,10 @@ public class AuthorizationOIDCEndpoint implements OIDCEndpoint
         } else {
             this.logger.debug("OIDC: Not OpenID Connect client, assuming OAuth2");
         }
+
+        // Verify the redirect URI before doing anything else since we don't want to do any work if the client is not
+        // valid or if the redirect URI is not valid for the client.
+        checkRedirectURI(request.getClientID(), request.getRedirectionURI().toString());
 
         XWikiContext xcontext = this.xcontextProvider.get();
 
@@ -306,5 +313,20 @@ public class AuthorizationOIDCEndpoint implements OIDCEndpoint
         this.scripts.getScriptContext().setAttribute("oidc", oidc, ScriptContext.ENGINE_SCOPE);
 
         return this.manager.executeTemplate("oidc/provider/consent.vm");
+    }
+
+    private ClientID checkRedirectURI(ClientID clientID, String redirectURI)
+        throws InvalidClientException, XWikiException
+    {
+        // Get the corresponding registered client metadata
+        BaseObjectOIDCClient storedClient = this.providerStore.getClient(clientID);
+        if (storedClient == null) {
+            throw InvalidClientException.BAD_ID;
+        }
+
+        // Verify the redirect URI if needed
+        storedClient.checkRedirectURI(redirectURI);
+
+        return clientID;
     }
 }
