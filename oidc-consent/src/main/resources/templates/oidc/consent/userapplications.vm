@@ -93,34 +93,38 @@
 
   {{html}}
     #if ($xcontext.action == 'view')
-      <form method="post" class="xform>
-        <input type="hidden" name="form_token" value="$!{services.csrf.getToken()}" />
+      ## Allow creating tokens only if the token authenticator is configured, if the API to check the presence of the token authenticator is not available (for backward compatibility) or if it's forced in the configurration
+      #set ($authService = $services.security.authService.authService)
+      #if ($services.oidc.consent.isCreateTokenEnabled() == true || !$authService || $authService.id == 'oidc-provider-bridge' || $authService.class.name == 'org.xwiki.contrib.oidc.provider.OIDCBridgeAuth' || $authService.class.name == 'org.xwiki.contrib.oidc.token.TokenAuthService')
+        <form method="post" class="xform>
+          <input type="hidden" name="form_token" value="$!{services.csrf.getToken()}" />
 
-        <label id="label_application_name">
-          $escapetool.xml($services.localization.render('oidc.template.userapplications.application_name'))
-          <input type="text" id="input_application_name" name="application_name"#if($request.application_name) value="$escapetool.xml($request.application_name)"#end/>
-        </label>
+          <label id="label_application_name">
+            $escapetool.xml($services.localization.render('oidc.template.userapplications.application_name'))
+            <input type="text" id="input_application_name" name="application_name"#if($request.application_name) value="$escapetool.xml($request.application_name)"#end/>
+          </label>
 
-        <label id="label_expiration">
-          $escapetool.xml($services.localization.render('oidc.template.userapplications.expiration.label'))
-          <select id="select_expiration" name="expiration">
-            #expirationOptionDays(7, $expiration)
-            #expirationOptionDays(30, $expiration)
-            #expirationOptionDays(60, $expiration)
-            #expirationOptionDays(90, $expiration)
-            <option value="date"#if($expiration == 'date') selected#end>$escapetool.xml($services.localization.render('oidc.template.userapplications.expiration.custom'))</option>
-            <option value="never"#if($expiration == 'never') selected#end>$escapetool.xml($services.localization.render('oidc.template.userapplications.expiration.never'))</option>
-          </select>
-        </label>
+          <label id="label_expiration">
+            $escapetool.xml($services.localization.render('oidc.template.userapplications.expiration.label'))
+            <select id="select_expiration" name="expiration">
+              #expirationOptionDays(7, $expiration)
+              #expirationOptionDays(30, $expiration)
+              #expirationOptionDays(60, $expiration)
+              #expirationOptionDays(90, $expiration)
+              <option value="date"#if($expiration == 'date') selected#end>$escapetool.xml($services.localization.render('oidc.template.userapplications.expiration.custom'))</option>
+              <option value="never"#if($expiration == 'never') selected#end>$escapetool.xml($services.localization.render('oidc.template.userapplications.expiration.never'))</option>
+            </select>
+          </label>
 
-        <label id="label_expiration_date">
-          $escapetool.xml($services.localization.render('oidc.template.userapplications.expiration_date.label'))
-          <input id="input_expiration_date" type="date" name="expiration_date"#if($expiration_date) value="$escapetool.xml($datetool.format('yyyy-MM-dd', $expiration_date))"#end#if ($expiration != 'date') disabled#end/>
-        </label>
-        ##TODO: add support for a scope
+          <label id="label_expiration_date">
+            $escapetool.xml($services.localization.render('oidc.template.userapplications.expiration_date.label'))
+            <input id="input_expiration_date" type="date" name="expiration_date"#if($expiration_date) value="$escapetool.xml($datetool.format('yyyy-MM-dd', $expiration_date))"#end#if ($expiration != 'date') disabled#end/>
+          </label>
+          ##TODO: add support for a scope
 
-        <button class="btn btn-primary" name="oidc_consent_create">$escapetool.xml($services.localization.render("oidc.template.userapplications.create"))</button>
-      </form>
+          <button class="btn btn-primary" name="oidc_consent_create">$escapetool.xml($services.localization.render("oidc.template.userapplications.create"))</button>
+        </form>
+      #end
     #end
 
     #foreach ($consent in $services.oidc.consent.getConsents($doc.documentReference))

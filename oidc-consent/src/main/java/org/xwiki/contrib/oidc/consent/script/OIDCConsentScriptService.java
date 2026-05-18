@@ -31,6 +31,7 @@ import javax.inject.Singleton;
 import org.xwiki.component.annotation.Component;
 import org.xwiki.contrib.oidc.OIDCConsent;
 import org.xwiki.contrib.oidc.OIDCException;
+import org.xwiki.contrib.oidc.consent.internal.OIDCConsentConfiguration;
 import org.xwiki.contrib.oidc.consent.internal.script.SafeOIDCConsent;
 import org.xwiki.contrib.oidc.consent.internal.store.OIDCConsentStore;
 import org.xwiki.contrib.oidc.script.OIDCScriptService;
@@ -63,6 +64,9 @@ public class OIDCConsentScriptService implements ScriptService
 
     @Inject
     private ContextualAuthorizationManager authorization;
+
+    @Inject
+    private OIDCConsentConfiguration configuration;
 
     /**
      * @param userReference the reference of the user to whom the consent are associated
@@ -117,5 +121,13 @@ public class OIDCConsentScriptService implements ScriptService
         this.authorization.checkAccess(Right.PROGRAM);
 
         this.store.deleteConsent(id);
+    }
+
+    /**
+     * @return true if it's allowed to create consents from the UI, false if not, null if the property is not set
+     */
+    public Boolean isCreateConsentEnabled()
+    {
+        return this.configuration.isCreateTokenEnabled();
     }
 }

@@ -1,3 +1,4 @@
+org.xwiki.contrib.oidc.consent.internal.OIDCConsentConfiguration
 org.xwiki.contrib.oidc.consent.internal.store.OIDCConsentClassDocumentInitializer
 org.xwiki.contrib.oidc.consent.internal.store.OIDCConsentListener
 org.xwiki.contrib.oidc.consent.internal.store.OIDCConsentStore
