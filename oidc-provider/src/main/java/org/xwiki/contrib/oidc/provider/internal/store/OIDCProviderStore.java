@@ -21,6 +21,7 @@ package org.xwiki.contrib.oidc.provider.internal.store;
 
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -41,7 +42,7 @@ import org.xwiki.model.reference.DocumentReference;
 import org.xwiki.model.reference.DocumentReferenceResolver;
 import org.xwiki.model.reference.EntityReference;
 import org.xwiki.model.reference.EntityReferenceSerializer;
-import org.xwiki.model.reference.LocalDocumentReference;
+import org.xwiki.model.reference.WikiReference;
 import org.xwiki.observation.ObservationManager;
 import org.xwiki.user.UserReferenceSerializer;
 
@@ -74,12 +75,6 @@ public class OIDCProviderStore
      * @since 2.21.0
      */
     public static final String REFERENCE_PREFIX = "XWiki.OIDC.Provider.";
-
-    /**
-     * @since 2.21.0
-     */
-    public static final LocalDocumentReference CLIENTS_REFERENCE =
-        new LocalDocumentReference("Clients", REFERENCE_SPACE);
 
     @Inject
     private Provider<XWikiContext> xcontextProvider;
@@ -248,12 +243,24 @@ public class OIDCProviderStore
     {
         XWikiContext xcontext = this.xcontextProvider.get();
 
-        XWikiDocument userDocument = xcontext.getWiki().getDocument(CLIENTS_REFERENCE, xcontext);
+        WikiReference currentWiki = xcontext.getWikiReference();
+        try {
+            // Clients are located on the main wiki
+            xcontext.setWikiId(xcontext.getMainXWiki());
 
-        // Make sure to avoid modifying the cached document
-        userDocument = userDocument.clone();
+            // Load the user document containing the clients configurations
+            XWikiDocument userDocument =
+                xcontext.getWiki().getDocument(OIDCProviderClientsInitializer.REFERENCE, xcontext);
 
-        return getClient(clientID, userDocument);
+            // Make sure to avoid modifying the cached document
+            userDocument = userDocument.clone();
+
+            // Return the client configuration for the given client ID
+            return getClient(clientID, userDocument);
+        } finally {
+            // Restore the original wiki reference in the context
+            xcontext.setWikiReference(currentWiki);
+        }
     }
 
     /**
@@ -283,18 +290,24 @@ public class OIDCProviderStore
 
         if (clientID != null) {
             // Try to find a configuration specific to the client ID
-            BaseObject xobject = userDocument.getXObject(BaseObjectOIDCClient.REFERENCE, BaseObjectOIDCClient.FIELD_ID,
-                clientID.getValue(), false);
+            List<BaseObject> clients = userDocument.getXObjects(BaseObjectOIDCClient.REFERENCE);
+            if (clients != null) {
+                for (BaseObject client : clients) {
+                    if (client != null) {
+                        String clientIdValue = BaseObjectOIDCClient.getClientID(client);
+                        if (clientIdValue != null && clientIdValue.equals(clientID.getValue())) {
+                            if (BaseObjectOIDCClient.isEnabled(client)) {
+                                this.logger.debug("  -> A specific configuration was found for the client ID: [{}]",
+                                    client.getReference());
 
-            if (xobject != null) {
-                // Return the configuration only if it is enabled
-                if (BaseObjectOIDCClient.isEnabled(xobject)) {
-                    this.logger.debug("  -> A static configuration was found: [{}]", dynamicClient.getReference());
-
-                    return new BaseObjectOIDCClient(xobject, this.xcontextProvider.get());
-                } else {
-                    this.logger.debug("  -> A static configuration was found, but it is disabled: [{}]",
-                        dynamicClient.getReference());
+                                return new BaseObjectOIDCClient(client, this.xcontextProvider.get());
+                            } else {
+                                this.logger.debug(
+                                    "  -> A specific configuration was found for the client ID, but it is disabled: [{}]",
+                                    client.getReference());
+                            }
+                        }
+                    }
                 }
             }
         }

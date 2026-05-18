@@ -613,7 +613,7 @@ public class OIDCClientConfiguration extends OIDCConfiguration
             return sessionValue;
         }
 
-        // Get the property form the wiki configuration
+        // Get the property from the wiki configuration
         org.xwiki.contrib.oidc.auth.store.OIDCClientConfiguration wikiClientConfiguration =
             getWikiClientConfiguration();
         if (wikiClientConfiguration != null) {

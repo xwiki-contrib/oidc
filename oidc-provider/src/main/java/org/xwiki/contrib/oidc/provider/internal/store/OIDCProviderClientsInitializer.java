@@ -19,14 +19,21 @@
  */
 package org.xwiki.contrib.oidc.provider.internal.store;
 
+import javax.inject.Inject;
 import javax.inject.Named;
+import javax.inject.Provider;
 import javax.inject.Singleton;
 
+import org.slf4j.Logger;
 import org.xwiki.component.annotation.Component;
 import org.xwiki.model.reference.LocalDocumentReference;
 
+import com.xpn.xwiki.XWikiContext;
+import com.xpn.xwiki.XWikiException;
 import com.xpn.xwiki.doc.AbstractMandatoryDocumentInitializer;
 import com.xpn.xwiki.doc.XWikiDocument;
+import com.xpn.xwiki.internal.mandatory.XWikiRightsDocumentInitializer;
+import com.xpn.xwiki.objects.BaseObject;
 
 /**
  * Make sure the document in charge of storing the registered clients exist and has the right content.
@@ -55,6 +62,12 @@ public class OIDCProviderClientsInitializer extends AbstractMandatoryDocumentIni
      */
     public static final String REFERENCE_STRING = OIDCProviderStore.REFERENCE_PREFIX + DOCUMENT_NAME;
 
+    @Inject
+    private Provider<XWikiContext> contextProvider;
+
+    @Inject
+    private Logger logger;
+
     /**
      * Default constructor.
      */
@@ -78,8 +91,19 @@ public class OIDCProviderClientsInitializer extends AbstractMandatoryDocumentIni
         if (document.isNew()) {
             document.setTitle("OIDC Connection Clients");
             document.setContent("{{translation key=\"oidc.provider.clients.description\"/}}");
+            document.setHidden(true);
 
-            needsUpdate = true;
+            try {
+                // Make sure only wiki administrators can access it
+                BaseObject rightObject =
+                    document.newXObject(XWikiRightsDocumentInitializer.CLASS_REFERENCE, this.contextProvider.get());
+                rightObject.setStringValue("groups", "XWiki.XWikiAdminGroup");
+                rightObject.setStringValue("allow", "view");
+
+                needsUpdate = true;
+            } catch (XWikiException e) {
+                this.logger.error("Faied to initialize main wiki descriptor", e);
+            }
         }
 
         return needsUpdate;

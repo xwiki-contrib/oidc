@@ -26,15 +26,20 @@ import java.util.Arrays;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.openqa.selenium.By;
+import org.xwiki.contrib.oidc.auth.internal.endpoint.CallbackOIDCEndpoint;
+import org.xwiki.contrib.oidc.provider.internal.store.BaseObjectOIDCClient;
+import org.xwiki.contrib.oidc.provider.internal.store.OIDCProviderClientsInitializer;
 import org.xwiki.contrib.oidc.test.po.OIDCAdministrationSectionPage;
 import org.xwiki.contrib.oidc.test.po.OIDCApplicationsUserProfilePage;
 import org.xwiki.contrib.oidc.test.po.OIDCClientProviderPage;
 import org.xwiki.contrib.oidc.test.po.OIDCProviderConsentPage;
+import org.xwiki.model.reference.LocalDocumentReference;
 import org.xwiki.test.integration.XWikiExecutor;
 import org.xwiki.test.ui.AbstractTest;
 import org.xwiki.test.ui.PersistentTestContext;
 import org.xwiki.test.ui.TestUtils;
 import org.xwiki.test.ui.po.LoginPage;
+import org.xwiki.test.ui.po.ViewPage;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -50,6 +55,12 @@ public class OIDCTest extends AbstractTest
     // We have to use a different domains for the client and the provider or it's going to mess with the session
     private static final String[] HOSTS = new String[] {"localhost:8080", "127.0.0.1:8081"};
     private static final String[] URL_PREFIXES = new String[] {"http://localhost", "http://127.0.0.1"};
+
+    private static final LocalDocumentReference PROVIDER_USER_REFERENCE =
+        new LocalDocumentReference("XWiki", "provideruser");
+
+    private static final LocalDocumentReference CLIENT_USER_REFERENCE =
+        new LocalDocumentReference("XWiki", "127001-provideruser");
 
     @BeforeClass
     public static void init() throws Exception
@@ -75,38 +86,45 @@ public class OIDCTest extends AbstractTest
         getUtil().switchExecutor(index);
         // Force a different host depending on the instance
         TestUtils.setURLPrefix(URL_PREFIXES[index]);
+        // Cache the initial CSRF token since that token needs to be passed to all forms (this is done automatically
+        // in TestUtils), including the login form. Whenever a new user logs in we need to recache.
+        // Note that this requires a running XWiki instance.
+        getUtil().recacheSecretToken();
     }
 
     private void cleanupProvider() throws Exception
     {
-        getUtil().switchExecutor(1);
+        switchExecutor(1);
+        getUtil().loginAsSuperAdmin();
         // Delete user if already exist
-        getUtil().rest().deletePage("XWiki", "provideruser");
+        getUtil().rest().delete(PROVIDER_USER_REFERENCE);
+        // Empty clients
+        getUtil().rest().delete(OIDCProviderClientsInitializer.REFERENCE);
+        getUtil().rest().savePage(OIDCProviderClientsInitializer.REFERENCE);
         // Logout
-        logout(1);
+        logout();
     }
 
     private void cleanupClient() throws Exception
     {
-        getUtil().switchExecutor(0);
+        switchExecutor(0);
+        getUtil().loginAsSuperAdmin();
         // Delete user if already exist
-        getUtil().rest().deletePage("XWiki", "127001-provideruser");
-        // Logout
-        logout(0);
-    }
+        getUtil().rest().delete(CLIENT_USER_REFERENCE);
+        // Reset client authentication configuration
+        getUtil().setPropertyInXWikiPreferences("oidc.clientid", "String", "");
+        getUtil().setPropertyInXWikiPreferences("oidc.secret", "String", "");
 
-    private void loginAsSuperAdmin(int index)
-    {
-        gotToLogin(index);
-        LoginPage loginPage = new LoginPage();
-        loginPage.loginAs(TestUtils.SUPER_ADMIN_CREDENTIALS.getUserName(),
-            TestUtils.SUPER_ADMIN_CREDENTIALS.getPassword());
+        // Logout
+        logout();
     }
 
     private void gotToLogin(int index)
     {
-        getUtil().switchExecutor(index);
-        getUtil().gotoPage(getBaseBinURL(index) + "login/XWiki/XWikiLogin?xredirect=%2Fxwiki%2Fbin%2Fview%2FMain%2F");
+        // BasePage#login() assume it ends up in the standard login page, so we cannot use it
+        gotoHome(index);
+        getUtil()
+            .gotoPage(getUtil().getBaseBinURL() + "login/XWiki/XWikiLogin?xredirect=%2Fxwiki%2Fbin%2Fview%2FMain%2F");
     }
 
     private String getBaseURL(int index)
@@ -114,20 +132,14 @@ public class OIDCTest extends AbstractTest
         return "http://" + HOSTS[index] + "/xwiki";
     }
 
-    private String getBaseBinURL(int index)
-    {
-        return getBaseURL(index) + "/bin/";
-    }
-
     private String getURL(int index, String path)
     {
         return getBaseURL(index) + path;
     }
 
-    private void logout(int index)
+    private void logout()
     {
-        getUtil().switchExecutor(index);
-        getUtil().gotoPage(getURL(index, "/bin/logout/XWiki/XWikiLogout?xredirect=%2Fxwiki%2Fbin%2Fview%2FMain%2F"));
+        gotoHome().logout();
     }
 
     private String getHomeURL(int index)
@@ -135,10 +147,15 @@ public class OIDCTest extends AbstractTest
         return getURL(index, "/bin/view/Main/");
     }
 
-    private void gotoHome(int index)
+    private ViewPage gotoHome()
     {
-        getUtil().switchExecutor(index);
-        getUtil().gotoPage(getHomeURL(index));
+        return getUtil().gotoPage("Main", "");
+    }
+
+    private ViewPage gotoHome(int index)
+    {
+       switchExecutor(index);
+       return gotoHome();
     }
 
     private String getCurrentUserReference()
@@ -153,15 +170,8 @@ public class OIDCTest extends AbstractTest
         cleanupClient();
         cleanupProvider();
 
-        // Make the provider is in dynamic client mode
-        switchExecutor(1);
-        getUtil().loginAsSuperAdmin();
-        OIDCAdministrationSectionPage administrationSectionPage = OIDCAdministrationSectionPage.gotoPage();
-        administrationSectionPage.setDynamicMode();
-        administrationSectionPage = administrationSectionPage.clickSaveButton();
-        administrationSectionPage.logout();
-
         // Create a user on the provider
+        gotoHome(1);
         getUtil().createUser("provideruser", "providerpassword", null);
 
         // Go to token management of provideruser
@@ -169,14 +179,23 @@ public class OIDCTest extends AbstractTest
         // Make sure guest user is not allowed to access the user token management
         assertFalse(OIDCApplicationsUserProfilePage.isAllowed());
 
+        /////////////////////////////////////////////////////////////
+        // Dynamic client mode
+
+        // Make sure the provider is configured in dynamic client mode
+        switchExecutor(1);
+        getUtil().loginAsSuperAdmin();
+        OIDCAdministrationSectionPage administrationSectionPage = OIDCAdministrationSectionPage.gotoPage();
+        administrationSectionPage.setDynamicMode();
+        administrationSectionPage.clickSaveButton();
+        logout();
+
         // Login on the client
         gotToLogin(0);
 
         // We are asked for the provider to use, set it
         OIDCClientProviderPage providerPage = new OIDCClientProviderPage();
         providerPage.setProvider(getURL(1, "/oidc"));
-
-        // Start authentication
         providerPage.clickAuthenticate();
 
         // It gets redirected to the provider login page, login
@@ -192,8 +211,9 @@ public class OIDCTest extends AbstractTest
         // Make sure the we are authenticated and we get the expected id on client side
         assertEquals("xwiki:XWiki.127001-provideruser", getCurrentUserReference());
 
-        // Log out of the client
-        logout(0);
+        // Log out on the client
+        switchExecutor(0);
+        logout();
 
         // We are logged out of the provider and come back on the client
         assertEquals(getHomeURL(0), getUtil().getDriver().getCurrentUrl());
@@ -229,6 +249,79 @@ public class OIDCTest extends AbstractTest
         // Make sure the user is logged in the provider
         gotoHome(1);
         assertEquals("xwiki:XWiki.provideruser", getCurrentUserReference());
+
+        // Log out of the client
+        switchExecutor(0);
+        logout();
+
+        /////////////////////////////////////////////////////////////
+        // Static client mode (not registered)
+
+        // Make sure the provider is configured in dynamic client mode
+        switchExecutor(1);
+        getUtil().loginAsSuperAdmin();
+        administrationSectionPage = OIDCAdministrationSectionPage.gotoPage();
+        administrationSectionPage.setStaticMode();
+        administrationSectionPage = administrationSectionPage.clickSaveButton();
+        administrationSectionPage.logout();
+
+        // Login on the client
+        gotToLogin(0);
+
+        // Choose the provider
+        providerPage = new OIDCClientProviderPage();
+        providerPage.setProvider(getURL(1, "/oidc"));
+        providerPage.clickAuthenticate();
+
+        // It fail immediately since the client is not registered in static mode
+
+        // Make sure we are not logged in
+        gotoHome(0);
+        assertNull(getCurrentUserReference());
+
+        /////////////////////////////////////////////////////////////
+        // Static client mode (registered)
+
+        // Register the client on the provider side
+        gotoHome(1);
+        getUtil().loginAsSuperAdmin();
+        String clientID = "clientid";
+        String clientSecret = "clientsecret";
+        getUtil().addObject(OIDCProviderClientsInitializer.REFERENCE, BaseObjectOIDCClient.REFERENCE_STRING, "id",
+            "clientid", "secret", "clientsecret", "redirectURIs", getURL(0, "/oidc/" + CallbackOIDCEndpoint.HINT),
+            "enabled", "1");
+        logout();
+        // Configure the authenticator with registered client metadata
+        gotoHome(0);
+        getUtil().loginAsSuperAdmin();
+        getUtil().setPropertyInXWikiPreferences("oidc.clientid", "String", clientID);
+        getUtil().setPropertyInXWikiPreferences("oidc.secret", "String", clientSecret);
+        logout();
+
+        // Login on the client
+        gotToLogin(0);
+        gotToLogin(0);
+
+        // Choose the provider
+        providerPage = new OIDCClientProviderPage();
+        providerPage.setProvider(getURL(1, "/oidc"));
+        providerPage.clickAuthenticate();
+
+        // It gets redirected to the provider login page, login
+        loginPage = new LoginPage();
+        loginPage.loginAs("provideruser", "providerpassword");
+        // A consent is asked (since the client id changed), accept
+        consentPage = new OIDCProviderConsentPage();
+        consentPage.clickAccept();
+
+        // It gets redirected back to the client authenticated with the remote user
+        assertEquals(getHomeURL(0), getUtil().getDriver().getCurrentUrl());
+
+        // Make sure the we are authenticated and we get the expected id on client side
+        assertEquals("xwiki:XWiki.127001-provideruser", getCurrentUserReference());
+
+        /////////////////////////////////////////////////////////////
+        // Token access
 
         // Create a token on the provider
         getUtil().gotoPage(getURL(1, "/bin/view/XWiki/provideruser?category=userapplications"));

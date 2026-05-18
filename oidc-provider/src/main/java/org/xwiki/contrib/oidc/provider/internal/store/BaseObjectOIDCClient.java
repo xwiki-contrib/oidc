@@ -97,7 +97,7 @@ public class BaseObjectOIDCClient
     }
 
     /**
-     * @param xobject the XWiki object to check
+     * @param xobject the xobject to check
      * @return true if the client is enabled, false otherwise
      */
     public static boolean isEnabled(BaseObject xobject)
@@ -108,13 +108,22 @@ public class BaseObjectOIDCClient
     }
 
     /**
+     * @param xobject the xobject to check
+     * @return the client ID, or null if not set
+     */
+    public static String getClientID(BaseObject xobject)
+    {
+        String str = xobject.getStringValue(BaseObjectOIDCClient.FIELD_ID);
+
+        return StringUtils.isNotEmpty(str) ? str : null;
+    }
+
+    /**
      * @return the client ID, or null if not set
      */
     public String getClientID()
     {
-        String str = this.xobject.getStringValue(BaseObjectOIDCClient.FIELD_ID);
-
-        return StringUtils.isNotEmpty(str) ? str : null;
+        return getClientID(this.xobject);
     }
 
     /**
