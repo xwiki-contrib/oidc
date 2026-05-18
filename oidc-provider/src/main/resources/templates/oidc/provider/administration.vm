@@ -32,7 +32,7 @@
 #else
   #set ($isDynamic = false)
 #end
-#if ($request.oidc_client_mode && $services.security.authorization.hasAccess('edit', 'XWiki.OIDC.Provider.Clients'))
+#if ($request.oidc_client_mode && $services.security.authorization.hasAccess('edit', 'XWiki.OIDC.Provider.Clients') && $services.csrf.isTokenValid($request.form_token))
   #if ($request.oidc_client_mode == 'dynamic')
     #if (!$isDynamic)
       #set ($dynamicObject = $clientsDocument.newObject('XWiki.OIDC.Provider.ClientClass'))
@@ -59,6 +59,8 @@
 {{html}}
 <form method="post">
 <fieldset>
+  <input type="hidden" name="form_token" value="$!{services.csrf.getToken()}" />
+
   <div>
     <input type="radio" id="client_mode_dynamic" name="oidc_client_mode" value="dynamic"#if ($isDynamic) checked#end/>
     <label for="client_mode_dynamic">$escapetool.xml($services.localization.render('oidc.provider.admin.clients.mode.dynamic'))</label>
