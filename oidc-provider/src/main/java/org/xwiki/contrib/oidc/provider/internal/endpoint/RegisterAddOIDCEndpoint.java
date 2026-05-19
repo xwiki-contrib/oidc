@@ -26,6 +26,7 @@ import javax.inject.Singleton;
 import org.xwiki.component.annotation.Component;
 import org.xwiki.contrib.oidc.provider.internal.OIDCResourceReference;
 import org.xwiki.contrib.oidc.provider.internal.session.OIDCClients;
+import org.xwiki.contrib.oidc.provider.internal.store.OIDCProviderStore;
 
 import com.nimbusds.oauth2.sdk.Response;
 import com.nimbusds.oauth2.sdk.http.HTTPRequest;
@@ -57,15 +58,26 @@ public class RegisterAddOIDCEndpoint implements OIDCEndpoint
     @Inject
     private OIDCClients clients;
 
+    @Inject
+    private OIDCProviderStore providerStore;
+
+    @Inject
+    private OIDCEndpoint unknown;
+
     @Override
     public Response handle(HTTPRequest httpRequest, OIDCResourceReference reference) throws Exception
     {
-        OIDCClientRegistrationRequest request = OIDCClientRegistrationRequest.parse(httpRequest);
+        // Accept registration only if dynamic registration is enabled.
+        if (this.providerStore.isDynamicClientRegistration()) {
+            OIDCClientRegistrationRequest request = OIDCClientRegistrationRequest.parse(httpRequest);
 
-        OIDCClientMetadata clientMetadata = request.getOIDCClientMetadata();
+            OIDCClientMetadata clientMetadata = request.getOIDCClientMetadata();
 
-        OIDCClientInformation clientInformation = this.clients.addClient(clientMetadata);
+            OIDCClientInformation clientInformation = this.clients.addClient(clientMetadata);
 
-        return new OIDCClientInformationResponse(clientInformation, true);
+            return new OIDCClientInformationResponse(clientInformation, true);
+        }
+
+        return this.unknown.handle(httpRequest, reference);
     }
 }

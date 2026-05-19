@@ -30,6 +30,7 @@ import org.xwiki.component.annotation.Component;
 import org.xwiki.contrib.oidc.internal.OIDCConfiguration;
 import org.xwiki.contrib.oidc.provider.internal.OIDCManager;
 import org.xwiki.contrib.oidc.provider.internal.OIDCResourceReference;
+import org.xwiki.contrib.oidc.provider.internal.store.OIDCProviderStore;
 import org.xwiki.contrib.oidc.provider.internal.util.ContentResponse;
 
 import com.nimbusds.common.contenttype.ContentType;
@@ -59,6 +60,9 @@ public class ConfigurationOIDCEndpoint implements OIDCEndpoint
     @Inject
     private OIDCConfiguration configuration;
 
+    @Inject
+    private OIDCProviderStore providerStore;
+
     @Override
     public Response handle(HTTPRequest httpRequest, OIDCResourceReference reference) throws Exception
     {
@@ -83,7 +87,8 @@ public class ConfigurationOIDCEndpoint implements OIDCEndpoint
         if (this.configuration.isEndpointEnabled(UserInfoOIDCEndpoint.HINT)) {
             metadata.setUserInfoEndpointURI(this.manager.createEndPointURI(UserInfoOIDCEndpoint.HINT));
         }
-        if (this.configuration.isEndpointEnabled(RegisterAddOIDCEndpoint.HINT)) {
+        if (this.configuration.isEndpointEnabled(RegisterAddOIDCEndpoint.HINT)
+            && this.providerStore.isDynamicClientRegistration()) {
             metadata.setRegistrationEndpointURI(this.manager.createEndPointURI(RegisterAddOIDCEndpoint.HINT));
         }
         if (this.configuration.isEndpointEnabled(LogoutOIDCEndpoint.HINT)) {
