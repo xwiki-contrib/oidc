@@ -64,8 +64,16 @@ public class OIDCProviderClientsInitializer extends AbstractMandatoryDocumentIni
      */
     public static final String REFERENCE_STRING = OIDCProviderStore.REFERENCE_PREFIX + DOCUMENT_NAME;
 
-    public static final LocalDocumentReference RIGHTS_CLASS_REFERENCE =
+    private static final LocalDocumentReference RIGHTS_CLASS_REFERENCE =
         new LocalDocumentReference(XWiki.SYSTEM_SPACE, "XWikiRights");
+
+    private static final String RIGHTS_CLASS_FIELD_GROUPS = "groups";
+
+    private static final String RIGHTS_CLASS_FIELD_LEVELS = "levels";
+
+    private static final String RIGHTS_CLASS_FIELD_LEVELS_VIEW = "view";
+
+    private static final String RIGHTS_CLASS_FIELD_ALLOW = "allow";
 
     @Inject
     private Provider<XWikiContext> contextProvider;
@@ -101,8 +109,8 @@ public class OIDCProviderClientsInitializer extends AbstractMandatoryDocumentIni
             try {
                 // Make sure only wiki administrators can access it
                 BaseObject rightObject = document.newXObject(RIGHTS_CLASS_REFERENCE, this.contextProvider.get());
-                rightObject.setLargeStringValue("groups", "XWiki.XWikiAdminGroup");
-                rightObject.setStringValue("levels", "view");
+                rightObject.setLargeStringValue(RIGHTS_CLASS_FIELD_GROUPS, "XWiki.XWikiAdminGroup");
+                rightObject.setStringValue(RIGHTS_CLASS_FIELD_LEVELS, RIGHTS_CLASS_FIELD_LEVELS_VIEW);
 
                 needsUpdate = true;
             } catch (XWikiException e) {
@@ -114,17 +122,17 @@ public class OIDCProviderClientsInitializer extends AbstractMandatoryDocumentIni
         BaseObject rightObject = document.getXObject(RIGHTS_CLASS_REFERENCE);
         if (rightObject != null) {
             // Fix bad levels setup.
-            if (rightObject.safeget("allow") instanceof StringProperty) {
-                rightObject.removeField("allow");
-                rightObject.setStringValue("levels", "view");
+            if (rightObject.safeget(RIGHTS_CLASS_FIELD_ALLOW) instanceof StringProperty) {
+                rightObject.removeField(RIGHTS_CLASS_FIELD_ALLOW);
+                rightObject.setStringValue(RIGHTS_CLASS_FIELD_LEVELS, RIGHTS_CLASS_FIELD_LEVELS_VIEW);
                 needsUpdate = true;
             }
 
             // Fix bad groups setup.
-            BaseStringProperty groupsProperty = (BaseStringProperty) rightObject.safeget("groups");
+            BaseStringProperty groupsProperty = (BaseStringProperty) rightObject.safeget(RIGHTS_CLASS_FIELD_GROUPS);
             if (groupsProperty instanceof StringProperty) {
-                rightObject.removeField("groups");
-                rightObject.setLargeStringValue("groups", groupsProperty.getValue());
+                rightObject.removeField(RIGHTS_CLASS_FIELD_GROUPS);
+                rightObject.setLargeStringValue(RIGHTS_CLASS_FIELD_GROUPS, groupsProperty.getValue());
                 needsUpdate = true;
             }
         }
