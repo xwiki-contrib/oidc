@@ -333,6 +333,16 @@ public class OIDCClientConfiguration extends OIDCConfiguration
 
     public static final String PROP_SESSION_ACCESSTOKEN = "oidc.accesstoken";
 
+    /**
+     * @since 2.22.0
+     */
+    public static final String PROP_SESSION_REFRESHTOKEN = "oidc.refreshtoken";
+
+    /**
+     * @since 2.22.0
+     */
+    public static final String PROP_SESSION_ACCESSTOKEN_EXPIRATION_TIMESTAMP = "oidc.accesstoken.expirationtimestamp";
+
     public static final String PROP_SESSION_IDTOKEN = "oidc.idtoken";
 
     /**
@@ -454,11 +464,39 @@ public class OIDCClientConfiguration extends OIDCConfiguration
     @Inject
     private EntityReferenceSerializer<String> entityReferenceResolver;
 
+    private final ThreadLocal<Map<String, Object>> threadLocalSession = new ThreadLocal<>();
+
+    /**
+     * Set the session map to use in the current thread, instead of the one saved in the current http request.
+     * Useful when accessing the configuration outside an http request.
+     * @param session the session map to use in this thread
+     * NOTE: don't forget to call #removeThreadLocalOIDCSession() (in a finally block for instance)
+     * @since 2.22.0
+     */
+    public void setThreadLocalOIDCSession(Map<String, Object> session)
+    {
+        this.threadLocalSession.set(session);
+    }
+
+    /**
+     * Free the current thread's session map to use.
+     * @since 2.22.0
+     */
+    public void removeThreadLocalOIDCSession()
+    {
+        this.threadLocalSession.remove();
+    }
+
     /**
      * @since 2.4.0
      */
     public Map<String, Object> getOIDCSession(boolean create)
     {
+        Map<String, Object> s = this.threadLocalSession.get();
+        if (s != null) {
+            return s;
+        }
+
         Session session = this.container.getSession();
         if (session instanceof ServletSession) {
             HttpSession httpSession = ((ServletSession) session).getHttpSession();
@@ -1359,6 +1397,16 @@ public class OIDCClientConfiguration extends OIDCConfiguration
     }
 
     /**
+     * @since 2.22.0
+     */
+    public RefreshToken getRefreshToken()
+    {
+        String refreshTokenValue = getSessionAttribute(PROP_SESSION_REFRESHTOKEN);
+
+        return refreshTokenValue != null ? new RefreshToken(refreshTokenValue) : null;
+    }
+
+    /**
      * @since 1.2
      */
     public void setAccessToken(AccessToken accessToken, RefreshToken refreshToken)
@@ -1367,7 +1415,30 @@ public class OIDCClientConfiguration extends OIDCConfiguration
             // Don't store the BearerAccessToken object directly as it could cause classloader problems when an extension is
             // upgraded
             setSessionAttribute(PROP_SESSION_ACCESSTOKEN, accessToken.getValue());
+            setSessionAttribute(PROP_SESSION_REFRESHTOKEN, refreshToken.getValue());
+
+            long lifetime = accessToken.getLifetime();
+            if (lifetime == 0) {
+                setSessionAttribute(PROP_SESSION_ACCESSTOKEN_EXPIRATION_TIMESTAMP, 0L);
+            } else {
+                long expirationTimestamp = System.currentTimeMillis() + (lifetime * 1000);
+                setSessionAttribute(PROP_SESSION_ACCESSTOKEN_EXPIRATION_TIMESTAMP, expirationTimestamp);
+            }
         }
+    }
+
+    /**
+     * @since 2.22.0
+     */
+    public boolean isAccessTokenExpired()
+    {
+        Long expirationTimestamp = getSessionAttribute(PROP_SESSION_ACCESSTOKEN_EXPIRATION_TIMESTAMP);
+        if (expirationTimestamp == null || expirationTimestamp == 0) {
+            // we don't have expiration data
+            return false;
+        }
+
+        return expirationTimestamp >= System.currentTimeMillis();
     }
 
     /**

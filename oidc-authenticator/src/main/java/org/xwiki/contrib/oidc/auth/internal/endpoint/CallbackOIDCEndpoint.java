@@ -213,19 +213,16 @@ public class CallbackOIDCEndpoint implements OIDCEndpoint
                 accessToken = tokenResponse.getTokens().getBearerAccessToken();
                 refreshToken = tokenResponse.getTokens().getRefreshToken();
 
-                // Store the access token in the session
-                this.configuration.setAccessToken(accessToken, tokenResponse.getTokens().getRefreshToken());
-
                 // Also parse and validate the id token if we don't already have it
                 if (configuration.isAuthenticationConfiguration() && idToken == null) {
                     idToken = parseIdToken(null, tokenResponse.getOIDCTokens().getIDToken(),
                         authenticationResponse.getIssuer());
                 }
             }
-        } else {
-            // Store the access token in the session
-            this.configuration.setAccessToken(accessToken, null);
         }
+        // Store the access token in the session
+
+        this.configuration.setAccessToken(accessToken, refreshToken);
 
         if (configuration.isAuthenticationConfiguration()) {
             // Make sure there is an id token
@@ -238,7 +235,7 @@ public class CallbackOIDCEndpoint implements OIDCEndpoint
                 this.logger.debug("Requesting the userinfo from a dedicated endpoint");
 
                 // Request the user info from a dedicated endpoint if it's a code (or hybrid) flow
-                userInfo = this.users.getUserInfo(accessToken);
+                userInfo = this.users.getUserInfo();
             } else {
                 this.logger.debug("Using the id token as userinfo");
 
@@ -247,7 +244,7 @@ public class CallbackOIDCEndpoint implements OIDCEndpoint
             }
 
             // Update/Create XWiki user
-            SimplePrincipal principal = this.users.updateUser(idToken, userInfo, accessToken);
+            SimplePrincipal principal = this.users.updateUser(userInfo);
 
             // Remember user in the session
             HttpSession session = ((ServletSession) this.container.getSession()).getHttpSession();
