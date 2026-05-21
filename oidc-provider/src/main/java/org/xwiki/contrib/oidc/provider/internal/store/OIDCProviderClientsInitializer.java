@@ -28,12 +28,14 @@ import org.slf4j.Logger;
 import org.xwiki.component.annotation.Component;
 import org.xwiki.model.reference.LocalDocumentReference;
 
+import com.xpn.xwiki.XWiki;
 import com.xpn.xwiki.XWikiContext;
 import com.xpn.xwiki.XWikiException;
 import com.xpn.xwiki.doc.AbstractMandatoryDocumentInitializer;
 import com.xpn.xwiki.doc.XWikiDocument;
-import com.xpn.xwiki.internal.mandatory.XWikiRightsDocumentInitializer;
 import com.xpn.xwiki.objects.BaseObject;
+import com.xpn.xwiki.objects.BaseStringProperty;
+import com.xpn.xwiki.objects.StringProperty;
 
 /**
  * Make sure the document in charge of storing the registered clients exist and has the right content.
@@ -61,6 +63,9 @@ public class OIDCProviderClientsInitializer extends AbstractMandatoryDocumentIni
      * The local reference of the document as String.
      */
     public static final String REFERENCE_STRING = OIDCProviderStore.REFERENCE_PREFIX + DOCUMENT_NAME;
+
+    public static final LocalDocumentReference RIGHTS_CLASS_REFERENCE =
+        new LocalDocumentReference(XWiki.SYSTEM_SPACE, "XWikiRights");
 
     @Inject
     private Provider<XWikiContext> contextProvider;
@@ -95,14 +100,32 @@ public class OIDCProviderClientsInitializer extends AbstractMandatoryDocumentIni
 
             try {
                 // Make sure only wiki administrators can access it
-                BaseObject rightObject =
-                    document.newXObject(XWikiRightsDocumentInitializer.CLASS_REFERENCE, this.contextProvider.get());
-                rightObject.setStringValue("groups", "XWiki.XWikiAdminGroup");
-                rightObject.setStringValue("allow", "view");
+                BaseObject rightObject = document.newXObject(RIGHTS_CLASS_REFERENCE, this.contextProvider.get());
+                rightObject.setLargeStringValue("groups", "XWiki.XWikiAdminGroup");
+                rightObject.setStringValue("levels", "view");
 
                 needsUpdate = true;
             } catch (XWikiException e) {
                 this.logger.error("Faied to initialize main wiki descriptor", e);
+            }
+        }
+
+        // Migrate the bad right object from a previous version, if it exists.
+        BaseObject rightObject = document.getXObject(RIGHTS_CLASS_REFERENCE);
+        if (rightObject != null) {
+            // Fix bad levels setup.
+            if (rightObject.safeget("allow") instanceof StringProperty) {
+                rightObject.removeField("allow");
+                rightObject.setStringValue("levels", "view");
+                needsUpdate = true;
+            }
+
+            // Fix bad groups setup.
+            BaseStringProperty groupsProperty = (BaseStringProperty) rightObject.safeget("groups");
+            if (groupsProperty instanceof StringProperty) {
+                rightObject.removeField("groups");
+                rightObject.setLargeStringValue("groups", groupsProperty.getValue());
+                needsUpdate = true;
             }
         }
 

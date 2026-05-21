@@ -26,7 +26,9 @@ import org.xwiki.component.annotation.Component;
 
 import com.xpn.xwiki.doc.AbstractMandatoryClassInitializer;
 import com.xpn.xwiki.objects.classes.BaseClass;
+import com.xpn.xwiki.objects.classes.ListClass;
 import com.xpn.xwiki.objects.classes.StaticListClass;
+import com.xpn.xwiki.objects.classes.TextAreaClass.ContentType;
 
 /**
  * Initialize OIDC client class.
@@ -55,7 +57,11 @@ public class OIDCProviderClientClassInitializer extends AbstractMandatoryClassIn
         redirectURIs.setMultiSelect(true);
         redirectURIs.setLargeStorage(true);
         redirectURIs.setRelationalStorage(true);
-        xclass.addTextAreaField(BaseObjectOIDCClient.FIELD_BACKCHANNEL_LOGOUT_URI, "Back-channel logout URI", 200, 1);
-        xclass.addBooleanField(BaseObjectOIDCClient.FIELD_ENABLED, "Enabled");
+        redirectURIs.setPicker(false);
+        redirectURIs.setSeparators(", ");
+        redirectURIs.setDisplayType(ListClass.DISPLAYTYPE_INPUT);
+        xclass.addTextAreaField(BaseObjectOIDCClient.FIELD_BACKCHANNEL_LOGOUT_URI, "Back-channel logout URI", 200, 1,
+            ContentType.PURE_TEXT);
+        xclass.addBooleanField(BaseObjectOIDCClient.FIELD_ENABLED, "Enabled", "checkbox", true);
     }
 }
