@@ -46,6 +46,16 @@ import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
 
+import com.nimbusds.oauth2.sdk.AccessTokenResponse;
+import com.nimbusds.oauth2.sdk.RefreshTokenGrant;
+import com.nimbusds.oauth2.sdk.Scope;
+import com.nimbusds.oauth2.sdk.TokenRequest;
+import com.nimbusds.oauth2.sdk.TokenResponse;
+import com.nimbusds.oauth2.sdk.auth.ClientAuthentication;
+import com.nimbusds.oauth2.sdk.auth.ClientSecretBasic;
+import com.nimbusds.oauth2.sdk.auth.Secret;
+import com.nimbusds.oauth2.sdk.token.RefreshToken;
+import com.nimbusds.oauth2.sdk.token.Tokens;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -149,14 +159,18 @@ public class OIDCUserManager
 
     public void updateUserInfoAsync()
     {
-        final IDTokenClaimsSet idToken = this.configuration.getIdToken();
-        final AccessToken accessToken = this.configuration.getAccessToken();
-
+        Map<String, Object> oidcSession = this.configuration.getOIDCSession(false);
         this.executor.execute(new ExecutionContextRunnable(() -> {
             try {
-                updateUser(idToken, accessToken);
+                // in the runnable, the http request is finished, we need to provide the session to use
+                this.configuration.setThreadLocalOIDCSession(oidcSession);
+
+                UserInfo userInfo = getUserInfo();
+                updateUser(userInfo);
             } catch (Exception e) {
                 logger.error("Failed to update user informations", e);
+            } finally {
+                this.configuration.removeThreadLocalOIDCSession();
             }
         }, this.componentManager));
     }
@@ -185,9 +199,48 @@ public class OIDCUserManager
         }
     }
 
-    public UserInfo getUserInfo(AccessToken accessToken) throws OIDCProviderException, IOException, URISyntaxException,
+    public void refreshAccessToken() throws GeneralException, URISyntaxException, IOException
+    {
+        RefreshToken refreshToken = this.configuration.getRefreshToken();
+        if (refreshToken == null) {
+            logger.error("Failed to refresh the access token because there is no refresh token");
+            return;
+        }
+
+        Endpoint tokenEndpoint = this.configuration.getTokenOIDCEndpoint();
+        ClientID clientID = this.configuration.getClientID();
+        Secret secret = this.configuration.getSecret();
+        ClientAuthentication clientAuth = new ClientSecretBasic(clientID, secret);
+        Scope scope = this.configuration.getScope();
+        URI uri = tokenEndpoint.getURI();
+        TokenRequest request = new TokenRequest(uri, clientAuth, new RefreshTokenGrant(refreshToken), scope);
+        HTTPRequest httpRequest = tokenEndpoint.prepare(request.toHTTPRequest());
+        HTTPResponse httpResponse = httpRequest.send();
+        if (httpResponse.indicatesSuccess()) {
+            TokenResponse tokenResponse = TokenResponse.parse(httpResponse);
+            AccessTokenResponse successResponse = tokenResponse.toSuccessResponse();
+            Tokens tokens = successResponse.getTokens();
+            AccessToken accessToken = tokens.getAccessToken();
+            refreshToken = tokens.getRefreshToken();
+            this.configuration.setAccessToken(accessToken, refreshToken);
+            logger.debug("Successfully refresh the access token");
+        } else {
+            logger.error("Failed to refresh the access token, got status [{}]: [{}]",
+                    httpResponse.getStatusCode(), httpResponse.getStatusMessage());
+        }
+    }
+
+    public UserInfo getUserInfo() throws OIDCProviderException, IOException, URISyntaxException,
         GeneralException, JOSEException, BadJOSEException, ParseException
     {
+        return getUserInfo(true);
+    }
+
+    private UserInfo getUserInfo(boolean canRefreshToken) throws OIDCProviderException, IOException, URISyntaxException,
+        GeneralException, JOSEException, BadJOSEException, ParseException
+    {
+        AccessToken accessToken = getAccessToken(canRefreshToken);
+
         Endpoint userInfoEndpoint = this.configuration.getUserInfoOIDCEndpoint();
 
         // Get OIDC user info
@@ -202,6 +255,11 @@ public class OIDCUserManager
         UserInfoResponse userinfoResponse = UserInfoResponse.parse(httpResponse);
 
         if (!userinfoResponse.indicatesSuccess()) {
+            this.logger.debug("OIDC user info response failed, trying to refresh the access token...");
+            if (canRefreshToken) {
+                refreshAccessToken();
+                return getUserInfo(false);
+            }
             UserInfoErrorResponse error = (UserInfoErrorResponse) userinfoResponse;
             throw new OIDCProviderException("Failed to get user info", error.getErrorObject());
         }
@@ -235,12 +293,13 @@ public class OIDCUserManager
         return userinfo;
     }
 
-    public SimplePrincipal updateUser(IDTokenClaimsSet idToken, AccessToken accessToken)
-        throws IOException, OIDCProviderException, XWikiException, QueryException, URISyntaxException, GeneralException,
-        JOSEException, BadJOSEException, ParseException
+    private AccessToken getAccessToken(boolean canRefreshToken) throws GeneralException, URISyntaxException, IOException
     {
-        // Update/Create XWiki user
-        return updateUser(idToken, getUserInfo(accessToken), accessToken);
+        if (canRefreshToken && configuration.isAccessTokenExpired()) {
+            refreshAccessToken();
+        }
+
+        return this.configuration.getAccessToken();
     }
 
     private void checkAllowedGroups(List<String> providerGroups) throws OIDCProviderException
@@ -325,9 +384,10 @@ public class OIDCUserManager
         return (T) value;
     }
 
-    public SimplePrincipal updateUser(IDTokenClaimsSet idToken, UserInfo userInfo, AccessToken accessToken)
-        throws XWikiException, QueryException, OIDCProviderException, MalformedURLException
+    public SimplePrincipal updateUser(UserInfo userInfo) throws XWikiException, QueryException, OIDCProviderException, MalformedURLException
     {
+        IDTokenClaimsSet idToken = this.configuration.getIdToken();
+
         // Get provider groups
         List<String> providerGroups = getProviderGroups(idToken, userInfo);
 
@@ -400,39 +460,7 @@ public class OIDCUserManager
 
         // Avatar
         if (userInfo.getPicture() != null) {
-            try {
-                String filename = FilenameUtils.getName(userInfo.getPicture().toString());
-                URLConnection connection = userInfo.getPicture().toURL().openConnection();
-                if (accessToken != null) {
-                    connection.setRequestProperty("Authorization", accessToken.toAuthorizationHeader());
-                }
-                connection.setRequestProperty("User-Agent", this.getClass().getPackage().getImplementationTitle() + '/'
-                    + this.getClass().getPackage().getImplementationVersion());
-
-                try (InputStream content = connection.getInputStream()) {
-                    // Get the maximum attachment size
-                    int filenameSizeLimit =
-                        xcontext.getWiki().getStore().getLimitSize(xcontext, XWikiAttachment.class, "filename");
-                    if (filename.length() > filenameSizeLimit) {
-                        // If the provided file name is too long, use an arbitrary one
-                        filename = "oidc-avatar";
-                        String ext = FilenameUtils.getExtension(filename);
-                        if (ext.length() < 10) {
-                            filename += '.' + ext;
-                        }
-                    }
-
-                    // Update the attachment content
-                    XWikiAttachment attachment = modifiableDocument.setAttachment(filename, content, xcontext);
-
-                    // Calculate the attachment mime type
-                    attachment.resetMimeType(xcontext);
-                }
-                userObject.set("avatar", filename, xcontext);
-            } catch (IOException e) {
-                this.logger.debug("Failed to get user avatar from URL [{}]: {}", userInfo.getPicture(),
-                    ExceptionUtils.getRootCauseMessage(e));
-            }
+            updateUserAvatar(userInfo, modifiableDocument, userObject, true);
         }
 
         // XWiki claims
@@ -488,6 +516,66 @@ public class OIDCUserManager
         }
 
         return new SimplePrincipal(userDocument.getPrefixedFullName());
+    }
+
+    private void updateUserAvatar(UserInfo userInfo, XWikiDocument modifiableDocument, BaseObject userObject,
+            boolean canRefreshAccessToken)
+    {
+        String filename = FilenameUtils.getName(userInfo.getPicture().toString());
+        try {
+            URLConnection connection = userInfo.getPicture().toURL().openConnection();
+            AccessToken accessToken = getAccessToken(canRefreshAccessToken);
+            if (accessToken != null) {
+                connection.setRequestProperty("Authorization", accessToken.toAuthorizationHeader());
+            }
+            connection.setRequestProperty("User-Agent", this.getClass().getPackage().getImplementationTitle() + '/'
+                + this.getClass().getPackage().getImplementationVersion());
+
+            XWikiContext xcontext = this.xcontextProvider.get();
+            try (InputStream content = connection.getInputStream()) {
+                // Get the maximum attachment size
+                int filenameSizeLimit =
+                    xcontext.getWiki().getStore().getLimitSize(xcontext, XWikiAttachment.class, "filename");
+                if (filename.length() > filenameSizeLimit) {
+                    // If the provided file name is too long, use an arbitrary one
+                    filename = "oidc-avatar";
+                    String ext = FilenameUtils.getExtension(filename);
+                    if (ext.length() < 10) {
+                        filename += '.' + ext;
+                    }
+                }
+
+                saveUserAvatar(modifiableDocument, userObject, filename, content, xcontext);
+            }
+        } catch (GeneralException | URISyntaxException | IOException e) {
+            this.logger.debug("Failed to get user avatar from URL [{}]: {}", userInfo.getPicture(),
+                    ExceptionUtils.getRootCauseMessage(e));
+            if (canRefreshAccessToken) {
+                this.logger.debug("Trying to refresh the access token...");
+                try {
+                    refreshAccessToken();
+                } catch (GeneralException | URISyntaxException | IOException ex) {
+                    logger.error("Failed to refresh the access token while updating user's avatar", ex);
+                    return;
+                }
+                updateUserAvatar(userInfo, modifiableDocument, userObject, false);
+            }
+        }
+    }
+
+    private void saveUserAvatar(XWikiDocument modifiableDocument, BaseObject userObject, String filename,
+        InputStream content, XWikiContext xcontext)
+    {
+        try {
+            // Update the attachment content
+            XWikiAttachment attachment = modifiableDocument.setAttachment(filename, content, xcontext);
+
+            // Calculate the attachment mime type
+            attachment.resetMimeType(xcontext);
+            userObject.set("avatar", filename, xcontext);
+        } catch (IOException e) {
+            logger.error("Failed to save the user's avatar", e);
+        }
     }
 
     private void updateUserMapping(XWikiDocument userDocument, BaseClass userClass, BaseObject userObject,
