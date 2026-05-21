@@ -59,6 +59,8 @@ import org.xwiki.container.Container;
 import org.xwiki.container.Request;
 import org.xwiki.container.Session;
 import org.xwiki.container.servlet.ServletSession;
+import org.xwiki.context.Execution;
+import org.xwiki.context.ExecutionContext;
 import org.xwiki.contrib.oidc.OAuth2Exception;
 import org.xwiki.contrib.oidc.OAuth2TokenStore;
 import org.xwiki.contrib.oidc.OIDCIdToken;
@@ -333,6 +335,16 @@ public class OIDCClientConfiguration extends OIDCConfiguration
 
     public static final String PROP_SESSION_ACCESSTOKEN = "oidc.accesstoken";
 
+    /**
+     * @since 2.22.0
+     */
+    public static final String PROP_SESSION_REFRESHTOKEN = "oidc.refreshtoken";
+
+    /**
+     * @since 2.22.0
+     */
+    public static final String PROP_SESSION_ACCESSTOKEN_EXPIRATION_TIMESTAMP = "oidc.accesstoken.expirationtimestamp";
+
     public static final String PROP_SESSION_IDTOKEN = "oidc.idtoken";
 
     /**
@@ -418,6 +430,8 @@ public class OIDCClientConfiguration extends OIDCConfiguration
      */
     public static final String PROP_SESSION_CODE_VERIFIER = "oidc.codeverifier";
 
+    private static final String CONTEXTPROP_SESSION = "oidc.clientsession";
+
     @Inject
     private InstanceIdManager instance;
 
@@ -454,11 +468,33 @@ public class OIDCClientConfiguration extends OIDCConfiguration
     @Inject
     private EntityReferenceSerializer<String> entityReferenceResolver;
 
+    @Inject
+    private Execution execution;
+
+    /**
+     * @param oidcSession the session to store in the execution context. This is useful when using the configuration
+     *                    from a runnable called when the http session is already gone.
+     * @since 2.4.0
+     */
+    public void setContextOIDCSession(Map<String, Object> oidcSession)
+    {
+        ExecutionContext context = execution.getContext();
+        if (context != null) {
+            context.setProperty(OIDCClientConfiguration.CONTEXTPROP_SESSION, oidcSession);
+        }
+    }
+
     /**
      * @since 2.4.0
      */
     public Map<String, Object> getOIDCSession(boolean create)
     {
+        ExecutionContext context = this.execution.getContext();
+        Map<String, Object> s = context == null ? null : (Map<String, Object>) context.getProperty(CONTEXTPROP_SESSION);
+        if (s != null) {
+            return s;
+        }
+
         Session session = this.container.getSession();
         if (session instanceof ServletSession) {
             HttpSession httpSession = ((ServletSession) session).getHttpSession();
@@ -512,7 +548,11 @@ public class OIDCClientConfiguration extends OIDCConfiguration
     {
         Map<String, Object> session = getOIDCSession(true);
         if (session != null) {
-            session.put(name, value);
+            if (value == null) {
+                session.remove(name);
+            } else {
+                session.put(name, value);
+            }
         }
     }
 
@@ -1359,6 +1399,16 @@ public class OIDCClientConfiguration extends OIDCConfiguration
     }
 
     /**
+     * @since 2.22.0
+     */
+    public RefreshToken getRefreshToken()
+    {
+        String refreshTokenValue = getSessionAttribute(PROP_SESSION_REFRESHTOKEN);
+
+        return refreshTokenValue != null ? new RefreshToken(refreshTokenValue) : null;
+    }
+
+    /**
      * @since 1.2
      */
     public void setAccessToken(AccessToken accessToken, RefreshToken refreshToken)
@@ -1367,7 +1417,30 @@ public class OIDCClientConfiguration extends OIDCConfiguration
             // Don't store the BearerAccessToken object directly as it could cause classloader problems when an extension is
             // upgraded
             setSessionAttribute(PROP_SESSION_ACCESSTOKEN, accessToken.getValue());
+            setSessionAttribute(PROP_SESSION_REFRESHTOKEN, refreshToken == null ? null : refreshToken.getValue());
+
+            long lifetime = accessToken.getLifetime();
+            if (lifetime == 0) {
+                setSessionAttribute(PROP_SESSION_ACCESSTOKEN_EXPIRATION_TIMESTAMP, 0L);
+            } else {
+                long expirationTimestamp = System.currentTimeMillis() + (lifetime * 1000);
+                setSessionAttribute(PROP_SESSION_ACCESSTOKEN_EXPIRATION_TIMESTAMP, expirationTimestamp);
+            }
         }
+    }
+
+    /**
+     * @since 2.22.0
+     */
+    public boolean isAccessTokenExpired()
+    {
+        Long expirationTimestamp = getSessionAttribute(PROP_SESSION_ACCESSTOKEN_EXPIRATION_TIMESTAMP);
+        if (expirationTimestamp == null || expirationTimestamp == 0) {
+            // we don't have expiration data
+            return false;
+        }
+
+        return expirationTimestamp >= System.currentTimeMillis();
     }
 
     /**

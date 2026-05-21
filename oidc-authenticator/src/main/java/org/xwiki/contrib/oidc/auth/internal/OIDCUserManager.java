@@ -45,12 +45,28 @@ import java.util.stream.Collectors;
 import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
+import javax.servlet.http.HttpSession;
 
+import com.nimbusds.oauth2.sdk.AccessTokenResponse;
+import com.nimbusds.oauth2.sdk.RefreshTokenGrant;
+import com.nimbusds.oauth2.sdk.Scope;
+import com.nimbusds.oauth2.sdk.TokenRequest;
+import com.nimbusds.oauth2.sdk.TokenResponse;
+import com.nimbusds.oauth2.sdk.auth.ClientAuthentication;
+import com.nimbusds.oauth2.sdk.auth.ClientSecretBasic;
+import com.nimbusds.oauth2.sdk.auth.Secret;
+import com.nimbusds.oauth2.sdk.token.BearerTokenError;
+import com.nimbusds.oauth2.sdk.token.RefreshToken;
+import com.nimbusds.oauth2.sdk.token.Tokens;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.http.client.utils.URIBuilder;
+import org.xwiki.container.Container;
+import org.xwiki.container.Session;
+import org.xwiki.container.servlet.ServletSession;
+import org.xwiki.context.Execution;
 import org.xwiki.contrib.usercommon.formatter.UserFormatter;
 import org.xwiki.contrib.usercommon.formatter.UserFormatterFactory;
 import org.securityfilter.realm.SimplePrincipal;
@@ -139,6 +155,12 @@ public class OIDCUserManager
     @Inject
     private UserFormatterFactory userFormatterFactory;
 
+    @Inject
+    private Container container;
+
+    @Inject
+    private Execution execution;
+
     private Executor executor = Executors.newFixedThreadPool(1);
 
     private static final String XWIKI_GROUP_MEMBERFIELD = "member";
@@ -149,12 +171,25 @@ public class OIDCUserManager
 
     public void updateUserInfoAsync()
     {
-        final IDTokenClaimsSet idToken = this.configuration.getIdToken();
-        final AccessToken accessToken = this.configuration.getAccessToken();
-
+        Map<String, Object> oidcSession = this.configuration.getOIDCSession(false);
+        Session session = this.container.getSession();
+        HttpSession httpSession = (session instanceof ServletSession)
+            ? ((ServletSession) session).getHttpSession()
+            : null;
         this.executor.execute(new ExecutionContextRunnable(() -> {
             try {
-                updateUser(idToken, accessToken);
+                // In the runnable, the http request is finished, we need to provide the session to use.
+                // The execution context will be automatically removed at the end of the execution of this lambda,
+                // freeing the oidc session object
+                configuration.setContextOIDCSession(oidcSession);
+
+                UserInfo userInfo = getUserInfo();
+                updateUser(userInfo);
+            } catch (InvalidAccessTokenException e) {
+                if (httpSession != null) {
+                    logger.debug("Failed to update user info while refreshing the token, invalidating the session", e);
+                    this.sessions.logout(httpSession);
+                }
             } catch (Exception e) {
                 logger.error("Failed to update user informations", e);
             }
@@ -185,9 +220,49 @@ public class OIDCUserManager
         }
     }
 
-    public UserInfo getUserInfo(AccessToken accessToken) throws OIDCProviderException, IOException, URISyntaxException,
-        GeneralException, JOSEException, BadJOSEException, ParseException
+    private void refreshAccessToken() throws GeneralException, URISyntaxException,
+        IOException, InvalidAccessTokenException
     {
+        RefreshToken refreshToken = this.configuration.getRefreshToken();
+        if (refreshToken == null) {
+            throw new InvalidAccessTokenException("Cannot refresh the access token because there is no refresh token");
+        }
+
+        Endpoint tokenEndpoint = this.configuration.getTokenOIDCEndpoint();
+        ClientID clientID = this.configuration.getClientID();
+        Secret secret = this.configuration.getSecret();
+        ClientAuthentication clientAuth = new ClientSecretBasic(clientID, secret);
+        Scope scope = this.configuration.getScope();
+        URI uri = tokenEndpoint.getURI();
+        TokenRequest request = new TokenRequest(uri, clientAuth, new RefreshTokenGrant(refreshToken), scope);
+        HTTPRequest httpRequest = tokenEndpoint.prepare(request.toHTTPRequest());
+        HTTPResponse httpResponse = httpRequest.send();
+        if (httpResponse.indicatesSuccess()) {
+            TokenResponse tokenResponse = TokenResponse.parse(httpResponse);
+            AccessTokenResponse successResponse = tokenResponse.toSuccessResponse();
+            Tokens tokens = successResponse.getTokens();
+            AccessToken accessToken = tokens.getAccessToken();
+            refreshToken = tokens.getRefreshToken();
+            this.configuration.setAccessToken(accessToken, refreshToken);
+            logger.debug("Successfully refresh the access token");
+        } else {
+            logger.debug("Failed to refresh the access token, got status [{}]: [{}]",
+                    httpResponse.getStatusCode(), httpResponse.getStatusMessage());
+            throw new InvalidAccessTokenException();
+        }
+    }
+
+    public UserInfo getUserInfo() throws OIDCProviderException, IOException, URISyntaxException,
+        GeneralException, JOSEException, BadJOSEException, ParseException, InvalidAccessTokenException
+    {
+        return getUserInfo(true);
+    }
+
+    private UserInfo getUserInfo(boolean canRefreshToken) throws OIDCProviderException, IOException, URISyntaxException,
+        GeneralException, JOSEException, BadJOSEException, ParseException, InvalidAccessTokenException
+    {
+        AccessToken accessToken = getAccessToken(canRefreshToken);
+
         Endpoint userInfoEndpoint = this.configuration.getUserInfoOIDCEndpoint();
 
         // Get OIDC user info
@@ -202,6 +277,17 @@ public class OIDCUserManager
         UserInfoResponse userinfoResponse = UserInfoResponse.parse(httpResponse);
 
         if (!userinfoResponse.indicatesSuccess()) {
+            UserInfoErrorResponse errorResponse = userinfoResponse.toErrorResponse();
+            if (BearerTokenError.INVALID_TOKEN.equals(errorResponse.getErrorObject())) {
+                // invalid_token happens when the access token is expired
+                // See https://datatracker.ietf.org/doc/html/rfc6750#section-3.1
+                this.logger.debug("OIDC user info endpoint replied with an invalid token error, " +
+                                          "trying to refresh the access token...");
+                if (canRefreshToken) {
+                    refreshAccessToken();
+                    return getUserInfo(false);
+                }
+            }
             UserInfoErrorResponse error = (UserInfoErrorResponse) userinfoResponse;
             throw new OIDCProviderException("Failed to get user info", error.getErrorObject());
         }
@@ -235,12 +321,15 @@ public class OIDCUserManager
         return userinfo;
     }
 
-    public SimplePrincipal updateUser(IDTokenClaimsSet idToken, AccessToken accessToken)
-        throws IOException, OIDCProviderException, XWikiException, QueryException, URISyntaxException, GeneralException,
-        JOSEException, BadJOSEException, ParseException
+    private AccessToken getAccessToken(boolean canRefreshToken)
+            throws GeneralException, URISyntaxException, IOException, InvalidAccessTokenException
     {
-        // Update/Create XWiki user
-        return updateUser(idToken, getUserInfo(accessToken), accessToken);
+        if (canRefreshToken && configuration.isAccessTokenExpired()) {
+            logger.debug("The access token is expired, refreshing...");
+            refreshAccessToken();
+        }
+
+        return this.configuration.getAccessToken();
     }
 
     private void checkAllowedGroups(List<String> providerGroups) throws OIDCProviderException
@@ -325,9 +414,10 @@ public class OIDCUserManager
         return (T) value;
     }
 
-    public SimplePrincipal updateUser(IDTokenClaimsSet idToken, UserInfo userInfo, AccessToken accessToken)
-        throws XWikiException, QueryException, OIDCProviderException, MalformedURLException
+    public SimplePrincipal updateUser(UserInfo userInfo) throws XWikiException, QueryException, OIDCProviderException, MalformedURLException
     {
+        IDTokenClaimsSet idToken = this.configuration.getIdToken();
+
         // Get provider groups
         List<String> providerGroups = getProviderGroups(idToken, userInfo);
 
@@ -403,6 +493,7 @@ public class OIDCUserManager
             try {
                 String filename = FilenameUtils.getName(userInfo.getPicture().toString());
                 URLConnection connection = userInfo.getPicture().toURL().openConnection();
+                AccessToken accessToken = this.configuration.getAccessToken();
                 if (accessToken != null) {
                     connection.setRequestProperty("Authorization", accessToken.toAuthorizationHeader());
                 }
