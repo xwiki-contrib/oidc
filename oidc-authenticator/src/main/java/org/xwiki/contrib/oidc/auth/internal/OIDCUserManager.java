@@ -460,7 +460,39 @@ public class OIDCUserManager
 
         // Avatar
         if (userInfo.getPicture() != null) {
-            updateUserAvatar(userInfo, modifiableDocument, userObject, true);
+            try {
+                String filename = FilenameUtils.getName(userInfo.getPicture().toString());
+                URLConnection connection = userInfo.getPicture().toURL().openConnection();
+                if (accessToken != null) {
+                    connection.setRequestProperty("Authorization", accessToken.toAuthorizationHeader());
+                }
+                connection.setRequestProperty("User-Agent", this.getClass().getPackage().getImplementationTitle() + '/'
+                    + this.getClass().getPackage().getImplementationVersion());
+
+                try (InputStream content = connection.getInputStream()) {
+                    // Get the maximum attachment size
+                    int filenameSizeLimit =
+                        xcontext.getWiki().getStore().getLimitSize(xcontext, XWikiAttachment.class, "filename");
+                    if (filename.length() > filenameSizeLimit) {
+                        // If the provided file name is too long, use an arbitrary one
+                        filename = "oidc-avatar";
+                        String ext = FilenameUtils.getExtension(filename);
+                        if (ext.length() < 10) {
+                            filename += '.' + ext;
+                        }
+                    }
+
+                    // Update the attachment content
+                    XWikiAttachment attachment = modifiableDocument.setAttachment(filename, content, xcontext);
+
+                    // Calculate the attachment mime type
+                    attachment.resetMimeType(xcontext);
+                }
+                userObject.set("avatar", filename, xcontext);
+            } catch (IOException e) {
+                this.logger.debug("Failed to get user avatar from URL [{}]: {}", userInfo.getPicture(),
+                    ExceptionUtils.getRootCauseMessage(e));
+            }
         }
 
         // XWiki claims
@@ -516,66 +548,6 @@ public class OIDCUserManager
         }
 
         return new SimplePrincipal(userDocument.getPrefixedFullName());
-    }
-
-    private void updateUserAvatar(UserInfo userInfo, XWikiDocument modifiableDocument, BaseObject userObject,
-            boolean canRefreshAccessToken)
-    {
-        String filename = FilenameUtils.getName(userInfo.getPicture().toString());
-        try {
-            URLConnection connection = userInfo.getPicture().toURL().openConnection();
-            AccessToken accessToken = getAccessToken(canRefreshAccessToken);
-            if (accessToken != null) {
-                connection.setRequestProperty("Authorization", accessToken.toAuthorizationHeader());
-            }
-            connection.setRequestProperty("User-Agent", this.getClass().getPackage().getImplementationTitle() + '/'
-                + this.getClass().getPackage().getImplementationVersion());
-
-            XWikiContext xcontext = this.xcontextProvider.get();
-            try (InputStream content = connection.getInputStream()) {
-                // Get the maximum attachment size
-                int filenameSizeLimit =
-                    xcontext.getWiki().getStore().getLimitSize(xcontext, XWikiAttachment.class, "filename");
-                if (filename.length() > filenameSizeLimit) {
-                    // If the provided file name is too long, use an arbitrary one
-                    filename = "oidc-avatar";
-                    String ext = FilenameUtils.getExtension(filename);
-                    if (ext.length() < 10) {
-                        filename += '.' + ext;
-                    }
-                }
-
-                saveUserAvatar(modifiableDocument, userObject, filename, content, xcontext);
-            }
-        } catch (GeneralException | URISyntaxException | IOException e) {
-            this.logger.debug("Failed to get user avatar from URL [{}]: {}", userInfo.getPicture(),
-                    ExceptionUtils.getRootCauseMessage(e));
-            if (canRefreshAccessToken) {
-                this.logger.debug("Trying to refresh the access token...");
-                try {
-                    refreshAccessToken();
-                } catch (GeneralException | URISyntaxException | IOException ex) {
-                    logger.error("Failed to refresh the access token while updating user's avatar", ex);
-                    return;
-                }
-                updateUserAvatar(userInfo, modifiableDocument, userObject, false);
-            }
-        }
-    }
-
-    private void saveUserAvatar(XWikiDocument modifiableDocument, BaseObject userObject, String filename,
-        InputStream content, XWikiContext xcontext)
-    {
-        try {
-            // Update the attachment content
-            XWikiAttachment attachment = modifiableDocument.setAttachment(filename, content, xcontext);
-
-            // Calculate the attachment mime type
-            attachment.resetMimeType(xcontext);
-            userObject.set("avatar", filename, xcontext);
-        } catch (IOException e) {
-            logger.error("Failed to save the user's avatar", e);
-        }
     }
 
     private void updateUserMapping(XWikiDocument userDocument, BaseClass userClass, BaseObject userObject,
