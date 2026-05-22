@@ -463,6 +463,7 @@ public class OIDCUserManager
             try {
                 String filename = FilenameUtils.getName(userInfo.getPicture().toString());
                 URLConnection connection = userInfo.getPicture().toURL().openConnection();
+                AccessToken accessToken = this.configuration.getAccessToken();
                 if (accessToken != null) {
                     connection.setRequestProperty("Authorization", accessToken.toAuthorizationHeader());
                 }
