@@ -178,11 +178,13 @@ public class OIDCUserManager
 
                 UserInfo userInfo = getUserInfo();
                 updateUser(userInfo);
-            } catch (Exception e) {
-                logger.error("Failed to update user informations", e);
+            } catch (OIDCTokenRefreshFailureException e) {
                 if (httpSession != null) {
+                    logger.debug("Failed to update user info while refreshing the token, invalidating the session", e);
                     this.sessions.logout(httpSession);
                 }
+            } catch (Exception e) {
+                logger.error("Failed to update user informations", e);
             } finally {
                 this.configuration.removeThreadLocalOIDCSession();
             }
@@ -213,7 +215,8 @@ public class OIDCUserManager
         }
     }
 
-    public void refreshAccessToken() throws GeneralException, URISyntaxException, IOException
+    public void refreshAccessToken() throws GeneralException, URISyntaxException,
+        IOException, OIDCTokenRefreshFailureException
     {
         RefreshToken refreshToken = this.configuration.getRefreshToken();
         if (refreshToken == null) {
@@ -239,19 +242,20 @@ public class OIDCUserManager
             this.configuration.setAccessToken(accessToken, refreshToken);
             logger.debug("Successfully refresh the access token");
         } else {
-            logger.error("Failed to refresh the access token, got status [{}]: [{}]",
+            logger.debug("Failed to refresh the access token, got status [{}]: [{}]",
                     httpResponse.getStatusCode(), httpResponse.getStatusMessage());
+            throw new OIDCTokenRefreshFailureException();
         }
     }
 
     public UserInfo getUserInfo() throws OIDCProviderException, IOException, URISyntaxException,
-        GeneralException, JOSEException, BadJOSEException, ParseException
+        GeneralException, JOSEException, BadJOSEException, ParseException, OIDCTokenRefreshFailureException
     {
         return getUserInfo(true);
     }
 
     private UserInfo getUserInfo(boolean canRefreshToken) throws OIDCProviderException, IOException, URISyntaxException,
-        GeneralException, JOSEException, BadJOSEException, ParseException
+        GeneralException, JOSEException, BadJOSEException, ParseException, OIDCTokenRefreshFailureException
     {
         AccessToken accessToken = getAccessToken(canRefreshToken);
 
@@ -307,7 +311,8 @@ public class OIDCUserManager
         return userinfo;
     }
 
-    private AccessToken getAccessToken(boolean canRefreshToken) throws GeneralException, URISyntaxException, IOException
+    private AccessToken getAccessToken(boolean canRefreshToken)
+            throws GeneralException, URISyntaxException, IOException, OIDCTokenRefreshFailureException
     {
         if (canRefreshToken && configuration.isAccessTokenExpired()) {
             refreshAccessToken();
