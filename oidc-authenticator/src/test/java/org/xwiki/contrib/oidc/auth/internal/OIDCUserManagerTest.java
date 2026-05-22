@@ -986,11 +986,7 @@ class OIDCUserManagerTest
             r.put("subject_types_supported", new JSONArray(List.of("public")));
             r.put("id_token_signing_alg_values_supported", new JSONArray(List.of("RS256")));
             r.put("claims_supported", new JSONArray(List.of("sub", "iss", "aud", "iat", "exp", "email", "name")));
-            byte[] response = r.toString().getBytes(StandardCharsets.UTF_8);
-            exchange.getResponseHeaders().add("Content-Type", "application/json");
-            exchange.sendResponseHeaders(HttpURLConnection.HTTP_OK, response.length);
-            exchange.getResponseBody().write(response);
-            exchange.close();
+            sendResponse(exchange, r, HttpURLConnection.HTTP_OK);
         });
 
         httpServer.createContext("/userinfo", exchange -> {
@@ -999,51 +995,59 @@ class OIDCUserManagerTest
             if (authorization.startsWith("Bearer ")) {
                 accessToken = authorization.substring(7);
             }
-            if ("expiredaccesstoken".equals(accessToken)) {
-                exchange.sendResponseHeaders(HttpURLConnection.HTTP_UNAUTHORIZED, 0);
-                exchange.getResponseBody().write(new byte[] {});
-                exchange.close();
-                return;
-            }
             JSONObject r = new JSONObject();
-            r.put("sub", "1234567890");
-            r.put("name", "John Doe");
-            byte[] response = r.toString().getBytes(StandardCharsets.UTF_8);
-            exchange.getResponseHeaders().add("Content-Type", "application/json");
-            exchange.sendResponseHeaders(HttpURLConnection.HTTP_OK, response.length);
-            exchange.getResponseBody().write(response);
-            exchange.close();
+            int httpCode = HttpURLConnection.HTTP_OK;
+            if ("expiredaccesstoken".equals(accessToken)) {
+                httpCode = handleInvalidToken(r);
+            } else {
+                r.put("sub", "1234567890");
+                r.put("name", "John Doe");
+            }
+            sendResponse(exchange, r, httpCode);
         });
 
         httpServer.createContext("/token", exchange -> {
+            int httpCode = HttpURLConnection.HTTP_OK;
+            JSONObject r = new JSONObject();
             boolean authorized = false;
             String authorization = exchange.getRequestHeaders().getFirst("Authorization");
             if (authorization.startsWith("Basic ")) {
                 String[] decoded = new String(Base64.getDecoder().decode(authorization.substring(6))).split(":");
                 authorized = decoded[0].equals("myclientid") && decoded[1].equals("mysecret");
             }
-            if (!authorized) {
-                exchange.sendResponseHeaders(HttpURLConnection.HTTP_UNAUTHORIZED, 0);
-                exchange.getResponseBody().write(new byte[] {});
-                exchange.close();
-                return;
+            if (authorized) {
+                Map<String, String> p = parseURLEncodedBody(exchange);
+                String refreshToken = "refreshed" + p.get("refresh_token");
+                r.put("access_token", "refreshedaccesstoken");
+                r.put("refresh_token", refreshToken);
+                r.put("token_type", "Bearer");
+                r.put("expires_in", 3600);
+            } else {
+                httpCode = handleInvalidToken(r);
             }
-            Map<String, String> p = parseURLEncodedBody(exchange);
-            String refreshToken = "refreshed" + p.get("refresh_token");
-            JSONObject r = new JSONObject();
-            r.put("access_token", "refreshedaccesstoken");
-            r.put("refresh_token", refreshToken);
-            r.put("token_type", "Bearer");
-            r.put("expires_in", 3600);
-            byte[] response = r.toString().getBytes(StandardCharsets.UTF_8);
-            exchange.getResponseHeaders().add("Content-Type", "application/json");
-            exchange.sendResponseHeaders(HttpURLConnection.HTTP_OK, response.length);
-            exchange.getResponseBody().write(response);
-            exchange.close();
+            sendResponse(exchange, r, httpCode);
         });
 
         httpServer.start();
         return httpServer;
+    }
+
+    private static void sendResponse(HttpExchange exchange, JSONObject r, int httpCode) throws IOException
+    {
+        byte[] response = r.toString().getBytes(StandardCharsets.UTF_8);
+        exchange.getResponseHeaders().add("Content-Type", "application/json");
+        exchange.sendResponseHeaders(httpCode, response.length);
+        exchange.getResponseBody().write(response);
+        exchange.close();
+    }
+
+    private static int handleInvalidToken(JSONObject r)
+    {
+        int httpCode;
+        httpCode = HttpURLConnection.HTTP_UNAUTHORIZED;
+        r.put("error", "invalid_token");
+        r.put("reason", "This token is invalid");
+        return httpCode;
     }
 
     private Map<String, String> parseURLEncodedParameters(String s)
