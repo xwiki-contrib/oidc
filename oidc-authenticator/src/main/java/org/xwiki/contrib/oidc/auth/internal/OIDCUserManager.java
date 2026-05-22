@@ -178,7 +178,7 @@ public class OIDCUserManager
 
                 UserInfo userInfo = getUserInfo();
                 updateUser(userInfo);
-            } catch (OIDCTokenRefreshFailureException e) {
+            } catch (InvalidAccessTokenException e) {
                 if (httpSession != null) {
                     logger.debug("Failed to update user info while refreshing the token, invalidating the session", e);
                     this.sessions.logout(httpSession);
@@ -216,7 +216,7 @@ public class OIDCUserManager
     }
 
     public void refreshAccessToken() throws GeneralException, URISyntaxException,
-        IOException, OIDCTokenRefreshFailureException
+        IOException, InvalidAccessTokenException
     {
         RefreshToken refreshToken = this.configuration.getRefreshToken();
         if (refreshToken == null) {
@@ -244,18 +244,18 @@ public class OIDCUserManager
         } else {
             logger.debug("Failed to refresh the access token, got status [{}]: [{}]",
                     httpResponse.getStatusCode(), httpResponse.getStatusMessage());
-            throw new OIDCTokenRefreshFailureException();
+            throw new InvalidAccessTokenException();
         }
     }
 
     public UserInfo getUserInfo() throws OIDCProviderException, IOException, URISyntaxException,
-        GeneralException, JOSEException, BadJOSEException, ParseException, OIDCTokenRefreshFailureException
+        GeneralException, JOSEException, BadJOSEException, ParseException, InvalidAccessTokenException
     {
         return getUserInfo(true);
     }
 
     private UserInfo getUserInfo(boolean canRefreshToken) throws OIDCProviderException, IOException, URISyntaxException,
-        GeneralException, JOSEException, BadJOSEException, ParseException, OIDCTokenRefreshFailureException
+        GeneralException, JOSEException, BadJOSEException, ParseException, InvalidAccessTokenException
     {
         AccessToken accessToken = getAccessToken(canRefreshToken);
 
@@ -316,7 +316,7 @@ public class OIDCUserManager
     }
 
     private AccessToken getAccessToken(boolean canRefreshToken)
-            throws GeneralException, URISyntaxException, IOException, OIDCTokenRefreshFailureException
+            throws GeneralException, URISyntaxException, IOException, InvalidAccessTokenException
     {
         if (canRefreshToken && configuration.isAccessTokenExpired()) {
             refreshAccessToken();

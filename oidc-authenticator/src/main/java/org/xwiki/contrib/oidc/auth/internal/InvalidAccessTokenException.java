@@ -24,6 +24,6 @@ package org.xwiki.contrib.oidc.auth.internal;
  * @since 2.22.0
  * @version $Id$
  */
-public class OIDCTokenRefreshFailureException extends Exception
+public class InvalidAccessTokenException extends Exception
 {
 }
