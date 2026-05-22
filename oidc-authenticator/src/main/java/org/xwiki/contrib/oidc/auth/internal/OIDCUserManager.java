@@ -65,6 +65,8 @@ import org.apache.http.client.utils.URIBuilder;
 import org.xwiki.container.Container;
 import org.xwiki.container.Session;
 import org.xwiki.container.servlet.ServletSession;
+import org.xwiki.context.Execution;
+import org.xwiki.context.ExecutionContextManager;
 import org.xwiki.contrib.usercommon.formatter.UserFormatter;
 import org.xwiki.contrib.usercommon.formatter.UserFormatterFactory;
 import org.securityfilter.realm.SimplePrincipal;
@@ -156,6 +158,9 @@ public class OIDCUserManager
     @Inject
     private Container container;
 
+    @Inject
+    private Execution execution;
+
     private Executor executor = Executors.newFixedThreadPool(1);
 
     private static final String XWIKI_GROUP_MEMBERFIELD = "member";
@@ -173,8 +178,10 @@ public class OIDCUserManager
             : null;
         this.executor.execute(new ExecutionContextRunnable(() -> {
             try {
-                // in the runnable, the http request is finished, we need to provide the session to use
-                this.configuration.setThreadLocalOIDCSession(oidcSession);
+                // In the runnable, the http request is finished, we need to provide the session to use.
+                // The execution context will be automatically removed at the end of the execution of this lambda,
+                // freeing the oidc session object
+                execution.getContext().setProperty(OIDCClientConfiguration.CONTEXTPROP_SESSION, oidcSession);
 
                 UserInfo userInfo = getUserInfo();
                 updateUser(userInfo);
@@ -185,8 +192,6 @@ public class OIDCUserManager
                 }
             } catch (Exception e) {
                 logger.error("Failed to update user informations", e);
-            } finally {
-                this.configuration.removeThreadLocalOIDCSession();
             }
         }, this.componentManager));
     }
