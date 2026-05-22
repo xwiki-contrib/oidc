@@ -59,6 +59,7 @@ import org.xwiki.container.Container;
 import org.xwiki.container.Request;
 import org.xwiki.container.Session;
 import org.xwiki.container.servlet.ServletSession;
+import org.xwiki.context.Execution;
 import org.xwiki.contrib.oidc.OAuth2Exception;
 import org.xwiki.contrib.oidc.OAuth2TokenStore;
 import org.xwiki.contrib.oidc.OIDCIdToken;
@@ -223,6 +224,7 @@ public class OIDCClientConfiguration extends OIDCConfiguration
 
     public static final String PROP_SKIPPED = "oidc.skipped";
 
+    public static final String CONTEXTPROP_SESSION = "oidc.clientsession";
     /**
      * @since 1.13
      */
@@ -464,35 +466,15 @@ public class OIDCClientConfiguration extends OIDCConfiguration
     @Inject
     private EntityReferenceSerializer<String> entityReferenceResolver;
 
-    private final ThreadLocal<Map<String, Object>> threadLocalSession = new ThreadLocal<>();
-
-    /**
-     * Set the session map to use in the current thread, instead of the one saved in the current http request.
-     * Useful when accessing the configuration outside an http request.
-     * @param session the session map to use in this thread
-     * NOTE: don't forget to call #removeThreadLocalOIDCSession() (in a finally block for instance)
-     * @since 2.22.0
-     */
-    public void setThreadLocalOIDCSession(Map<String, Object> session)
-    {
-        this.threadLocalSession.set(session);
-    }
-
-    /**
-     * Free the current thread's session map to use.
-     * @since 2.22.0
-     */
-    public void removeThreadLocalOIDCSession()
-    {
-        this.threadLocalSession.remove();
-    }
+    @Inject
+    private Execution execution;
 
     /**
      * @since 2.4.0
      */
     public Map<String, Object> getOIDCSession(boolean create)
     {
-        Map<String, Object> s = this.threadLocalSession.get();
+        Map<String, Object> s = (Map<String, Object>) this.execution.getContext().getProperty(CONTEXTPROP_SESSION);
         if (s != null) {
             return s;
         }
