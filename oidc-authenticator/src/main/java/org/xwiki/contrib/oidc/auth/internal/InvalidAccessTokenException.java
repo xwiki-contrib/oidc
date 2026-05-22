@@ -26,4 +26,19 @@ package org.xwiki.contrib.oidc.auth.internal;
  */
 public class InvalidAccessTokenException extends Exception
 {
+    /**
+     * Constructor.
+     */
+    public InvalidAccessTokenException()
+    {
+
+    }
+
+    /**
+     * @param message the exception message
+     */
+    public InvalidAccessTokenException(String message)
+    {
+        super(message);
+    }
 }
