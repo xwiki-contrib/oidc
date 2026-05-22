@@ -273,10 +273,14 @@ public class OIDCUserManager
         UserInfoResponse userinfoResponse = UserInfoResponse.parse(httpResponse);
 
         if (!userinfoResponse.indicatesSuccess()) {
-            this.logger.debug("OIDC user info response failed, trying to refresh the access token...");
-            if (canRefreshToken) {
-                refreshAccessToken();
-                return getUserInfo(false);
+            UserInfoErrorResponse errorResponse = userinfoResponse.toErrorResponse();
+            if ("invalid_token".equals(errorResponse.getErrorObject().getCode())) {
+                this.logger.debug("OIDC user info endpoint replied with an invalid token error, " +
+                                          "trying to refresh the access token...");
+                if (canRefreshToken) {
+                    refreshAccessToken();
+                    return getUserInfo(false);
+                }
             }
             UserInfoErrorResponse error = (UserInfoErrorResponse) userinfoResponse;
             throw new OIDCProviderException("Failed to get user info", error.getErrorObject());
