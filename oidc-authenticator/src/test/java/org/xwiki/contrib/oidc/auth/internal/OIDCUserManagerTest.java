@@ -99,6 +99,7 @@ import com.xpn.xwiki.test.junit5.mockito.InjectMockitoOldcore;
 import com.xpn.xwiki.test.junit5.mockito.OldcoreTest;
 import com.xpn.xwiki.test.reference.ReferenceComponentList;
 
+import static com.nimbusds.oauth2.sdk.OAuth2Error.INVALID_GRANT_CODE;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -1045,7 +1046,7 @@ class OIDCUserManagerTest
     {
         int httpCode;
         httpCode = HttpURLConnection.HTTP_UNAUTHORIZED;
-        r.put("error", "invalid_token");
+        r.put("error", INVALID_GRANT_CODE);
         r.put("reason", "This token is invalid");
         return httpCode;
     }
