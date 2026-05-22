@@ -215,13 +215,12 @@ public class OIDCUserManager
         }
     }
 
-    public void refreshAccessToken() throws GeneralException, URISyntaxException,
+    private void refreshAccessToken() throws GeneralException, URISyntaxException,
         IOException, InvalidAccessTokenException
     {
         RefreshToken refreshToken = this.configuration.getRefreshToken();
         if (refreshToken == null) {
-            logger.error("Failed to refresh the access token because there is no refresh token");
-            return;
+            throw new InvalidAccessTokenException("Cannot refresh the access token because there is no refresh token");
         }
 
         Endpoint tokenEndpoint = this.configuration.getTokenOIDCEndpoint();
@@ -319,6 +318,7 @@ public class OIDCUserManager
             throws GeneralException, URISyntaxException, IOException, InvalidAccessTokenException
     {
         if (canRefreshToken && configuration.isAccessTokenExpired()) {
+            logger.debug("The access token is expired, refreshing...");
             refreshAccessToken();
         }
 
