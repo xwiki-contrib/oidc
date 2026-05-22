@@ -115,6 +115,8 @@ import com.xpn.xwiki.objects.BaseObject;
 import com.xpn.xwiki.objects.classes.BaseClass;
 import com.xpn.xwiki.web.XWikiRequest;
 
+import static com.nimbusds.oauth2.sdk.OAuth2Error.INVALID_GRANT_CODE;
+
 /**
  * Various tools to manipulate users.
  *
@@ -278,7 +280,7 @@ public class OIDCUserManager
 
         if (!userinfoResponse.indicatesSuccess()) {
             UserInfoErrorResponse errorResponse = userinfoResponse.toErrorResponse();
-            if ("invalid_token".equals(errorResponse.getErrorObject().getCode())) {
+            if (INVALID_GRANT_CODE.equals(errorResponse.getErrorObject().getCode())) {
                 this.logger.debug("OIDC user info endpoint replied with an invalid token error, " +
                                           "trying to refresh the access token...");
                 if (canRefreshToken) {
