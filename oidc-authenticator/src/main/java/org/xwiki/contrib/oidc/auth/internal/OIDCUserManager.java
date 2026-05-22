@@ -45,6 +45,7 @@ import java.util.stream.Collectors;
 import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
+import javax.servlet.http.HttpSession;
 
 import com.nimbusds.oauth2.sdk.AccessTokenResponse;
 import com.nimbusds.oauth2.sdk.RefreshTokenGrant;
@@ -61,6 +62,9 @@ import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.http.client.utils.URIBuilder;
+import org.xwiki.container.Container;
+import org.xwiki.container.Session;
+import org.xwiki.container.servlet.ServletSession;
 import org.xwiki.contrib.usercommon.formatter.UserFormatter;
 import org.xwiki.contrib.usercommon.formatter.UserFormatterFactory;
 import org.securityfilter.realm.SimplePrincipal;
@@ -149,6 +153,9 @@ public class OIDCUserManager
     @Inject
     private UserFormatterFactory userFormatterFactory;
 
+    @Inject
+    private Container container;
+
     private Executor executor = Executors.newFixedThreadPool(1);
 
     private static final String XWIKI_GROUP_MEMBERFIELD = "member";
@@ -160,6 +167,10 @@ public class OIDCUserManager
     public void updateUserInfoAsync()
     {
         Map<String, Object> oidcSession = this.configuration.getOIDCSession(false);
+        Session session = this.container.getSession();
+        HttpSession httpSession = (session instanceof ServletSession)
+            ? ((ServletSession) session).getHttpSession()
+            : null;
         this.executor.execute(new ExecutionContextRunnable(() -> {
             try {
                 // in the runnable, the http request is finished, we need to provide the session to use
@@ -169,6 +180,9 @@ public class OIDCUserManager
                 updateUser(userInfo);
             } catch (Exception e) {
                 logger.error("Failed to update user informations", e);
+                if (httpSession != null) {
+                    this.sessions.logout(httpSession);
+                }
             } finally {
                 this.configuration.removeThreadLocalOIDCSession();
             }
