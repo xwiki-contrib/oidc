@@ -1412,7 +1412,7 @@ public class OIDCClientConfiguration extends OIDCConfiguration
             // Don't store the BearerAccessToken object directly as it could cause classloader problems when an extension is
             // upgraded
             setSessionAttribute(PROP_SESSION_ACCESSTOKEN, accessToken.getValue());
-            setSessionAttribute(PROP_SESSION_REFRESHTOKEN, refreshToken.getValue());
+            setSessionAttribute(PROP_SESSION_REFRESHTOKEN, refreshToken == null ? null : refreshToken.getValue());
 
             long lifetime = accessToken.getLifetime();
             if (lifetime == 0) {
