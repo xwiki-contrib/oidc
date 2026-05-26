@@ -225,7 +225,6 @@ public class OIDCClientConfiguration extends OIDCConfiguration
 
     public static final String PROP_SKIPPED = "oidc.skipped";
 
-    public static final String CONTEXTPROP_SESSION = "oidc.clientsession";
     /**
      * @since 1.13
      */
@@ -430,6 +429,8 @@ public class OIDCClientConfiguration extends OIDCConfiguration
      * @since 2.20.0
      */
     public static final String PROP_SESSION_CODE_VERIFIER = "oidc.codeverifier";
+
+    private static final String CONTEXTPROP_SESSION = "oidc.clientsession";
 
     @Inject
     private InstanceIdManager instance;
