@@ -183,7 +183,7 @@ public class OIDCUserManager
                 // In the runnable, the http request is finished, we need to provide the session to use.
                 // The execution context will be automatically removed at the end of the execution of this lambda,
                 // freeing the oidc session object
-                execution.getContext().setProperty(OIDCClientConfiguration.CONTEXTPROP_SESSION, oidcSession);
+                configuration.setContextOIDCSession(oidcSession);
 
                 UserInfo userInfo = getUserInfo();
                 updateUser(userInfo);
