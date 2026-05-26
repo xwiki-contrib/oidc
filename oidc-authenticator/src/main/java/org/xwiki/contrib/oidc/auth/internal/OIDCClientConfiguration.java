@@ -547,7 +547,11 @@ public class OIDCClientConfiguration extends OIDCConfiguration
     {
         Map<String, Object> session = getOIDCSession(true);
         if (session != null) {
-            session.put(name, value);
+            if (value == null) {
+                session.remove(name);
+            } else {
+                session.put(name, value);
+            }
         }
     }
 
