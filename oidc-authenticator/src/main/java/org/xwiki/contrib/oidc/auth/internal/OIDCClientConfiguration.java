@@ -471,6 +471,19 @@ public class OIDCClientConfiguration extends OIDCConfiguration
     private Execution execution;
 
     /**
+     * @param oidcSession the session to store in the execution context. This is useful when using the configuration
+     *                    from a runnable called when the http session is already gone.
+     * @since 2.4.0
+     */
+    public void setContextOIDCSession(Map<String, Object> oidcSession)
+    {
+        ExecutionContext context = execution.getContext();
+        if (context != null) {
+            context.setProperty(OIDCClientConfiguration.CONTEXTPROP_SESSION, oidcSession);
+        }
+    }
+
+    /**
      * @since 2.4.0
      */
     public Map<String, Object> getOIDCSession(boolean create)
