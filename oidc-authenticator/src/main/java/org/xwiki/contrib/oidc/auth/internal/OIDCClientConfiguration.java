@@ -60,6 +60,7 @@ import org.xwiki.container.Request;
 import org.xwiki.container.Session;
 import org.xwiki.container.servlet.ServletSession;
 import org.xwiki.context.Execution;
+import org.xwiki.context.ExecutionContext;
 import org.xwiki.contrib.oidc.OAuth2Exception;
 import org.xwiki.contrib.oidc.OAuth2TokenStore;
 import org.xwiki.contrib.oidc.OIDCIdToken;
@@ -474,7 +475,8 @@ public class OIDCClientConfiguration extends OIDCConfiguration
      */
     public Map<String, Object> getOIDCSession(boolean create)
     {
-        Map<String, Object> s = (Map<String, Object>) this.execution.getContext().getProperty(CONTEXTPROP_SESSION);
+        ExecutionContext context = this.execution.getContext();
+        Map<String, Object> s = context == null ? null : (Map<String, Object>) context.getProperty(CONTEXTPROP_SESSION);
         if (s != null) {
             return s;
         }
