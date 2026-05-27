@@ -55,6 +55,7 @@ import com.nimbusds.oauth2.sdk.TokenResponse;
 import com.nimbusds.oauth2.sdk.auth.ClientAuthentication;
 import com.nimbusds.oauth2.sdk.auth.ClientSecretBasic;
 import com.nimbusds.oauth2.sdk.auth.Secret;
+import com.nimbusds.oauth2.sdk.token.BearerTokenError;
 import com.nimbusds.oauth2.sdk.token.RefreshToken;
 import com.nimbusds.oauth2.sdk.token.Tokens;
 import org.apache.commons.collections4.CollectionUtils;
@@ -66,7 +67,6 @@ import org.xwiki.container.Container;
 import org.xwiki.container.Session;
 import org.xwiki.container.servlet.ServletSession;
 import org.xwiki.context.Execution;
-import org.xwiki.context.ExecutionContextManager;
 import org.xwiki.contrib.usercommon.formatter.UserFormatter;
 import org.xwiki.contrib.usercommon.formatter.UserFormatterFactory;
 import org.securityfilter.realm.SimplePrincipal;
@@ -114,8 +114,6 @@ import com.xpn.xwiki.doc.XWikiDocument;
 import com.xpn.xwiki.objects.BaseObject;
 import com.xpn.xwiki.objects.classes.BaseClass;
 import com.xpn.xwiki.web.XWikiRequest;
-
-import static com.nimbusds.oauth2.sdk.OAuth2Error.INVALID_GRANT_CODE;
 
 /**
  * Various tools to manipulate users.
@@ -280,7 +278,9 @@ public class OIDCUserManager
 
         if (!userinfoResponse.indicatesSuccess()) {
             UserInfoErrorResponse errorResponse = userinfoResponse.toErrorResponse();
-            if (INVALID_GRANT_CODE.equals(errorResponse.getErrorObject().getCode())) {
+            if (BearerTokenError.INVALID_TOKEN.equals(errorResponse.getErrorObject())) {
+                // invalid_token happens when the access token is expired
+                // See https://datatracker.ietf.org/doc/html/rfc6750#section-3.1
                 this.logger.debug("OIDC user info endpoint replied with an invalid token error, " +
                                           "trying to refresh the access token...");
                 if (canRefreshToken) {

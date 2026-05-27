@@ -41,6 +41,7 @@ import javax.inject.Named;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
 
+import com.nimbusds.oauth2.sdk.token.BearerTokenError;
 import com.nimbusds.oauth2.sdk.token.RefreshToken;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
@@ -99,13 +100,11 @@ import com.xpn.xwiki.test.junit5.mockito.InjectMockitoOldcore;
 import com.xpn.xwiki.test.junit5.mockito.OldcoreTest;
 import com.xpn.xwiki.test.reference.ReferenceComponentList;
 
-import static com.nimbusds.oauth2.sdk.OAuth2Error.INVALID_GRANT_CODE;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -1046,7 +1045,7 @@ class OIDCUserManagerTest
     {
         int httpCode;
         httpCode = HttpURLConnection.HTTP_UNAUTHORIZED;
-        r.put("error", INVALID_GRANT_CODE);
+        r.put("error", BearerTokenError.INVALID_TOKEN.getCode());
         r.put("reason", "This token is invalid");
         return httpCode;
     }
