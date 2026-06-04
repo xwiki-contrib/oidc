@@ -1440,7 +1440,7 @@ public class OIDCClientConfiguration extends OIDCConfiguration
             return false;
         }
 
-        return expirationTimestamp >= System.currentTimeMillis();
+        return expirationTimestamp <= System.currentTimeMillis();
     }
 
     /**
