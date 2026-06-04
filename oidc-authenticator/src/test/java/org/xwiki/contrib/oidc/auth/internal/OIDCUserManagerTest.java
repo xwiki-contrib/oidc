@@ -965,6 +965,7 @@ class OIDCUserManagerTest
         this.configuration.setAccessToken(new BearerAccessToken("validaccesstoken", 1, this.configuration.getScope()), new RefreshToken("validrefreshtoken"));
         HttpServer server = startServer();
         try {
+            Thread.sleep(1100);
             this.manager.getUserInfo();
             assertEquals("refreshedaccesstoken", this.configuration.getAccessToken().getValue());
             assertEquals("refreshedvalidrefreshtoken", this.configuration.getRefreshToken().getValue());

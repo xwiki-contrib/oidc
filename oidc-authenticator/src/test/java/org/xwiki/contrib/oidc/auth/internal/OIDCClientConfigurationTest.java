@@ -32,6 +32,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import com.nimbusds.oauth2.sdk.token.BearerAccessToken;
+import com.nimbusds.oauth2.sdk.token.RefreshToken;
 import org.junit.jupiter.api.Test;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -39,6 +41,8 @@ import org.xwiki.configuration.ConfigurationSource;
 import org.xwiki.container.Container;
 import org.xwiki.container.Request;
 import org.xwiki.container.servlet.ServletRequest;
+import org.xwiki.context.Execution;
+import org.xwiki.context.ExecutionContext;
 import org.xwiki.contrib.oidc.OAuth2TokenStore;
 import org.xwiki.contrib.oidc.auth.store.OIDCClientConfigurationStore;
 import org.xwiki.contrib.oidc.provider.internal.OIDCManager;
@@ -66,6 +70,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.same;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.xwiki.contrib.oidc.auth.internal.OIDCClientConfiguration.PROP_IS_USED_FOR_AUTHENTICATION;
 
 /**
  * Validate {@link OIDCClientConfiguration}.
@@ -96,6 +101,9 @@ class OIDCClientConfigurationTest
 
     @MockComponent
     private OAuth2TokenStore tokenStore;
+
+    @MockComponent
+    private Execution execution;
 
     private org.xwiki.contrib.oidc.auth.store.OIDCClientConfiguration setUpWikiConfig() throws Exception
     {
@@ -411,5 +419,23 @@ class OIDCClientConfigurationTest
 
         assertEquals("XWiki.mygroup", this.configuration.toXWikiGroup("mygroup"));
         assertEquals("XWiki.my\\.group", this.configuration.toXWikiGroup("my.group"));
+    }
+
+    @Test
+    void expiredToken() throws InterruptedException
+    {
+        // Ensure we have a Session
+        when(execution.getContext()).thenReturn(new ExecutionContext());
+        this.configuration.setContextOIDCSession(new HashMap<>());
+        this.configuration.setSessionAttribute(PROP_IS_USED_FOR_AUTHENTICATION, true);
+
+        this.configuration.setAccessToken(new BearerAccessToken(), new RefreshToken());
+        assertFalse(this.configuration.isAccessTokenExpired(), "an access token without lifetime shouldn't expire");
+        this.configuration.setAccessToken(new BearerAccessToken(600L, null), new RefreshToken());
+        assertFalse(this.configuration.isAccessTokenExpired(), "an access token with a long enough lifetime shouldn't be yet expired");
+        this.configuration.setAccessToken(new BearerAccessToken(1L, null), new RefreshToken());
+        long now = System.currentTimeMillis();
+        Thread.sleep(1100);
+        assertTrue(this.configuration.isAccessTokenExpired(), "1.1 seconds in the future, an access token valid for one sec expired 0.1 seconds ago");
     }
 }
