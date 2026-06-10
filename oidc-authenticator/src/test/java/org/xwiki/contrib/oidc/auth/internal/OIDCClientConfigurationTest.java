@@ -35,8 +35,6 @@ import java.util.stream.Collectors;
 import com.nimbusds.oauth2.sdk.token.BearerAccessToken;
 import com.nimbusds.oauth2.sdk.token.RefreshToken;
 import org.junit.jupiter.api.Test;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
 import org.xwiki.configuration.ConfigurationSource;
 import org.xwiki.container.Container;
 import org.xwiki.container.Request;
@@ -66,6 +64,10 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.same;
 import static org.mockito.Mockito.mock;
@@ -113,7 +115,13 @@ class OIDCClientConfigurationTest
         org.xwiki.contrib.oidc.auth.store.OIDCClientConfiguration wikiConfiguration =
             mock(org.xwiki.contrib.oidc.auth.store.OIDCClientConfiguration.class);
         when(this.oidcClientConfigurationStore.getOIDCClientConfiguration(configName)).thenReturn(wikiConfiguration);
-
+        when(this.converterManager.convert(same(String.class), anyString())).thenAnswer(i -> i.getArgument(1));
+        when(this.converterManager.convert(
+                argThat(type -> type instanceof Class && List.class.isAssignableFrom((Class<?>) type)),
+                anyList())
+        ).thenAnswer(i -> i.getArgument(1));
+        when(this.converterManager.convert(same(Boolean.class), anyString())).thenAnswer(i -> Boolean.parseBoolean(i.getArgument(1)));
+        when(this.converterManager.convert(same(Integer.class), anyInt())).thenAnswer(i -> i.getArgument(1));
         return wikiConfiguration;
     }
 
@@ -130,7 +138,6 @@ class OIDCClientConfigurationTest
         providerMapping.put("d", Collections.singleton("XWiki.c"));
         List<String> mappingAsString = Arrays.asList("a=b", "XWiki.c=d");
         when(wikiConfiguration.getGroupMapping()).thenReturn(mappingAsString);
-        when(this.converterManager.convert(eq(List.class), eq(mappingAsString))).thenReturn(mappingAsString);
 
         OIDCClientConfiguration.GroupMapping groupMapping = this.configuration.getGroupMapping();
         assertEquals(xwikiMapping, groupMapping.getXWikiMapping());
@@ -172,7 +179,6 @@ class OIDCClientConfigurationTest
 
         URI uri = new URI("/endpoint");
         when(wikiConfiguration.getUserInfoEndpoint()).thenReturn(uri.toString());
-        when(this.converterManager.convert(String.class, uri.toString())).thenReturn(uri.toString());
         when(this.converterManager.convert(URI.class, uri.toString())).thenReturn(uri);
 
         Endpoint endpoint = this.configuration.getUserInfoOIDCEndpoint();
@@ -182,7 +188,6 @@ class OIDCClientConfigurationTest
 
         List<String> list = Arrays.asList("key1:value11", "key1:value12", "key2:value2", "alone", ":", "");
         when(wikiConfiguration.getUserInfoEndpointHeaders()).thenReturn(list);
-        when(this.converterManager.convert(eq(List.class), eq(list))).thenReturn(list);
 
         Map<String, List<String>> headers = new LinkedHashMap<>();
         headers.put("key1", Arrays.asList("value11", "value12"));
@@ -234,7 +239,6 @@ class OIDCClientConfigurationTest
 
         String subjectFormatter = "loremipsum";
         when(wikiConfiguration.getUserSubjectFormatter()).thenReturn(subjectFormatter);
-        when(this.converterManager.convert(String.class, subjectFormatter)).thenReturn(subjectFormatter);
 
         assertEquals(subjectFormatter, this.configuration.getSubjectFormater());
     }
@@ -246,7 +250,6 @@ class OIDCClientConfigurationTest
 
         String userNameFormatter = "loremipsum";
         when(wikiConfiguration.getUserNameFormatter()).thenReturn(userNameFormatter);
-        when(this.converterManager.convert(String.class, userNameFormatter)).thenReturn(userNameFormatter);
 
         assertEquals(userNameFormatter, this.configuration.getXWikiUserNameFormater());
     }
@@ -261,7 +264,6 @@ class OIDCClientConfigurationTest
         mapping.put("c", "d");
         List<String> mappingAsString = Arrays.asList("a=b", "c=d");
         when(wikiConfiguration.getUserMapping()).thenReturn(mappingAsString);
-        when(this.converterManager.convert(eq(List.class), eq(mappingAsString))).thenReturn(mappingAsString);
 
         assertEquals(mapping, this.configuration.getUserMapping());
     }
@@ -273,7 +275,6 @@ class OIDCClientConfigurationTest
 
         Integer refreshRate = 4269;
         when(wikiConfiguration.getUserInfoRefreshRate()).thenReturn(refreshRate);
-        when(this.converterManager.convert(Integer.class, refreshRate)).thenReturn(refreshRate);
 
         assertEquals(refreshRate, this.configuration.getUserInfoRefreshRate());
     }
@@ -285,11 +286,9 @@ class OIDCClientConfigurationTest
 
         List<String> idTokenClaims = Arrays.asList("test1", "test2");
         when(wikiConfiguration.getIdTokenClaims()).thenReturn(idTokenClaims);
-        when(this.converterManager.convert(any(), eq(idTokenClaims))).thenReturn(idTokenClaims);
 
         List<String> userInfoClaims = Arrays.asList("test3", "test4");
         when(wikiConfiguration.getUserInfoClaims()).thenReturn(userInfoClaims);
-        when(this.converterManager.convert(any(), eq(userInfoClaims))).thenReturn(userInfoClaims);
 
         OIDCClaimsRequest claimsRequest = this.configuration.getClaimsRequest();
 
@@ -305,14 +304,7 @@ class OIDCClientConfigurationTest
     @Test
     void getResponseTypeFromWikiConfig() throws Exception
     {
-        when(this.converterManager.convert(same(List.class), any())).thenAnswer(new Answer<List>()
-        {
-            @Override
-            public List answer(InvocationOnMock invocation) throws Throwable
-            {
-                return invocation.getArgument(1);
-            }
-        });
+        org.xwiki.contrib.oidc.auth.store.OIDCClientConfiguration wikiConfiguration = setUpWikiConfig();
 
         // No response type is set
         assertEquals(ResponseType.CODE, this.configuration.getResponseType());
@@ -322,8 +314,6 @@ class OIDCClientConfigurationTest
 
         // The response type is set in xwiki.properties
         assertEquals(ResponseType.TOKEN, this.configuration.getResponseType());
-
-        org.xwiki.contrib.oidc.auth.store.OIDCClientConfiguration wikiConfiguration = setUpWikiConfig();
 
         // The wiki configuration is initialized but the response type is still set only in xwiki.properties
         when(wikiConfiguration.getResponseType()).thenReturn(List.of());
