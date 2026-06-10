@@ -727,8 +727,12 @@ class OIDCUserManagerTest
     {
         this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_USER_NAMEFORMATER,
             "custom-${oidc.user.mail}-${oidc.user.mail.upperCase}-${oidc.user.mail.clean.upperCase}");
+        this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_USER_NAMEFORBIDDENPATTERN, "@");
+        this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_USER_NAMEFORBIDDENREPLACEMENT, "_AT_");
         this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_USER_SUBJECTFORMATER,
             "custom-${oidc.user.mail}-${oidc.user.mail.upperCase}-${oidc.user.mail.clean.upperCase}");
+        this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_USER_SUBJECTFORBIDDENPATTERN, "com");
+        this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_USER_SUBJECTFORBIDDENREPLACEMENT, "MOC");
 
         Subject subject = new Subject("subject");
         UserInfo userInfo = new UserInfo(subject);
@@ -747,11 +751,11 @@ class OIDCUserManagerTest
 
         Principal principal = this.manager.updateUser(userInfo);
 
-        assertEquals("xwiki:XWiki.custom-mail@domain\\.com-MAIL@DOMAIN\\.COM-MAILDOMAINCOM", principal.getName());
+        assertEquals("xwiki:XWiki.custom-mail@domain\\.com-MAIL@DOMAIN\\.COM-MAIL_AT_DOMAIN\\.COM", principal.getName());
 
         XWikiDocument userDocument =
             this.oldcore.getSpyXWiki().getDocument(new DocumentReference(this.oldcore.getXWikiContext().getWikiId(),
-                "XWiki", "custom-mail@domain.com-MAIL@DOMAIN.COM-MAILDOMAINCOM"), this.oldcore.getXWikiContext());
+                "XWiki", "custom-mail@domain.com-MAIL@DOMAIN.COM-MAIL_AT_DOMAIN.COM"), this.oldcore.getXWikiContext());
 
         assertFalse(userDocument.isNew());
 
@@ -769,7 +773,7 @@ class OIDCUserManagerTest
 
         assertNotNull(oidcObject);
         assertEquals("http://issuer", oidcObject.getIssuer());
-        assertEquals("custom-mail@domain.com-MAIL@DOMAIN.COM-MAILDOMAINCOM", oidcObject.getSubject());
+        assertEquals("custom-mail@domain.com-MAIL@DOMAIN.COM-MAIL@DOMAIN.MOC", oidcObject.getSubject());
     }
 
     @Test

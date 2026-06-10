@@ -78,6 +78,7 @@ import org.xwiki.contrib.oidc.provider.internal.endpoint.LogoutOIDCEndpoint;
 import org.xwiki.contrib.oidc.provider.internal.endpoint.RegisterAddOIDCEndpoint;
 import org.xwiki.contrib.oidc.provider.internal.endpoint.TokenOIDCEndpoint;
 import org.xwiki.contrib.oidc.provider.internal.endpoint.UserInfoOIDCEndpoint;
+import org.xwiki.contrib.usercommon.formatter.UserFormatterFactory;
 import org.xwiki.instance.InstanceIdManager;
 import org.xwiki.model.reference.EntityReferenceSerializer;
 import org.xwiki.model.reference.LocalDocumentReference;
@@ -170,6 +171,16 @@ public class OIDCClientConfiguration extends OIDCConfiguration
 
     public static final String PROP_USER_NAMEFORMATER = "oidc.user.nameFormater";
 
+    /**
+     * @since 2.23.0
+     */
+    public static final String PROP_USER_NAMEFORBIDDENPATTERN = "oidc.user.nameForbiddenPattern";
+
+    /**
+     * @since 2.23.0
+     */
+    public static final String PROP_USER_NAMEFORBIDDENREPLACEMENT = "oidc.user.nameForbiddenReplacement";
+
     public static final String DEFAULT_USER_NAMEFORMATER =
         "${oidc.issuer.host._clean}-${oidc.user.preferredUsername._clean}";
 
@@ -177,6 +188,16 @@ public class OIDCClientConfiguration extends OIDCConfiguration
      * @since 1.11
      */
     public static final String PROP_USER_SUBJECTFORMATER = "oidc.user.subjectFormater";
+
+    /**
+     * @since 2.23.0
+     */
+    public static final String PROP_USER_SUBJECTFORBIDDENREPLACEMENT = "oidc.user.subjectForbiddenReplacement";
+
+    /**
+     * @since 2.23.0
+     */
+    public static final String PROP_USER_SUBJECTFORBIDDENPATTERN = "oidc.user.subjectForbiddenPattern";
 
     /**
      * @since 1.18
@@ -687,6 +708,38 @@ public class OIDCClientConfiguration extends OIDCConfiguration
         return userFormatter;
     }
 
+    private Pattern getForbiddenPattern(String prop)
+    {
+        return compilePropertyIntoPattern(prop, UserFormatterFactory.DEFAULT_FORBIDDEN_PATTERN);
+    }
+
+    private String getForbiddenReplacement(String prop)
+    {
+        String forbiddenReplacement = getProperty(prop, String.class);
+        if (StringUtils.isEmpty(forbiddenReplacement)) {
+            // The condition is only correct because DEFAULT_FORBIDDEN_REPLACEMENT is the empty String
+            return UserFormatterFactory.DEFAULT_FORBIDDEN_REPLACEMENT;
+        }
+
+        return forbiddenReplacement;
+    }
+
+    /**
+     * @since 2.23.0
+     */
+    public Pattern getSubjectForbiddenPattern()
+    {
+        return getForbiddenPattern(PROP_USER_SUBJECTFORBIDDENPATTERN);
+    }
+
+    /**
+     * @since 2.23.0
+     */
+    public String getSubjectForbiddenReplacement()
+    {
+        return getForbiddenReplacement(PROP_USER_SUBJECTFORBIDDENREPLACEMENT);
+    }
+
     /**
      * @since 1.11
      */
@@ -698,6 +751,22 @@ public class OIDCClientConfiguration extends OIDCConfiguration
         }
 
         return userFormatter;
+    }
+
+    /**
+     * @since 2.23.0
+     */
+    public Pattern getXWikiUserNameForbiddenPattern()
+    {
+        return getForbiddenPattern(PROP_USER_NAMEFORBIDDENPATTERN);
+    }
+
+    /**
+     * @since 2.23.0
+     */
+    public String getXWikiUserNameForbiddenReplacement()
+    {
+        return getForbiddenReplacement(PROP_USER_NAMEFORBIDDENREPLACEMENT);
     }
 
     /**
@@ -1217,7 +1286,7 @@ public class OIDCClientConfiguration extends OIDCConfiguration
      */
     public Pattern getGroupMappingIncludePattern()
     {
-        return compilePropertyIntoPattern(PROP_GROUPS_MAPPING_INCLUDE);
+        return compilePropertyIntoPattern(PROP_GROUPS_MAPPING_INCLUDE, null);
     }
 
     /**
@@ -1225,22 +1294,23 @@ public class OIDCClientConfiguration extends OIDCConfiguration
      */
     public Pattern getGroupMappingExcludePattern()
     {
-        return compilePropertyIntoPattern(PROP_GROUPS_MAPPING_EXCLUDE);
+        return compilePropertyIntoPattern(PROP_GROUPS_MAPPING_EXCLUDE, null);
     }
 
-    private Pattern compilePropertyIntoPattern(String propertyName)
+    private Pattern compilePropertyIntoPattern(String propertyName, Pattern def)
     {
         String regex = getProperty(propertyName, String.class);
 
         if (StringUtils.isEmpty(regex)) {
-            return null;
+            return def;
         }
         try {
+            // TODO: don't compile each time (but allow changes coming from the wiki configuration)
             return Pattern.compile(regex);
         } catch (PatternSyntaxException e) {
             logger.warn("Exception while compiling regex {} configured for {}, skipping configuration", regex,
                 propertyName, e);
-            return null;
+            return def;
         }
     }
 
@@ -1696,8 +1766,20 @@ public class OIDCClientConfiguration extends OIDCConfiguration
             case PROP_USER_SUBJECTFORMATER:
                 returnValue = clientConfiguration.getUserSubjectFormatter();
                 break;
+            case PROP_USER_SUBJECTFORBIDDENPATTERN:
+                returnValue = clientConfiguration.getUserSubjectForbiddenPattern();
+                break;
+            case PROP_USER_SUBJECTFORBIDDENREPLACEMENT:
+                returnValue = clientConfiguration.getUserSubjectForbiddenReplacement();
+                break;
             case PROP_USER_NAMEFORMATER:
                 returnValue = clientConfiguration.getUserNameFormatter();
+                break;
+            case PROP_USER_NAMEFORBIDDENPATTERN:
+                returnValue = clientConfiguration.getUserNameForbiddenPattern();
+                break;
+            case PROP_USER_NAMEFORBIDDENREPLACEMENT:
+                returnValue = clientConfiguration.getUserNameForbiddenReplacement();
                 break;
             case PROP_USER_MAPPING:
                 returnValue = clientConfiguration.getUserMapping();
