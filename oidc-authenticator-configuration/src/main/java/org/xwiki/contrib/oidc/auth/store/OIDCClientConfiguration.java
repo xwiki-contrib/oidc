@@ -110,8 +110,32 @@ public class OIDCClientConfiguration
 
     /**
      * Name of the property containing the user subject formatter.
+     * @since 2.23.0
+     */
+    public static final String FIELD_FORMATTER_USER_NAME_FORBIDDEN_PATTERN = "userNameForbiddenPattern";
+
+    /**
+     * Name of the property containing the user subject formatter.
+     * @since 2.23.0
+     */
+    public static final String FIELD_FORMATTER_USER_NAME_FORBIDDEN_REPLACEMENT = "userNameForbiddenReplacement";
+
+    /**
+     * Name of the property containing the user subject formatter.
      */
     public static final String FIELD_FORMATTER_USER_SUBJECT = "userSubjectFormatter";
+
+    /**
+     * Name of the property containing the user subject formatter.
+     * @since 2.23.0
+     */
+    public static final String FIELD_FORMATTER_USER_SUBJECT_FORBIDDEN_PATTERN = "userSubjectForbiddenPattern";
+
+    /**
+     * Name of the property containing the user subject formatter.
+     * @since 2.23.0
+     */
+    public static final String FIELD_FORMATTER_USER_SUBJECT_FORBIDDEN_REPLACEMENT = "userSubjectForbiddenReplacement";
 
     /**
      * Name of the property containing the user mapping.
@@ -444,7 +468,45 @@ public class OIDCClientConfiguration
     }
 
     /**
-     * @return the user name formatter
+     * @return the user subject forbidden pattern
+     * @since 2.23.0
+     */
+    public String getUserSubjectForbiddenPattern()
+    {
+        return this.xobject.getStringValue(FIELD_FORMATTER_USER_SUBJECT_FORBIDDEN_PATTERN);
+    }
+
+    /**
+     * @param userSubjectFormatterForbiddenPattern the forbidden pattern to set
+     * @since 2.23.0
+     */
+    public void setUserSubjectForbiddenPattern(String userSubjectFormatterForbiddenPattern)
+    {
+        this.xobject.setStringValue(FIELD_FORMATTER_USER_SUBJECT_FORBIDDEN_PATTERN,
+                userSubjectFormatterForbiddenPattern);
+    }
+
+    /**
+     * @return the user subject forbidden pattern
+     * @since 2.23.0
+     */
+    public String getUserSubjectForbiddenReplacement()
+    {
+        return this.xobject.getStringValue(FIELD_FORMATTER_USER_SUBJECT_FORBIDDEN_REPLACEMENT);
+    }
+
+    /**
+     * @param  userSubjectFormatterForbiddenReplacement the user subject forbidden pattern
+     * @since 2.23.0
+     */
+    public void setUserSubjectForbiddenReplacement(String userSubjectFormatterForbiddenReplacement)
+    {
+        this.xobject.setStringValue(FIELD_FORMATTER_USER_SUBJECT_FORBIDDEN_REPLACEMENT,
+                userSubjectFormatterForbiddenReplacement);
+    }
+
+    /**
+     * @return the username formatter
      */
     public String getUserNameFormatter()
     {
@@ -452,11 +514,50 @@ public class OIDCClientConfiguration
     }
 
     /**
-     * @param userNameFormatter the user name formatter
+     * @param userNameFormatter the username formatter
      */
     public void setUserNameFormatter(String userNameFormatter)
     {
         this.xobject.setStringValue(FIELD_FORMATTER_USER_NAME, userNameFormatter);
+    }
+
+
+    /**
+     * @return the username forbidden pattern
+     * @since 2.23.0
+     */
+    public String getUserNameForbiddenPattern()
+    {
+        return this.xobject.getStringValue(FIELD_FORMATTER_USER_NAME_FORBIDDEN_PATTERN);
+    }
+
+    /**
+     * @param userNameFormatterForbiddenPattern the username forbidden pattern to set
+     * @since 2.23.0
+     */
+    public void setUserNameForbiddenPattern(String userNameFormatterForbiddenPattern)
+    {
+        this.xobject.setStringValue(FIELD_FORMATTER_USER_NAME_FORBIDDEN_PATTERN,
+                userNameFormatterForbiddenPattern);
+    }
+
+    /**
+     * @return the username forbidden pattern
+     * @since 2.23.0
+     */
+    public String getUserNameForbiddenReplacement()
+    {
+        return this.xobject.getStringValue(FIELD_FORMATTER_USER_NAME_FORBIDDEN_REPLACEMENT);
+    }
+
+    /**
+     * @param  userNameFormatterForbiddenReplacement the username forbidden pattern
+     * @since 2.23.0
+     */
+    public void setUserNameForbiddenReplacement(String userNameFormatterForbiddenReplacement)
+    {
+        this.xobject.setStringValue(FIELD_FORMATTER_USER_NAME_FORBIDDEN_REPLACEMENT,
+                userNameFormatterForbiddenReplacement);
     }
 
     /**

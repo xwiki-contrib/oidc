@@ -424,7 +424,10 @@ public class OIDCUserManager
         // Check allowed/forbidden groups
         checkAllowedGroups(providerGroups);
 
-        UserFormatter userFormatter = userFormatterFactory.create(createFormatMap(idToken, userInfo));
+        Map<String, String> variables = createFormatMap(idToken, userInfo);
+        Pattern forbiddenPattern = this.configuration.getSubjectForbiddenPattern();
+        String forbiddenReplacement = this.configuration.getSubjectForbiddenReplacement();
+        UserFormatter userFormatter = userFormatterFactory.create(variables, forbiddenPattern, forbiddenReplacement);
 
         String formattedSubject = userFormatter.format(this.configuration.getSubjectFormater());
 
@@ -909,6 +912,8 @@ public class OIDCUserManager
         SpaceReference spaceReference = new SpaceReference(xcontext.getMainXWiki(), "XWiki");
 
         // Generate default document name
+        userFormatter.setForbiddenPattern(this.configuration.getXWikiUserNameForbiddenPattern());
+        userFormatter.setForbiddenReplacement(this.configuration.getXWikiUserNameForbiddenReplacement());
         String documentName = userFormatter.format(this.configuration.getXWikiUserNameFormater());
 
         if (StringUtils.isEmpty(documentName)) {

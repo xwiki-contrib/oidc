@@ -45,6 +45,7 @@ import org.xwiki.contrib.oidc.OAuth2TokenStore;
 import org.xwiki.contrib.oidc.auth.store.OIDCClientConfigurationStore;
 import org.xwiki.contrib.oidc.provider.internal.OIDCManager;
 import org.xwiki.contrib.oidc.provider.internal.endpoint.TokenOIDCEndpoint;
+import org.xwiki.contrib.usercommon.formatter.UserFormatterFactory;
 import org.xwiki.properties.ConverterManager;
 import org.xwiki.test.junit5.mockito.ComponentTest;
 import org.xwiki.test.junit5.mockito.InjectMockComponents;
@@ -244,6 +245,34 @@ class OIDCClientConfigurationTest
     }
 
     @Test
+    void getSubjectForbiddenPatternAndReplacementFromWikiConfig() throws Exception
+    {
+        org.xwiki.contrib.oidc.auth.store.OIDCClientConfiguration wikiConfiguration = setUpWikiConfig();
+
+        String subjectForbiddenPattern = "\\.";
+        when(wikiConfiguration.getUserSubjectForbiddenPattern()).thenReturn(subjectForbiddenPattern);
+        assertEquals(subjectForbiddenPattern, this.configuration.getSubjectForbiddenPattern().pattern());
+
+        subjectForbiddenPattern = "";
+        when(wikiConfiguration.getUserSubjectForbiddenPattern()).thenReturn(subjectForbiddenPattern);
+        assertEquals(UserFormatterFactory.DEFAULT_FORBIDDEN_PATTERN, this.configuration.getSubjectForbiddenPattern());
+
+        subjectForbiddenPattern = null;
+        when(wikiConfiguration.getUserSubjectForbiddenPattern()).thenReturn(subjectForbiddenPattern);
+        assertEquals(UserFormatterFactory.DEFAULT_FORBIDDEN_PATTERN, this.configuration.getSubjectForbiddenPattern());
+
+        String subjectForbiddenReplacement = "_";
+        when(wikiConfiguration.getUserSubjectForbiddenReplacement()).thenReturn(subjectForbiddenReplacement);
+        assertEquals(subjectForbiddenReplacement, this.configuration.getSubjectForbiddenReplacement());
+
+        when(wikiConfiguration.getUserSubjectForbiddenReplacement()).thenReturn("");
+        assertEquals(UserFormatterFactory.DEFAULT_FORBIDDEN_REPLACEMENT, this.configuration.getSubjectForbiddenReplacement());
+
+        when(wikiConfiguration.getUserSubjectForbiddenReplacement()).thenReturn(null);
+        assertEquals(UserFormatterFactory.DEFAULT_FORBIDDEN_REPLACEMENT, this.configuration.getSubjectForbiddenReplacement());
+    }
+
+    @Test
     void getXWikiUserNameFormatterFromWikiConfig() throws Exception
     {
         org.xwiki.contrib.oidc.auth.store.OIDCClientConfiguration wikiConfiguration = setUpWikiConfig();
@@ -252,6 +281,34 @@ class OIDCClientConfigurationTest
         when(wikiConfiguration.getUserNameFormatter()).thenReturn(userNameFormatter);
 
         assertEquals(userNameFormatter, this.configuration.getXWikiUserNameFormater());
+    }
+
+    @Test
+    void getXWikiUserNameForbiddenPatternAndReplacementFromWikiConfig() throws Exception
+    {
+        org.xwiki.contrib.oidc.auth.store.OIDCClientConfiguration wikiConfiguration = setUpWikiConfig();
+
+        String xwikiUsernameForbiddenPattern = "\\.";
+        when(wikiConfiguration.getUserNameForbiddenPattern()).thenReturn(xwikiUsernameForbiddenPattern);
+        assertEquals(xwikiUsernameForbiddenPattern, this.configuration.getXWikiUserNameForbiddenPattern().pattern());
+
+        xwikiUsernameForbiddenPattern = "";
+        when(wikiConfiguration.getUserNameForbiddenPattern()).thenReturn(xwikiUsernameForbiddenPattern);
+        assertEquals(UserFormatterFactory.DEFAULT_FORBIDDEN_PATTERN, this.configuration.getXWikiUserNameForbiddenPattern());
+
+        xwikiUsernameForbiddenPattern = null;
+        when(wikiConfiguration.getUserNameForbiddenPattern()).thenReturn(xwikiUsernameForbiddenPattern);
+        assertEquals(UserFormatterFactory.DEFAULT_FORBIDDEN_PATTERN, this.configuration.getXWikiUserNameForbiddenPattern());
+
+        String xwikiUsernameForbiddenReplacement = "_";
+        when(wikiConfiguration.getUserNameForbiddenReplacement()).thenReturn(xwikiUsernameForbiddenReplacement);
+        assertEquals(xwikiUsernameForbiddenReplacement, this.configuration.getXWikiUserNameForbiddenReplacement());
+
+        when(wikiConfiguration.getUserNameForbiddenReplacement()).thenReturn("");
+        assertEquals(UserFormatterFactory.DEFAULT_FORBIDDEN_REPLACEMENT, this.configuration.getXWikiUserNameForbiddenReplacement());
+
+        when(wikiConfiguration.getUserNameForbiddenReplacement()).thenReturn(null);
+        assertEquals(UserFormatterFactory.DEFAULT_FORBIDDEN_REPLACEMENT, this.configuration.getXWikiUserNameForbiddenReplacement());
     }
 
     @Test
