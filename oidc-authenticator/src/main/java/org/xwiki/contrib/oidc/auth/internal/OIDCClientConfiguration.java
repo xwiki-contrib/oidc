@@ -19,7 +19,6 @@
  */
 package org.xwiki.contrib.oidc.auth.internal;
 
-import com.nimbusds.oauth2.sdk.pkce.CodeVerifier;
 import java.io.IOException;
 import java.lang.reflect.Type;
 import java.net.MalformedURLException;
@@ -101,6 +100,7 @@ import com.nimbusds.oauth2.sdk.http.HTTPRequest;
 import com.nimbusds.oauth2.sdk.http.HTTPResponse;
 import com.nimbusds.oauth2.sdk.id.ClientID;
 import com.nimbusds.oauth2.sdk.id.Issuer;
+import com.nimbusds.oauth2.sdk.pkce.CodeVerifier;
 import com.nimbusds.oauth2.sdk.token.AccessToken;
 import com.nimbusds.oauth2.sdk.token.BearerAccessToken;
 import com.nimbusds.oauth2.sdk.token.RefreshToken;
@@ -245,6 +245,11 @@ public class OIDCClientConfiguration extends OIDCConfiguration
     public static final String PROP_SECRET = "oidc.secret";
 
     public static final String PROP_SKIPPED = "oidc.skipped";
+
+    /**
+     * @since 2.24.0
+     */
+    public static final String PROP_TRYLOCAL = "oidc.tryLocal";
 
     /**
      * @since 1.13
@@ -447,6 +452,7 @@ public class OIDCClientConfiguration extends OIDCConfiguration
 
     /**
      * Support for PKCE
+     * 
      * @since 2.20.0
      */
     public static final String PROP_SESSION_CODE_VERIFIER = "oidc.codeverifier";
@@ -494,7 +500,7 @@ public class OIDCClientConfiguration extends OIDCConfiguration
 
     /**
      * @param oidcSession the session to store in the execution context. This is useful when using the configuration
-     *                    from a runnable called when the http session is already gone.
+     *            from a runnable called when the http session is already gone.
      * @since 2.4.0
      */
     public void setContextOIDCSession(Map<String, Object> oidcSession)
@@ -1059,6 +1065,7 @@ public class OIDCClientConfiguration extends OIDCConfiguration
 
     /**
      * PKCE support
+     * 
      * @since 2.20.0
      */
     public CodeVerifier getSessionCodeVerifier()
@@ -1115,7 +1122,16 @@ public class OIDCClientConfiguration extends OIDCConfiguration
 
     public boolean isSkipped()
     {
-        return getProperty(PROP_SKIPPED, false);
+        if (isTryLocalEnabled()) {
+            return getProperty(PROP_SKIPPED, false);
+        }
+
+        return false;
+    }
+
+    public boolean isTryLocalEnabled()
+    {
+        return getProperty(PROP_TRYLOCAL, true);
     }
 
     /**
@@ -1450,7 +1466,6 @@ public class OIDCClientConfiguration extends OIDCConfiguration
 
     /**
      * @return {@code true} if the ID Token should be skipped at logout, or {@code false} otherwise.
-     *
      * @since 2.18.0
      */
     public boolean skipIdTokenFromLogout()
@@ -1484,7 +1499,8 @@ public class OIDCClientConfiguration extends OIDCConfiguration
     public void setAccessToken(AccessToken accessToken, RefreshToken refreshToken)
     {
         if (isAuthenticationConfiguration()) {
-            // Don't store the BearerAccessToken object directly as it could cause classloader problems when an extension is
+            // Don't store the BearerAccessToken object directly as it could cause classloader problems when an
+            // extension is
             // upgraded
             setSessionAttribute(PROP_SESSION_ACCESSTOKEN, accessToken.getValue());
             setSessionAttribute(PROP_SESSION_REFRESHTOKEN, refreshToken == null ? null : refreshToken.getValue());
@@ -1515,7 +1531,6 @@ public class OIDCClientConfiguration extends OIDCConfiguration
 
     /**
      * @since 2.15.0
-     *
      * @param accessToken the access token to store
      * @param refreshToken the refresh token to store
      */
@@ -1524,8 +1539,8 @@ public class OIDCClientConfiguration extends OIDCConfiguration
         org.xwiki.contrib.oidc.auth.store.OIDCClientConfiguration wikiConfiguration = getWikiClientConfiguration();
 
         if (wikiConfiguration != null
-            && !org.xwiki.contrib.oidc.auth.store.OIDCClientConfiguration.TokenStorageScope.NONE.equals(
-            wikiConfiguration.getTokenStorageScope())) {
+            && !org.xwiki.contrib.oidc.auth.store.OIDCClientConfiguration.TokenStorageScope.NONE
+                .equals(wikiConfiguration.getTokenStorageScope())) {
             try {
                 XWikiContext context = contextProvider.get();
                 XWikiUser user = context.getWiki().checkAuth(context);
@@ -1535,8 +1550,8 @@ public class OIDCClientConfiguration extends OIDCConfiguration
                     tokenStore.getConfiguredObjectReference(wikiConfiguration), accessToken, refreshToken);
                 tokenStore.saveToken(token);
             } catch (OAuth2Exception | XWikiException e) {
-                logger.error("Failed to save access token [{}] for configuration [{}]",
-                    accessToken, wikiConfiguration, e);
+                logger.error("Failed to save access token [{}] for configuration [{}]", accessToken, wikiConfiguration,
+                    e);
             }
         }
     }
@@ -1694,7 +1709,8 @@ public class OIDCClientConfiguration extends OIDCConfiguration
             return sessionProviderName;
         }
 
-        String cookieName = configuration.getProperty(CLIENT_CONFIGURATION_COOKIE_PROPERTY, DEFAULT_OIDC_CONFIGURATION_COOKIE);
+        String cookieName =
+            configuration.getProperty(CLIENT_CONFIGURATION_COOKIE_PROPERTY, DEFAULT_OIDC_CONFIGURATION_COOKIE);
 
         String fallbackProviderName =
             configuration.getProperty(DEFAULT_CLIENT_CONFIGURATION_PROPERTY, DEFAULT_CLIENT_CONFIGURATION);
@@ -1855,6 +1871,9 @@ public class OIDCClientConfiguration extends OIDCConfiguration
                 break;
             case PROP_SKIP_LOGOUT_ID_TOKEN:
                 returnValue = clientConfiguration.isIdTokenSkippedFromLogout();
+                break;
+            case PROP_TRYLOCAL:
+                returnValue = clientConfiguration.isTryLocal();
                 break;
         }
 

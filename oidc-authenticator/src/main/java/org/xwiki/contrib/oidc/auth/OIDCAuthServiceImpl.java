@@ -19,14 +19,15 @@
  */
 package org.xwiki.contrib.oidc.auth;
 
-import com.nimbusds.oauth2.sdk.pkce.CodeChallengeMethod;
-import com.nimbusds.oauth2.sdk.pkce.CodeVerifier;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.lang.reflect.Type;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URLEncoder;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Set;
 
 import javax.script.ScriptContext;
 
@@ -36,6 +37,7 @@ import org.slf4j.LoggerFactory;
 import org.xwiki.container.servlet.HttpServletUtils;
 import org.xwiki.container.servlet.filters.SavedRequestManager;
 import org.xwiki.contrib.oidc.auth.internal.Endpoint;
+import org.xwiki.contrib.oidc.auth.internal.OIDCAuthenticator;
 import org.xwiki.contrib.oidc.auth.internal.OIDCClientConfiguration;
 import org.xwiki.contrib.oidc.auth.internal.OIDCUserManager;
 import org.xwiki.contrib.oidc.auth.internal.endpoint.CallbackOIDCEndpoint;
@@ -46,12 +48,15 @@ import org.xwiki.script.ScriptContextManager;
 import com.nimbusds.oauth2.sdk.GeneralException;
 import com.nimbusds.oauth2.sdk.ResponseType;
 import com.nimbusds.oauth2.sdk.id.State;
+import com.nimbusds.oauth2.sdk.pkce.CodeChallengeMethod;
+import com.nimbusds.oauth2.sdk.pkce.CodeVerifier;
 import com.nimbusds.openid.connect.sdk.AuthenticationRequest;
 import com.nimbusds.openid.connect.sdk.Nonce;
 import com.xpn.xwiki.XWikiContext;
 import com.xpn.xwiki.XWikiException;
 import com.xpn.xwiki.user.api.XWikiUser;
 import com.xpn.xwiki.user.impl.xwiki.XWikiAuthServiceImpl;
+import com.xpn.xwiki.user.impl.xwiki.XWikiAuthenticator;
 import com.xpn.xwiki.web.Utils;
 import com.xpn.xwiki.web.XWikiRequest;
 
@@ -66,6 +71,13 @@ public class OIDCAuthServiceImpl extends XWikiAuthServiceImpl
 
     private static final String OIDC_SRID = "oidc.srid";
 
+    private static final Set<String> LOGIN_ACTIONS_EXCLUSIVE = new HashSet<>(Arrays.asList("login", "loginsubmit"));
+
+    /**
+     * When local authentication is enabled, we cannot intercept loginsubmit as it's the action called by the login for.
+     */
+    private static final Set<String> LOGIN_ACTIONS_TRYLOCAL = new HashSet<>(Arrays.asList("login"));
+
     private OIDCManager oidc = Utils.getComponent(OIDCManager.class);
 
     private OIDCClientConfiguration configuration = Utils.getComponent(OIDCClientConfiguration.class);
@@ -77,6 +89,25 @@ public class OIDCAuthServiceImpl extends XWikiAuthServiceImpl
     private OIDCUserManager users = Utils.getComponent(OIDCUserManager.class);
 
     private ScriptContextManager scriptContextManager = Utils.getComponent(ScriptContextManager.class);
+
+    private OIDCAuthenticator authenticator = Utils.getComponent(OIDCAuthenticator.class);
+
+    @Override
+    protected XWikiAuthenticator getAuthenticator(XWikiContext context) throws XWikiException
+    {
+        if (this.configuration.isTryLocalEnabled()) {
+            return super.getAuthenticator(context);
+        }
+
+        // If local authentication is disabled, return an authenticator without any support for standard cookies or
+        // basic auth
+        return this.authenticator;
+    }
+
+    private Set<String> getLoginActions()
+    {
+        return this.configuration.isTryLocalEnabled() ? LOGIN_ACTIONS_TRYLOCAL : LOGIN_ACTIONS_EXCLUSIVE;
+    }
 
     @Override
     public XWikiUser checkAuth(XWikiContext context) throws XWikiException
@@ -108,14 +139,10 @@ public class OIDCAuthServiceImpl extends XWikiAuthServiceImpl
     private void checkAuthOIDC(XWikiContext context) throws Exception
     {
         // Check if OIDC is skipped or not and remember it
-        if (this.configuration.isSkipped()) {
-            maybeStoreRequestParameterInSession(context.getRequest(), OIDCClientConfiguration.PROP_SKIPPED,
-                Boolean.class);
-
+        boolean isSkipped = this.configuration.isSkipped();
+        this.configuration.setSessionAttribute(OIDCClientConfiguration.PROP_SKIPPED, isSkipped);
+        if (isSkipped) {
             return;
-        } else {
-            maybeStoreRequestParameterInSession(context.getRequest(), OIDCClientConfiguration.PROP_SKIPPED,
-                Boolean.class);
         }
 
         // Check if the current session already have associated logged in OIDC metadata
@@ -135,7 +162,7 @@ public class OIDCAuthServiceImpl extends XWikiAuthServiceImpl
 
         // Ugly but there is no other way for a custom authenticator to be called when someone explicitly request to
         // login...
-        if (context.getAction().equals("login")) {
+        if (getLoginActions().contains(context.getAction())) {
             showLoginOIDC(context);
         }
 

@@ -33,7 +33,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.junit.jupiter.api.Test;
-import org.xwiki.configuration.ConfigurationSource;
+import org.xwiki.configuration.internal.MemoryConfigurationSource;
 import org.xwiki.container.Container;
 import org.xwiki.container.Request;
 import org.xwiki.container.servlet.ServletRequest;
@@ -45,9 +45,12 @@ import org.xwiki.contrib.oidc.provider.internal.OIDCManager;
 import org.xwiki.contrib.oidc.provider.internal.endpoint.TokenOIDCEndpoint;
 import org.xwiki.contrib.usercommon.formatter.UserFormatterFactory;
 import org.xwiki.properties.ConverterManager;
+import org.xwiki.test.annotation.AfterComponent;
 import org.xwiki.test.junit5.mockito.ComponentTest;
+import org.xwiki.test.junit5.mockito.InjectComponentManager;
 import org.xwiki.test.junit5.mockito.InjectMockComponents;
 import org.xwiki.test.junit5.mockito.MockComponent;
+import org.xwiki.test.mockito.MockitoComponentManager;
 
 import com.nimbusds.oauth2.sdk.GeneralException;
 import com.nimbusds.oauth2.sdk.ResponseType;
@@ -86,9 +89,6 @@ class OIDCClientConfigurationTest
     private OIDCClientConfiguration configuration;
 
     @MockComponent
-    private ConfigurationSource sourceConfiguration;
-
-    @MockComponent
     private Container container;
 
     @MockComponent
@@ -106,20 +106,30 @@ class OIDCClientConfigurationTest
     @MockComponent
     private Execution execution;
 
+    @InjectComponentManager
+    private MockitoComponentManager componentManager;
+
+    private MemoryConfigurationSource sourceConfiguration;
+
+    @AfterComponent
+    void afterComponent() throws Exception
+    {
+        this.sourceConfiguration = this.componentManager.registerMemoryConfigurationSource();
+    }
+
     private org.xwiki.contrib.oidc.auth.store.OIDCClientConfiguration setUpWikiConfig() throws Exception
     {
         String configName = "wiki";
-        when(this.sourceConfiguration.getProperty(OIDCClientConfiguration.DEFAULT_CLIENT_CONFIGURATION_PROPERTY,
-            OIDCClientConfiguration.DEFAULT_CLIENT_CONFIGURATION)).thenReturn(configName);
+        this.sourceConfiguration.setProperty(OIDCClientConfiguration.DEFAULT_CLIENT_CONFIGURATION_PROPERTY, configName);
         org.xwiki.contrib.oidc.auth.store.OIDCClientConfiguration wikiConfiguration =
             mock(org.xwiki.contrib.oidc.auth.store.OIDCClientConfiguration.class);
         when(this.oidcClientConfigurationStore.getOIDCClientConfiguration(configName)).thenReturn(wikiConfiguration);
         when(this.converterManager.convert(same(String.class), anyString())).thenAnswer(i -> i.getArgument(1));
-        when(this.converterManager.convert(
-                argThat(type -> type instanceof Class && List.class.isAssignableFrom((Class<?>) type)),
-                anyList())
-        ).thenAnswer(i -> i.getArgument(1));
-        when(this.converterManager.convert(same(Boolean.class), anyString())).thenAnswer(i -> Boolean.parseBoolean(i.getArgument(1)));
+        when(this.converterManager
+            .convert(argThat(type -> type instanceof Class && List.class.isAssignableFrom((Class<?>) type)), anyList()))
+                .thenAnswer(i -> i.getArgument(1));
+        when(this.converterManager.convert(same(Boolean.class), anyString()))
+            .thenAnswer(i -> Boolean.parseBoolean(i.getArgument(1)));
         when(this.converterManager.convert(same(Integer.class), anyInt())).thenAnswer(i -> i.getArgument(1));
         return wikiConfiguration;
     }
@@ -149,8 +159,7 @@ class OIDCClientConfigurationTest
         assertNull(this.configuration.getUserInfoOIDCEndpoint());
 
         URI uri = new URI("/endpoint");
-        when(this.sourceConfiguration.getProperty(OIDCClientConfiguration.PROP_ENDPOINT_USERINFO, String.class))
-            .thenReturn(uri.toString());
+        this.sourceConfiguration.setProperty(OIDCClientConfiguration.PROP_ENDPOINT_USERINFO, uri.toString());
 
         Endpoint endpoint = this.configuration.getUserInfoOIDCEndpoint();
 
@@ -158,8 +167,7 @@ class OIDCClientConfigurationTest
         assertTrue(endpoint.getHeaders().isEmpty());
 
         List<String> list = Arrays.asList("key1:value11", "key1:value12", "key2:value2", "alone", ":", "");
-        when(this.sourceConfiguration.getProperty(OIDCClientConfiguration.PROP_ENDPOINT_USERINFO_HEADERS, List.class))
-            .thenReturn(list);
+        this.sourceConfiguration.setProperty(OIDCClientConfiguration.PROP_ENDPOINT_USERINFO_HEADERS, list);
 
         Map<String, List<String>> headers = new LinkedHashMap<>();
         headers.put("key1", Arrays.asList("value11", "value12"));
@@ -206,9 +214,9 @@ class OIDCClientConfigurationTest
         XWikiServletRequestStub requestStub = new XWikiServletRequestStub(new URL("http://url"), null);
 
         when(this.container.getRequest()).thenReturn(new ServletRequest(requestStub));
-        when(this.sourceConfiguration.getProperty(OIDCClientConfiguration.PROP_SKIPPED, false)).thenReturn(false);
 
         assertFalse(this.configuration.isSkipped());
+        assertTrue(this.configuration.isTryLocalEnabled());
         assertNull(this.configuration.getProvider());
         assertNull(this.configuration.getAuthorizationOIDCEndpoint());
         assertNull(this.configuration.getAuthorizationOIDCEndpoint());
@@ -264,10 +272,12 @@ class OIDCClientConfigurationTest
         assertEquals(subjectForbiddenReplacement, this.configuration.getSubjectForbiddenReplacement());
 
         when(wikiConfiguration.getUserSubjectForbiddenReplacement()).thenReturn("");
-        assertEquals(UserFormatterFactory.DEFAULT_FORBIDDEN_REPLACEMENT, this.configuration.getSubjectForbiddenReplacement());
+        assertEquals(UserFormatterFactory.DEFAULT_FORBIDDEN_REPLACEMENT,
+            this.configuration.getSubjectForbiddenReplacement());
 
         when(wikiConfiguration.getUserSubjectForbiddenReplacement()).thenReturn(null);
-        assertEquals(UserFormatterFactory.DEFAULT_FORBIDDEN_REPLACEMENT, this.configuration.getSubjectForbiddenReplacement());
+        assertEquals(UserFormatterFactory.DEFAULT_FORBIDDEN_REPLACEMENT,
+            this.configuration.getSubjectForbiddenReplacement());
     }
 
     @Test
@@ -292,21 +302,25 @@ class OIDCClientConfigurationTest
 
         xwikiUsernameForbiddenPattern = "";
         when(wikiConfiguration.getUserNameForbiddenPattern()).thenReturn(xwikiUsernameForbiddenPattern);
-        assertEquals(UserFormatterFactory.DEFAULT_FORBIDDEN_PATTERN, this.configuration.getXWikiUserNameForbiddenPattern());
+        assertEquals(UserFormatterFactory.DEFAULT_FORBIDDEN_PATTERN,
+            this.configuration.getXWikiUserNameForbiddenPattern());
 
         xwikiUsernameForbiddenPattern = null;
         when(wikiConfiguration.getUserNameForbiddenPattern()).thenReturn(xwikiUsernameForbiddenPattern);
-        assertEquals(UserFormatterFactory.DEFAULT_FORBIDDEN_PATTERN, this.configuration.getXWikiUserNameForbiddenPattern());
+        assertEquals(UserFormatterFactory.DEFAULT_FORBIDDEN_PATTERN,
+            this.configuration.getXWikiUserNameForbiddenPattern());
 
         String xwikiUsernameForbiddenReplacement = "_";
         when(wikiConfiguration.getUserNameForbiddenReplacement()).thenReturn(xwikiUsernameForbiddenReplacement);
         assertEquals(xwikiUsernameForbiddenReplacement, this.configuration.getXWikiUserNameForbiddenReplacement());
 
         when(wikiConfiguration.getUserNameForbiddenReplacement()).thenReturn("");
-        assertEquals(UserFormatterFactory.DEFAULT_FORBIDDEN_REPLACEMENT, this.configuration.getXWikiUserNameForbiddenReplacement());
+        assertEquals(UserFormatterFactory.DEFAULT_FORBIDDEN_REPLACEMENT,
+            this.configuration.getXWikiUserNameForbiddenReplacement());
 
         when(wikiConfiguration.getUserNameForbiddenReplacement()).thenReturn(null);
-        assertEquals(UserFormatterFactory.DEFAULT_FORBIDDEN_REPLACEMENT, this.configuration.getXWikiUserNameForbiddenReplacement());
+        assertEquals(UserFormatterFactory.DEFAULT_FORBIDDEN_REPLACEMENT,
+            this.configuration.getXWikiUserNameForbiddenReplacement());
     }
 
     @Test
@@ -364,8 +378,7 @@ class OIDCClientConfigurationTest
         // No response type is set
         assertEquals(ResponseType.CODE, this.configuration.getResponseType());
 
-        when(this.sourceConfiguration.getProperty(OIDCClientConfiguration.PROP_RESPONSE_TYPE, List.class))
-            .thenReturn(List.of("token"));
+        this.sourceConfiguration.setProperty(OIDCClientConfiguration.PROP_RESPONSE_TYPE, List.of("token"));
 
         // The response type is set in xwiki.properties
         assertEquals(ResponseType.TOKEN, this.configuration.getResponseType());
@@ -386,16 +399,17 @@ class OIDCClientConfigurationTest
     {
         // Using the example string from the OIDCClaimsRequest javadoc
         String userInfoClaimJson = "{\"given_name\":{\"essential\":true},\"nickname\":null,\"email\":"
-                + "{\"essential\":true},\"email_verified\":{\"essential\":true},\"picture\":null,"
-                + "\"http://example.info/claims/groups\":null}";
-        String idTokenClaimJson = "{\"auth_time\":{\"essential\":true},\"acr\": {\"values\":[\"urn:mace:incommon:iap:silver\"]}}";
+            + "{\"essential\":true},\"email_verified\":{\"essential\":true},\"picture\":null,"
+            + "\"http://example.info/claims/groups\":null}";
+        String idTokenClaimJson =
+            "{\"auth_time\":{\"essential\":true},\"acr\": {\"values\":[\"urn:mace:incommon:iap:silver\"]}}";
         String claimsJson = "{\"userinfo\":" + userInfoClaimJson + ", \"id_token\":" + idTokenClaimJson + "}";
-        when(this.sourceConfiguration.getProperty(OIDCClientConfiguration.PROP_CLAIMS, String.class)).thenReturn(claimsJson);
+        this.sourceConfiguration.setProperty(OIDCClientConfiguration.PROP_CLAIMS, claimsJson);
 
         OIDCClaimsRequest claimsRequest = this.configuration.getClaimsRequest();
         ClaimsSetRequest userInfoClaimsRequest = claimsRequest.getUserInfoClaimsRequest();
         ClaimsSetRequest idTokenClaimsRequest = claimsRequest.getIDTokenClaimsRequest();
-        
+
         assertNotNull(userInfoClaimsRequest.get("given_name"));
         assertEquals(ClaimRequirement.ESSENTIAL, userInfoClaimsRequest.get("given_name").getClaimRequirement());
         assertNotNull(userInfoClaimsRequest.get("nickname"));
@@ -405,41 +419,52 @@ class OIDCClientConfigurationTest
         assertEquals(ClaimRequirement.ESSENTIAL, userInfoClaimsRequest.get("email_verified").getClaimRequirement());
         assertNotNull(userInfoClaimsRequest.get("picture"));
         assertNotNull(userInfoClaimsRequest.get("http://example.info/claims/groups"));
-        
+
         assertNotNull(idTokenClaimsRequest.get("auth_time"));
         assertEquals(ClaimRequirement.ESSENTIAL, idTokenClaimsRequest.get("auth_time").getClaimRequirement());
         assertNotNull(idTokenClaimsRequest.get("acr"));
-        assertEquals(Arrays.asList("urn:mace:incommon:iap:silver"), idTokenClaimsRequest.get("acr").getValuesAsListOfStrings());
+        assertEquals(Arrays.asList("urn:mace:incommon:iap:silver"),
+            idTokenClaimsRequest.get("acr").getValuesAsListOfStrings());
     }
 
     @Test
     void getClaimsRequestWithEmptyClaims()
     {
-        when(this.sourceConfiguration.getProperty(OIDCClientConfiguration.PROP_IDTOKENCLAIMS,
-            OIDCClientConfiguration.DEFAULT_IDTOKENCLAIMS)).thenReturn(Collections.singletonList(""));
-        when(this.sourceConfiguration.getProperty(OIDCClientConfiguration.PROP_USERINFOCLAIMS,
-            OIDCClientConfiguration.DEFAULT_USERINFOCLAIMS)).thenReturn(Collections.singletonList(""));
+        this.sourceConfiguration.setProperty(OIDCClientConfiguration.PROP_IDTOKENCLAIMS, Collections.singletonList(""));
+        this.sourceConfiguration.setProperty(OIDCClientConfiguration.PROP_USERINFOCLAIMS,
+            Collections.singletonList(""));
 
         OIDCClaimsRequest claimsRequest = this.configuration.getClaimsRequest();
 
         assertEquals("{}", claimsRequest.toJSONString());
     }
-    
+
     @Test
     void getClaimsRequestWithEmptyClaimsJson()
     {
-        when(this.sourceConfiguration.getProperty(OIDCClientConfiguration.PROP_CLAIMS, String.class)).thenReturn("");
+        this.sourceConfiguration.setProperty(OIDCClientConfiguration.PROP_IDTOKENCLAIMS,
+            Collections.singletonList("idclaim"));
+        this.sourceConfiguration.setProperty(OIDCClientConfiguration.PROP_USERINFOCLAIMS,
+            Collections.singletonList("userclaim"));
+        OIDCClaimsRequest expected = new OIDCClaimsRequest();
+        ClaimsSetRequest idtokenclaimsRequest = new ClaimsSetRequest();
+        idtokenclaimsRequest = idtokenclaimsRequest.add("idclaim");
+        expected = expected.withIDTokenClaimsRequest(idtokenclaimsRequest);
+        ClaimsSetRequest userinfoclaimsRequest = new ClaimsSetRequest();
+        userinfoclaimsRequest = userinfoclaimsRequest.add("userclaim");
+        expected = expected.withUserInfoClaimsRequest(userinfoclaimsRequest);
+
+        this.sourceConfiguration.setProperty(OIDCClientConfiguration.PROP_CLAIMS, "");
 
         OIDCClaimsRequest claimsRequest = this.configuration.getClaimsRequest();
 
-        assertEquals("{}", claimsRequest.toJSONString());
+        assertEquals(expected.toJSONObject(), claimsRequest.toJSONObject());
     }
 
     @Test
     void getGroupClaim()
     {
-        when(this.sourceConfiguration.getProperty(OIDCClientConfiguration.PROP_GROUPS_CLAIM,
-            OIDCClientConfiguration.DEFAULT_GROUPSCLAIM)).thenReturn("groupclaim");
+        this.sourceConfiguration.setProperty(OIDCClientConfiguration.PROP_GROUPS_CLAIM, "groupclaim");
 
         assertEquals("groupclaim", this.configuration.getGroupClaim());
     }
@@ -477,10 +502,12 @@ class OIDCClientConfigurationTest
         this.configuration.setAccessToken(new BearerAccessToken(), new RefreshToken());
         assertFalse(this.configuration.isAccessTokenExpired(), "an access token without lifetime shouldn't expire");
         this.configuration.setAccessToken(new BearerAccessToken(600L, null), new RefreshToken());
-        assertFalse(this.configuration.isAccessTokenExpired(), "an access token with a long enough lifetime shouldn't be yet expired");
+        assertFalse(this.configuration.isAccessTokenExpired(),
+            "an access token with a long enough lifetime shouldn't be yet expired");
         this.configuration.setAccessToken(new BearerAccessToken(1L, null), new RefreshToken());
         long now = System.currentTimeMillis();
         Thread.sleep(1100);
-        assertTrue(this.configuration.isAccessTokenExpired(), "1.1 seconds in the future, an access token valid for one sec expired 0.1 seconds ago");
+        assertTrue(this.configuration.isAccessTokenExpired(),
+            "1.1 seconds in the future, an access token valid for one sec expired 0.1 seconds ago");
     }
 }

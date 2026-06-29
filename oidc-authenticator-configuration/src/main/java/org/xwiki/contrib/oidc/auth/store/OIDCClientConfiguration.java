@@ -217,6 +217,13 @@ public class OIDCClientConfiguration
     public static final String FIELD_SKIPPED = "skipped";
 
     /**
+     * Name of the property indicating if it's allowed to use the standard authenticator.
+     * 
+     * @since 2.24.0
+     */
+    public static final String FIELD_TRY_LOCAL = "tryLocal";
+
+    /**
      * Name of the property containing the scope.
      */
     public static final String FIELD_SCOPE = "scope";
@@ -800,6 +807,24 @@ public class OIDCClientConfiguration
     public void setIsSkipped(boolean isSkipped)
     {
         this.xobject.setIntValue(FIELD_SKIPPED, (isSkipped) ? 1 : 0);
+    }
+
+    /**
+     * @return true if it's allowed to use the standard authenticator
+     * @since 2.24.0
+     */
+    public boolean isTryLocal()
+    {
+        return (this.xobject.getIntValue(FIELD_TRY_LOCAL) != 0);
+    }
+
+    /**
+     * @param tryLocal if it's allowed to use the standard authenticator
+     * @since 2.24.0
+     */
+    public void setTryLocal(boolean tryLocal)
+    {
+        this.xobject.setIntValue(FIELD_TRY_LOCAL, (tryLocal) ? 1 : 0);
     }
 
     /**
