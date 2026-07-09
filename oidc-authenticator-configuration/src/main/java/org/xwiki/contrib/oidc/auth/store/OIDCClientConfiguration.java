@@ -798,7 +798,7 @@ public class OIDCClientConfiguration
      */
     public boolean isSkipped()
     {
-        return (this.xobject.getIntValue(FIELD_SKIPPED) == 1);
+        return (this.xobject.getIntValue(FIELD_SKIPPED, 0) == 1);
     }
 
     /**
@@ -815,7 +815,7 @@ public class OIDCClientConfiguration
      */
     public boolean isTryLocal()
     {
-        return (this.xobject.getIntValue(FIELD_TRY_LOCAL) != 0);
+        return (this.xobject.getIntValue(FIELD_TRY_LOCAL, 1) != 0);
     }
 
     /**
