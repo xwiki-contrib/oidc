@@ -47,10 +47,16 @@ import com.nimbusds.openid.connect.sdk.op.OIDCProviderMetadata;
 
 /**
  * Return provider configuration (mostly various endpoints URLs).
+ * <p>
+ * Exposed both as OpenID Connect Discovery
+ * ({@code .well-known/openid-configuration}) and as OAuth 2.0 Authorization Server Metadata
+ * ({@code .well-known/oauth-authorization-server}) so MCP and other OAuth clients that prefer
+ * RFC 8414 can discover the same endpoints.
+ * </p>
  * 
  * @version $Id$
  */
-@Component(hints = {"", ".well-known/openid-configuration"})
+@Component(hints = {"", ".well-known/openid-configuration", ".well-known/oauth-authorization-server"})
 @Singleton
 public class ConfigurationOIDCEndpoint implements OIDCEndpoint
 {
