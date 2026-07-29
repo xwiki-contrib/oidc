@@ -78,7 +78,7 @@ public class OIDCClientConfigurationCache implements Initializable, Disposable
         try {
             this.cache = this.cacheManager.createNewCache(new LRUCacheConfiguration("oidc.client.configuration", 10));
         } catch (CacheException e) {
-            throw new InitializationException("Failed to create cache with if [oidc.client.configuration]");
+            throw new InitializationException("Failed to create cache with id [oidc.client.configuration]");
         }
     }
 
