@@ -30,7 +30,7 @@
 
   <groupId>org.xwiki.contrib.oidc</groupId>
   <artifactId>oidc</artifactId>
-  <name>OpenID Connect</name>
+  <name>OAuth2 and OpenID Connect</name>
   <version>2.25.1-SNAPSHOT</version>
   <packaging>pom</packaging>
   <description>Various tools to manipulate OpenID Connect protocol in XWiki</description>
