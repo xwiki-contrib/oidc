@@ -33,7 +33,7 @@
   <name>OAuth2 and OpenID Connect</name>
   <version>2.25.1-SNAPSHOT</version>
   <packaging>pom</packaging>
-  <description>Various tools to manipulate OpenID Connect protocol in XWiki</description>
+  <description>Various tools to manipulate OAuth2 and OpenID Connect protocols in XWiki</description>
 
   <properties>
     <xwiki.release.jira.skip>false</xwiki.release.jira.skip>
