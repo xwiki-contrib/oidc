@@ -210,6 +210,10 @@
       <email>thomas.mortagne at xwiki.com</email>
       <timezone>+1</timezone>
     </developer>
+    <developer>
+      <id>aubincleme</id>
+      <name>Clément Aubin</name>
+    </developer>
   </developers>
 
   <scm>
