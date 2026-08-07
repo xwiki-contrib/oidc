@@ -214,6 +214,12 @@
       <id>aubincleme</id>
       <name>Clément Aubin</name>
     </developer>
+    <developer>
+      <id>rjakse</id>
+      <name>Raphaël Jakse</name>
+      <email>raphael.jakse at xwiki.com</email>
+      <timezone>+1</timezone>
+    </developer>
   </developers>
 
   <scm>
