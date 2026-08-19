@@ -106,6 +106,11 @@ public class BaseObjectOIDCConsent implements OIDCConsent
      */
     public BaseObjectOIDCConsent(String id, BaseObject xobject, XWikiContext xcontext)
     {
+        // Make sure the passed object is of the right class
+        if (!REFERENCE.equals(xobject.getRelativeXClassReference())) {
+            throw new IllegalArgumentException("The passed object [" + xobject + "] is not a consent object");
+        }
+
         this.id = id;
         this.xobject = xobject;
         this.xcontext = xcontext;

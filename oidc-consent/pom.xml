@@ -34,6 +34,8 @@
   <description>Base package for use cases manipulating OIDC compatible consents and associated bearer tokens</description>
 
   <properties>
+    <xwiki.jacoco.instructionRatio>0.31</xwiki.jacoco.instructionRatio>
+
     <!-- This extension needs to be installed at the farm level (ie in the root namespace) to work fine.
          This is because it contributes a new URL Resource Handler and those need to be installed in the
          root Component Manager (since they're executed before the wiki is extracted from the URL during
@@ -93,6 +95,21 @@
       <groupId>org.xwiki.platform</groupId>
       <artifactId>xwiki-platform-rendering-macro-code</artifactId>
       <version>${platform.version}</version>
+    </dependency>
+
+    <!-- Test dependencies -->
+    <dependency>
+      <groupId>org.xwiki.commons</groupId>
+      <artifactId>xwiki-commons-tool-test-component</artifactId>
+      <version>${commons.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.xwiki.platform</groupId>
+      <artifactId>xwiki-platform-test-oldcore</artifactId>
+      <version>${platform.version}</version>
+      <type>pom</type>
+      <scope>test</scope>
     </dependency>
   </dependencies>
 
