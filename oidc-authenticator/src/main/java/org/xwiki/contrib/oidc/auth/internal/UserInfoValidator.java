@@ -345,7 +345,6 @@ public class UserInfoValidator extends AbstractJWTValidator implements ClockSkew
     protected static JWSKeySelector createJWSKeySelector(final OIDCProviderMetadata opMetadata,
         final OIDCClientInformation clientInfo) throws GeneralException
     {
-
         final JWSAlgorithm expectedJWSAlg = clientInfo.getOIDCMetadata().getUserInfoJWSAlg();
 
         if (opMetadata.getUserInfoJWSAlgs() == null) {

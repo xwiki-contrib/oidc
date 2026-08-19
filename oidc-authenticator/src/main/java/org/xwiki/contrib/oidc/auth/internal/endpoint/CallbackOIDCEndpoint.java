@@ -19,7 +19,6 @@
  */
 package org.xwiki.contrib.oidc.auth.internal.endpoint;
 
-import com.nimbusds.oauth2.sdk.pkce.CodeVerifier;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -45,8 +44,8 @@ import org.xwiki.contrib.oidc.auth.internal.OIDCTokenRequestHelper;
 import org.xwiki.contrib.oidc.auth.internal.OIDCUserManager;
 import org.xwiki.contrib.oidc.auth.internal.session.ClientHttpSessions;
 import org.xwiki.contrib.oidc.auth.internal.session.ClientProviders.ClientProvider;
-import org.xwiki.contrib.oidc.provider.internal.OIDCProviderException;
 import org.xwiki.contrib.oidc.provider.internal.OIDCManager;
+import org.xwiki.contrib.oidc.provider.internal.OIDCProviderException;
 import org.xwiki.contrib.oidc.provider.internal.OIDCResourceReference;
 import org.xwiki.contrib.oidc.provider.internal.endpoint.OIDCEndpoint;
 import org.xwiki.contrib.oidc.provider.internal.util.ErrorResponse;
@@ -71,8 +70,8 @@ import com.nimbusds.oauth2.sdk.TokenRequest;
 import com.nimbusds.oauth2.sdk.auth.ClientAuthentication;
 import com.nimbusds.oauth2.sdk.http.HTTPRequest;
 import com.nimbusds.oauth2.sdk.http.HTTPResponse;
-import com.nimbusds.oauth2.sdk.id.Issuer;
 import com.nimbusds.oauth2.sdk.id.State;
+import com.nimbusds.oauth2.sdk.pkce.CodeVerifier;
 import com.nimbusds.oauth2.sdk.token.AccessToken;
 import com.nimbusds.oauth2.sdk.token.RefreshToken;
 import com.nimbusds.openid.connect.sdk.AuthenticationSuccessResponse;
@@ -186,6 +185,13 @@ public class CallbackOIDCEndpoint implements OIDCEndpoint
         // or convert a AuthorizationSuccessResponse
         AuthenticationSuccessResponse authenticationResponse = AuthenticationSuccessResponse.parse(httpRequest);
 
+        // Make sure the issuer is the one we expect
+        if (authenticationResponse.getIssuer() != null
+            && !authenticationResponse.getIssuer().equals(this.configuration.getIssuer())) {
+            return new ErrorResponse(HTTPResponse.SC_BAD_REQUEST, "Invalid issuer: was expecting ["
+                + this.configuration.getIssuer() + "] and got [" + authenticationResponse.getIssuer() + "]");
+        }
+
         ResponseType responseType = authenticationResponse.impliedResponseType();
 
         this.logger.debug("Auth response: the provider sent back the response type [{}]", responseType);
@@ -193,8 +199,11 @@ public class CallbackOIDCEndpoint implements OIDCEndpoint
         // Validate the id token, if provided
         IDTokenClaimsSet idToken = null;
         if (authenticationResponse.getIDToken() != null) {
-            idToken = parseIdToken(this.configuration.removeSessionNonce(), authenticationResponse.getIDToken(),
-                authenticationResponse.getIssuer());
+            // Nonce is mandatory when the id token is directly provided (implicit and hybrid flows)
+            Nonce nonce = this.configuration.removeSessionNonce();
+            if (nonce != null) {
+                idToken = parseIdToken(nonce, authenticationResponse.getIDToken());
+            }
         }
         this.logger.debug("Auth response: the provider sent back the id token [{}]", idToken);
 
@@ -215,8 +224,7 @@ public class CallbackOIDCEndpoint implements OIDCEndpoint
 
                 // Also parse and validate the id token if we don't already have it
                 if (configuration.isAuthenticationConfiguration() && idToken == null) {
-                    idToken = parseIdToken(null, tokenResponse.getOIDCTokens().getIDToken(),
-                        authenticationResponse.getIssuer());
+                    idToken = parseIdToken(null, tokenResponse.getOIDCTokens().getIDToken());
                 }
             }
         }
@@ -256,7 +264,8 @@ public class CallbackOIDCEndpoint implements OIDCEndpoint
             // Remember the session of that OIDC user (to be able to do back channel logout)
             this.sessions.onLogin(session, idToken.getSubject());
 
-            // TODO: put enough information in the cookie to automatically authenticate when coming back after the session
+            // TODO: put enough information in the cookie to automatically authenticate when coming back after the
+            // session
             // is lost
 
             this.logger.debug("OIDC callback: principal=[{}]", principal);
@@ -271,19 +280,23 @@ public class CallbackOIDCEndpoint implements OIDCEndpoint
         return new RedirectResponse(this.configuration.getSuccessRedirectURI());
     }
 
-    private IDTokenClaimsSet parseIdToken(Nonce nonce, JWT token, Issuer issuer) throws GeneralException, IOException,
+    private IDTokenClaimsSet parseIdToken(Nonce nonce, JWT token) throws GeneralException, IOException,
         URISyntaxException, BadJOSEException, JOSEException, ParseException, OIDCProviderException
     {
         // Parse and validate the id token
-        ClientProvider clientProvider = this.configuration.getClientProvider(issuer);
+        ClientProvider clientProvider = this.configuration.getClientProvider();
 
         IDTokenClaimsSet idToken;
         if (clientProvider != null) {
             idToken = IDTokenValidator.create(clientProvider.getMetadata(),
-                this.configuration.createClientInformation(issuer, token), this.oidc.getJWKSource())
-                .validate(token, nonce);
+                this.configuration.createClientInformation(token), this.oidc.getJWKSource()).validate(token, nonce);
         } else {
             // TODO: add support for null ClientProvider
+            this.logger.warn("No provider available in the configuration."
+                + " Skipping id token validation and assuming it's not encrypted,"
+                + " because it's not possible to access the provider metadata and keys to validate the id token."
+                + " This is a security risk and should only be used for testing purposes.");
+
             idToken = new IDTokenClaimsSet(token.getJWTClaimsSet());
         }
 
@@ -327,10 +340,9 @@ public class CallbackOIDCEndpoint implements OIDCEndpoint
         AuthenticationSuccessResponse authenticationSuccessResponse) throws Exception
     {
         this.logger.debug("Getting the access token from the token endpoint");
-        ClientAuthentication authentication = OIDCTokenRequestHelper.getClientAuthentication(
-            this.configuration.getTokenEndPointAuthMethod(),
-            this.configuration.getClientID(authenticationSuccessResponse.getIssuer()),
-            this.configuration.getSecret());
+        ClientAuthentication authentication =
+            OIDCTokenRequestHelper.getClientAuthentication(this.configuration.getTokenEndPointAuthMethod(),
+                this.configuration.getClientID(), this.configuration.getSecret());
 
         // Generate callback URL
         URI callback = this.oidc.createEndPointURI(CallbackOIDCEndpoint.HINT);
@@ -348,8 +360,8 @@ public class CallbackOIDCEndpoint implements OIDCEndpoint
         if (authentication != null) {
             tokenRequest = new TokenRequest(tokenEndpoint.getURI(), authentication, authorizationGrant, scope);
         } else {
-            tokenRequest = new TokenRequest(tokenEndpoint.getURI(),
-                this.configuration.getClientID(authenticationSuccessResponse.getIssuer()), authorizationGrant, scope);
+            tokenRequest =
+                new TokenRequest(tokenEndpoint.getURI(), this.configuration.getClientID(), authorizationGrant, scope);
         }
 
         return OIDCTokenRequestHelper.requestTokenHTTP(tokenRequest, this.configuration.getTokenOIDCEndpoint());

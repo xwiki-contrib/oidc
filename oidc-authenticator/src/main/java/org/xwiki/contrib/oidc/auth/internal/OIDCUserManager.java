@@ -173,9 +173,8 @@ public class OIDCUserManager
     {
         Map<String, Object> oidcSession = this.configuration.getOIDCSession(false);
         Session session = this.container.getSession();
-        HttpSession httpSession = (session instanceof ServletSession)
-            ? ((ServletSession) session).getHttpSession()
-            : null;
+        HttpSession httpSession =
+            (session instanceof ServletSession) ? ((ServletSession) session).getHttpSession() : null;
         this.executor.execute(new ExecutionContextRunnable(() -> {
             try {
                 // In the runnable, the http request is finished, we need to provide the session to use.
@@ -220,8 +219,8 @@ public class OIDCUserManager
         }
     }
 
-    private void refreshAccessToken() throws GeneralException, URISyntaxException,
-        IOException, InvalidAccessTokenException
+    private void refreshAccessToken()
+        throws GeneralException, URISyntaxException, IOException, InvalidAccessTokenException
     {
         RefreshToken refreshToken = this.configuration.getRefreshToken();
         if (refreshToken == null) {
@@ -246,14 +245,14 @@ public class OIDCUserManager
             this.configuration.setAccessToken(accessToken, refreshToken);
             logger.debug("Successfully refresh the access token");
         } else {
-            logger.debug("Failed to refresh the access token, got status [{}]: [{}]",
-                    httpResponse.getStatusCode(), httpResponse.getStatusMessage());
+            logger.debug("Failed to refresh the access token, got status [{}]: [{}]", httpResponse.getStatusCode(),
+                httpResponse.getStatusMessage());
             throw new InvalidAccessTokenException();
         }
     }
 
-    public UserInfo getUserInfo() throws OIDCProviderException, IOException, URISyntaxException,
-        GeneralException, JOSEException, BadJOSEException, ParseException, InvalidAccessTokenException
+    public UserInfo getUserInfo() throws OIDCProviderException, IOException, URISyntaxException, GeneralException,
+        JOSEException, BadJOSEException, ParseException, InvalidAccessTokenException
     {
         return getUserInfo(true);
     }
@@ -281,8 +280,8 @@ public class OIDCUserManager
             if (BearerTokenError.INVALID_TOKEN.equals(errorResponse.getErrorObject())) {
                 // invalid_token happens when the access token is expired
                 // See https://datatracker.ietf.org/doc/html/rfc6750#section-3.1
-                this.logger.debug("OIDC user info endpoint replied with an invalid token error, " +
-                                          "trying to refresh the access token...");
+                this.logger.debug("OIDC user info endpoint replied with an invalid token error, "
+                    + "trying to refresh the access token...");
                 if (canRefreshToken) {
                     refreshAccessToken();
                     return getUserInfo(false);
@@ -322,7 +321,7 @@ public class OIDCUserManager
     }
 
     private AccessToken getAccessToken(boolean canRefreshToken)
-            throws GeneralException, URISyntaxException, IOException, InvalidAccessTokenException
+        throws GeneralException, URISyntaxException, IOException, InvalidAccessTokenException
     {
         if (canRefreshToken && configuration.isAccessTokenExpired()) {
             logger.debug("The access token is expired, refreshing...");
@@ -414,7 +413,8 @@ public class OIDCUserManager
         return (T) value;
     }
 
-    public SimplePrincipal updateUser(UserInfo userInfo) throws XWikiException, QueryException, OIDCProviderException, MalformedURLException
+    public SimplePrincipal updateUser(UserInfo userInfo)
+        throws XWikiException, QueryException, OIDCProviderException, MalformedURLException
     {
         IDTokenClaimsSet idToken = this.configuration.getIdToken();
 
@@ -1049,9 +1049,8 @@ public class OIDCUserManager
             redirectURI = new URI(context.getWiki().getURL(context.getWikiReference(), "view", context));
         }
 
-        LogoutRequest logoutRequest =
-            new LogoutRequest(logoutEndpoint.getURI(), !this.configuration.skipIdTokenFromLogout() ? idToken : null,
-                null, clientID, redirectURI, null, null);
+        LogoutRequest logoutRequest = new LogoutRequest(logoutEndpoint.getURI(),
+            !this.configuration.skipIdTokenFromLogout() ? idToken : null, null, clientID, redirectURI, null, null);
         // Redirect to the provider
         this.manager.redirect(logoutRequest.toURI().toString(), true);
     }

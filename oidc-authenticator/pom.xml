@@ -34,7 +34,7 @@
   <description>Allow an XWiki instance to authenticate on an OpenID Connect provider</description>
 
   <properties>
-    <xwiki.jacoco.instructionRatio>0.39</xwiki.jacoco.instructionRatio>
+    <xwiki.jacoco.instructionRatio>0.54</xwiki.jacoco.instructionRatio>
 
     <!-- This extension needs to be installed at the farm level (ie in the root namespace) to work fine.
          This is because is contributes a new URL Resource Handler and those need to be installed in the
@@ -96,6 +96,14 @@
       <artifactId>xwiki-platform-test-oldcore</artifactId>
       <version>${platform.version}</version>
       <type>pom</type>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <!-- Used to simulate an OpenID Connect provider. The standalone (shaded) flavor is used to make sure the
+           libraries it relies on don't interfere with the ones used by XWiki. -->
+      <groupId>org.wiremock</groupId>
+      <artifactId>wiremock-standalone</artifactId>
+      <version>3.9.2</version>
       <scope>test</scope>
     </dependency>
   </dependencies>

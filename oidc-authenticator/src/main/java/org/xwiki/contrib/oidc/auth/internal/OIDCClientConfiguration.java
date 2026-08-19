@@ -33,6 +33,7 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
@@ -84,6 +85,7 @@ import org.xwiki.model.reference.LocalDocumentReference;
 import org.xwiki.properties.ConverterManager;
 import org.xwiki.query.QueryException;
 
+import com.nimbusds.jose.EncryptionMethod;
 import com.nimbusds.jose.JWEAlgorithm;
 import com.nimbusds.jose.JWSAlgorithm;
 import com.nimbusds.jwt.EncryptedJWT;
@@ -961,15 +963,9 @@ public class OIDCClientConfiguration extends OIDCConfiguration
         return metadata;
     }
 
-    public OIDCClientInformation createClientInformation() throws URISyntaxException, GeneralException, IOException
+    private OIDCClientInformation createClientInformation() throws URISyntaxException, GeneralException, IOException
     {
-        return createClientInformation(getIssuer());
-    }
-
-    public OIDCClientInformation createClientInformation(Issuer issuer)
-        throws URISyntaxException, GeneralException, IOException
-    {
-        return new OIDCClientInformation(getClientID(issuer), createClientMetadata());
+        return new OIDCClientInformation(getClientID(getIssuer()), createClientMetadata());
     }
 
     /**
@@ -978,22 +974,23 @@ public class OIDCClientConfiguration extends OIDCConfiguration
     public OIDCClientInformation createClientInformation(JWT jwt)
         throws URISyntaxException, GeneralException, IOException
     {
-        return createClientInformation(getIssuer(), jwt);
-    }
+        Objects.requireNonNull(jwt, "The token must not be null");
 
-    /**
-     * @since 2.18.1
-     */
-    public OIDCClientInformation createClientInformation(Issuer issuer, JWT jwt)
-        throws URISyntaxException, GeneralException, IOException
-    {
-        OIDCClientInformation clientInformation = createClientInformation(issuer);
+        OIDCClientInformation clientInformation = createClientInformation();
 
-        // Set a the expected alg if provided by the token
+        // Expect whatever the token actually sends
         if (jwt instanceof SignedJWT) {
             setJWSAlg(clientInformation.getOIDCMetadata(), ((SignedJWT) jwt).getHeader().getAlgorithm());
         } else if (jwt instanceof EncryptedJWT) {
-            setJWEAlg(clientInformation.getOIDCMetadata(), ((EncryptedJWT) jwt).getHeader().getAlgorithm());
+            setJWEAlg(clientInformation.getOIDCMetadata(), ((EncryptedJWT) jwt).getHeader().getAlgorithm(),
+                ((EncryptedJWT) jwt).getHeader().getEncryptionMethod());
+
+            // It's mandatory to set a JWS algorithm, even if it's "none", otherwise the Nimbus library will throw an
+            // exception when trying to parse the ID Token.
+            // Use RS256 as default, since it's the most common algorithm used for signing ID Tokens.
+            // TODO: add proper support of registering and configure this instead of hoping that the provider will use
+            // RS256 for signing ID Tokens.
+            setJWSAlg(clientInformation.getOIDCMetadata(), JWSAlgorithm.RS256);
         }
 
         return clientInformation;
@@ -1001,18 +998,16 @@ public class OIDCClientConfiguration extends OIDCConfiguration
 
     private void setJWSAlg(OIDCClientMetadata metadata, JWSAlgorithm alg)
     {
-        metadata.setAuthorizationJWSAlg(alg);
         metadata.setIDTokenJWSAlg(alg);
         metadata.setUserInfoJWSAlg(alg);
-        metadata.setRequestObjectJWSAlg(alg);
     }
 
-    private void setJWEAlg(OIDCClientMetadata metadata, JWEAlgorithm alg)
+    private void setJWEAlg(OIDCClientMetadata metadata, JWEAlgorithm alg, EncryptionMethod enc)
     {
-        metadata.setAuthorizationJWEAlg(alg);
         metadata.setIDTokenJWEAlg(alg);
+        metadata.setIDTokenJWEEnc(enc);
         metadata.setUserInfoJWEAlg(alg);
-        metadata.setRequestObjectJWEAlg(alg);
+        metadata.setUserInfoJWEEnc(enc);
     }
 
     /**
