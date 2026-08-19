@@ -400,15 +400,54 @@ public class OIDCConsentStore
      */
     public void deleteConsent(String id) throws OIDCException
     {
+        deleteConsent(id, null);
+    }
+
+    /**
+     * Same as {@link #deleteConsent(String)} but the consent is deleted only if it's associated to the passed user.
+     *
+     * @param userReference the reference of the user to whom the consent is expected to be associated
+     * @param id the identifier of the consent
+     * @throws OIDCException when failing to delete the consent, and in particular when the consent is not associated to
+     *             the passed user
+     * @since 2.25.3
+     */
+    public void deleteConsent(UserReference userReference, String id) throws OIDCException
+    {
+        DocumentReference userDocumentReference =
+            userReference != null ? this.userReferenceSerializer.serialize(userReference) : null;
+
+        // The user is what the deletion is restricted to, so refuse to delete anything when it cannot be identified
+        if (userDocumentReference == null) {
+            throw new OIDCException("A valid user reference is required to delete the consent [" + id + "]");
+        }
+
+        deleteConsent(id, userDocumentReference);
+    }
+
+    private void deleteConsent(String id, DocumentReference userDocumentReference) throws OIDCException
+    {
         // The id is actually the reference of the xobject holding the consent
         EntityReference reference = this.entityResolver.resolve(id, EntityType.OBJECT);
+
+        EntityReference documentReference = reference.extractReference(EntityType.DOCUMENT);
+        if (documentReference == null) {
+            throw new OIDCException("The consent id [" + id + "] is not a valid object reference");
+        }
+        DocumentReference consentDocumentReference = new DocumentReference(documentReference);
+
+        // Make sure the consent is located in the document of the expected user
+        if (userDocumentReference != null && !userDocumentReference.equals(consentDocumentReference)) {
+            throw new OIDCException(
+                "The consent [" + id + "] is not associated to the user [" + userDocumentReference + "]");
+        }
 
         XWikiContext xcontext = this.xcontextProvider.get();
 
         // Get the document containing the consent
         XWikiDocument consentDocument;
         try {
-            consentDocument = xcontext.getWiki().getDocument(reference, xcontext);
+            consentDocument = xcontext.getWiki().getDocument(consentDocumentReference, xcontext);
         } catch (XWikiException e) {
             throw new OIDCException("Failed to load the consent document for id [" + id + "]", e);
         }
@@ -418,6 +457,11 @@ public class OIDCConsentStore
             // Get the consent object
             BaseObject consentObject = consentDocument.getXObject(reference);
             if (consentObject != null) {
+                // Make sure to only ever delete a consent, whatever the class indicated in the id
+                if (!BaseObjectOIDCConsent.REFERENCE.equals(consentObject.getRelativeXClassReference())) {
+                    throw new OIDCException("The object [" + id + "] is not a consent");
+                }
+
                 // Make sure to avoid modifying the cached document
                 consentDocument = consentDocument.clone();
 

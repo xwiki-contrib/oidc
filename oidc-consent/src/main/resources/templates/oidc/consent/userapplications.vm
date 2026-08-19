@@ -82,7 +82,7 @@
           {{/error}}
         #end
       #elseif ($request.oidc_consent_delete)      
-        $services.oidc.consent.deleteConsent($request.consent_id)
+        $services.oidc.consent.deleteConsent($doc.documentReference, $request.consent_id)
       #end
     #else
       {{error}}
@@ -93,9 +93,9 @@
 
   {{html}}
     #if ($xcontext.action == 'view')
-      ## Allow creating tokens only if the token authenticator is configured, if the API to check the presence of the token authenticator is not available (for backward compatibility) or if it's forced in the configurration
+      ## Allow creating tokens only if the token authenticator is configured, if the API to check the presence of the token authenticator is not available (for backward compatibility) or if it's forced in the configuration
       #set ($authService = $services.security.authService.authService)
-      #if ($services.oidc.consent.isCreateTokenEnabled() == true || !$authService || $authService.id == 'oidc-provider-bridge' || $authService.class.name == 'org.xwiki.contrib.oidc.provider.OIDCBridgeAuth' || $authService.class.name == 'org.xwiki.contrib.oidc.token.TokenAuthService')
+      #if ($services.oidc.consent.isCreateConsentEnabled() == true || !$authService || $authService.id == 'oidc-provider-bridge' || $authService.class.name == 'org.xwiki.contrib.oidc.provider.OIDCBridgeAuth' || $authService.class.name == 'org.xwiki.contrib.oidc.token.TokenAuthService')
         <form method="post" class="xform>
           <input type="hidden" name="form_token" value="$!{services.csrf.getToken()}" />
 

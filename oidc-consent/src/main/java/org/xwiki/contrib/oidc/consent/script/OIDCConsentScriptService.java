@@ -124,10 +124,27 @@ public class OIDCConsentScriptService implements ScriptService
     }
 
     /**
+     * Same as {@link #deleteConsent(String)} but the consent is deleted only if it's associated to the passed user.
+     *
+     * @param userReference the user to whom the consent is expected to be associated
+     * @param id the identifier of the consent
+     * @throws OIDCException when failing to delete the consent, and in particular when the consent is not associated to
+     *             the passed user
+     * @throws AccessDeniedException when the author if the calling script is not allowed to delete a consent
+     * @since 2.25.3
+     */
+    public void deleteConsent(UserReference userReference, String id) throws OIDCException, AccessDeniedException
+    {
+        this.authorization.checkAccess(Right.PROGRAM);
+
+        this.store.deleteConsent(userReference, id);
+    }
+
+    /**
      * @return true if it's allowed to create consents from the UI, false if not, null if the property is not set
      */
     public Boolean isCreateConsentEnabled()
     {
-        return this.configuration.isCreateTokenEnabled();
+        return this.configuration.isCreateConsentEnabled();
     }
 }

@@ -46,8 +46,9 @@ public class OIDCConsentConfiguration extends OIDCConfiguration
 
     /**
      * @return true if it's allowed to create consents from the UI, false if not, null if the property is not set
+     * @since 2.25.3
      */
-    public Boolean isCreateTokenEnabled()
+    public Boolean isCreateConsentEnabled()
     {
         return getProperty(PROP_CREATE_CONSENT_ENABLED, Boolean.class);
     }
