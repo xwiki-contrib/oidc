@@ -70,6 +70,7 @@ import com.nimbusds.oauth2.sdk.TokenRequest;
 import com.nimbusds.oauth2.sdk.auth.ClientAuthentication;
 import com.nimbusds.oauth2.sdk.http.HTTPRequest;
 import com.nimbusds.oauth2.sdk.http.HTTPResponse;
+import com.nimbusds.oauth2.sdk.id.Issuer;
 import com.nimbusds.oauth2.sdk.id.State;
 import com.nimbusds.oauth2.sdk.pkce.CodeVerifier;
 import com.nimbusds.oauth2.sdk.token.AccessToken;
@@ -185,11 +186,14 @@ public class CallbackOIDCEndpoint implements OIDCEndpoint
         // or convert a AuthorizationSuccessResponse
         AuthenticationSuccessResponse authenticationResponse = AuthenticationSuccessResponse.parse(httpRequest);
 
-        // Make sure the issuer is the one we expect
-        if (authenticationResponse.getIssuer() != null
-            && !authenticationResponse.getIssuer().equals(this.configuration.getIssuer())) {
-            return new ErrorResponse(HTTPResponse.SC_BAD_REQUEST, "Invalid issuer: was expecting ["
-                + this.configuration.getIssuer() + "] and got [" + authenticationResponse.getIssuer() + "]");
+        // Make sure the issuer is the one we expect. The expected issuer is only known when the provider is
+        // configured through its issuer URL, and not when each endpoint is configured individually, in which case
+        // there is nothing to compare the issuer sent back by the provider with.
+        Issuer expectedIssuer = this.configuration.getIssuer();
+        if (authenticationResponse.getIssuer() != null && expectedIssuer != null
+            && !authenticationResponse.getIssuer().equals(expectedIssuer)) {
+            return new ErrorResponse(HTTPResponse.SC_BAD_REQUEST, "Invalid issuer: was expecting [" + expectedIssuer
+                + "] and got [" + authenticationResponse.getIssuer() + "]");
         }
 
         ResponseType responseType = authenticationResponse.impliedResponseType();

@@ -342,6 +342,29 @@ class CallbackOIDCEndpointTest
     }
 
     /**
+     * When the provider endpoints are configured individually, there is no configured issuer to compare the RFC 9207
+     * {@code iss} response parameter with, and the authentication must not be refused because of it.
+     */
+    @Test
+    void callbackWithIssuerAndWithoutConfiguredProvider() throws Exception
+    {
+        this.oldcore.getConfigurationSource().removeProperty(OIDCClientConfiguration.PROP_PROVIDER);
+
+        this.configuration.setSessionState(STATE);
+        this.configuration.setSessionNonce(NONCE);
+        this.configuration.setSuccessRedirectURI(SUCCESS_URI);
+
+        Response response = callback("state=" + STATE + "&iss=" + this.issuer
+            + "&token_type=Bearer&access_token=myaccesstoken&id_token="
+            + signedIDToken(claims().build()).serialize());
+
+        assertTrue(response.indicatesSuccess());
+        assertEquals(SUCCESS_URI, response.toHTTPResponse().getLocation());
+
+        verify(this.httpSession).setAttribute(eq(SecurityRequestWrapper.PRINCIPAL_SESSION_KEY), any());
+    }
+
+    /**
      * An ID token received from the authorization endpoint can only be trusted if it's bound to the nonce generated for
      * the request, so it's ignored when the session does not contain any nonce. Since there is no authorization code to
      * fallback on in that response, no id token is left at all.
