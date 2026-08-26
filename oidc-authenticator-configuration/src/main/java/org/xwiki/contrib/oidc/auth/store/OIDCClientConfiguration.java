@@ -110,12 +110,14 @@ public class OIDCClientConfiguration
 
     /**
      * Name of the property containing the user subject formatter.
+     * 
      * @since 2.23.0
      */
     public static final String FIELD_FORMATTER_USER_NAME_FORBIDDEN_PATTERN = "userNameForbiddenPattern";
 
     /**
      * Name of the property containing the user subject formatter.
+     * 
      * @since 2.23.0
      */
     public static final String FIELD_FORMATTER_USER_NAME_FORBIDDEN_REPLACEMENT = "userNameForbiddenReplacement";
@@ -127,12 +129,14 @@ public class OIDCClientConfiguration
 
     /**
      * Name of the property containing the user subject formatter.
+     * 
      * @since 2.23.0
      */
     public static final String FIELD_FORMATTER_USER_SUBJECT_FORBIDDEN_PATTERN = "userSubjectForbiddenPattern";
 
     /**
      * Name of the property containing the user subject formatter.
+     * 
      * @since 2.23.0
      */
     public static final String FIELD_FORMATTER_USER_SUBJECT_FORBIDDEN_REPLACEMENT = "userSubjectForbiddenReplacement";
@@ -143,8 +147,18 @@ public class OIDCClientConfiguration
     public static final String FIELD_USER_MAPPING = "userMapping";
 
     /**
-     * Name of the property containing the XWiki provider.
+     * Name of the property containing the OIDC provider.
+     * 
+     * @since 2.26.0
      */
+    public static final String FIELD_PROVIDER = "provider";
+
+    /**
+     * Name of the property containing the XWiki provider.
+     * 
+     * @deprecated use {@link #FIELD_PROVIDER} instead
+     */
+    @Deprecated(since = "2.26.0")
     public static final String FIELD_XWIKI_PROVIDER = "xwikiProvider";
 
     /**
@@ -262,9 +276,8 @@ public class OIDCClientConfiguration
     public static final String FIELD_ENABLE_USER = "enableUser";
 
     /**
-     * The name of the property defining a dedicated URL to go to after logout.
-     * If set, after logout the browser will be redirected to that URL
-     * instead of the previous XWiki page.
+     * The name of the property defining a dedicated URL to go to after logout. If set, after logout the browser will be
+     * redirected to that URL instead of the previous XWiki page.
      *
      * @since 2.13.2
      */
@@ -387,7 +400,6 @@ public class OIDCClientConfiguration
 
     /**
      * @return the regex of groups to be synchronized if no explicit mapping is present.
-     *
      * @since 2.19.0
      */
     public String getGroupMappingInclude()
@@ -397,7 +409,6 @@ public class OIDCClientConfiguration
 
     /**
      * @param groupMappingInclude the regex of groups to be synchronized if no explicit mapping is present.
-     *
      * @since 2.19.0
      */
     public void setGroupMappingInclude(String groupMappingInclude)
@@ -407,7 +418,6 @@ public class OIDCClientConfiguration
 
     /**
      * @return the regex of groups to be excluded from synchronization if no explicit mapping is present.
-     *
      * @since 2.19.0
      */
     public String getGroupMappingExclude()
@@ -418,7 +428,6 @@ public class OIDCClientConfiguration
     /**
      * @param groupMappingExclude the regex of groups to be excluded from synchronization if no explicit mapping is
      *            present.
-     *
      * @since 2.19.0
      */
     public void setGroupMappingExclude(String groupMappingExclude)
@@ -490,7 +499,7 @@ public class OIDCClientConfiguration
     public void setUserSubjectForbiddenPattern(String userSubjectFormatterForbiddenPattern)
     {
         this.xobject.setStringValue(FIELD_FORMATTER_USER_SUBJECT_FORBIDDEN_PATTERN,
-                userSubjectFormatterForbiddenPattern);
+            userSubjectFormatterForbiddenPattern);
     }
 
     /**
@@ -503,13 +512,13 @@ public class OIDCClientConfiguration
     }
 
     /**
-     * @param  userSubjectFormatterForbiddenReplacement the user subject forbidden pattern
+     * @param userSubjectFormatterForbiddenReplacement the user subject forbidden pattern
      * @since 2.23.0
      */
     public void setUserSubjectForbiddenReplacement(String userSubjectFormatterForbiddenReplacement)
     {
         this.xobject.setStringValue(FIELD_FORMATTER_USER_SUBJECT_FORBIDDEN_REPLACEMENT,
-                userSubjectFormatterForbiddenReplacement);
+            userSubjectFormatterForbiddenReplacement);
     }
 
     /**
@@ -528,7 +537,6 @@ public class OIDCClientConfiguration
         this.xobject.setStringValue(FIELD_FORMATTER_USER_NAME, userNameFormatter);
     }
 
-
     /**
      * @return the username forbidden pattern
      * @since 2.23.0
@@ -544,8 +552,7 @@ public class OIDCClientConfiguration
      */
     public void setUserNameForbiddenPattern(String userNameFormatterForbiddenPattern)
     {
-        this.xobject.setStringValue(FIELD_FORMATTER_USER_NAME_FORBIDDEN_PATTERN,
-                userNameFormatterForbiddenPattern);
+        this.xobject.setStringValue(FIELD_FORMATTER_USER_NAME_FORBIDDEN_PATTERN, userNameFormatterForbiddenPattern);
     }
 
     /**
@@ -558,13 +565,13 @@ public class OIDCClientConfiguration
     }
 
     /**
-     * @param  userNameFormatterForbiddenReplacement the username forbidden pattern
+     * @param userNameFormatterForbiddenReplacement the username forbidden pattern
      * @since 2.23.0
      */
     public void setUserNameForbiddenReplacement(String userNameFormatterForbiddenReplacement)
     {
         this.xobject.setStringValue(FIELD_FORMATTER_USER_NAME_FORBIDDEN_REPLACEMENT,
-                userNameFormatterForbiddenReplacement);
+            userNameFormatterForbiddenReplacement);
     }
 
     /**
@@ -584,8 +591,28 @@ public class OIDCClientConfiguration
     }
 
     /**
-     * @return the XWiki provider
+     * @return the OIDC provider
+     * @since 2.26.0
      */
+    public String getProvider()
+    {
+        return this.xobject.getStringValue(FIELD_PROVIDER);
+    }
+
+    /**
+     * @param provider the OIDC provider
+     * @since 2.26.0
+     */
+    public void setProvider(String provider)
+    {
+        this.xobject.setStringValue(FIELD_PROVIDER, provider);
+    }
+
+    /**
+     * @return the XWiki provider
+     * @deprecated use {@link #getProvider()} instead
+     */
+    @Deprecated(since = "2.26.0")
     public String getXWikiProvider()
     {
         return this.xobject.getStringValue(FIELD_XWIKI_PROVIDER);
@@ -593,7 +620,9 @@ public class OIDCClientConfiguration
 
     /**
      * @param xwikiProvider the XWiki provider
+     * @deprecated use {@link #setProvider(String)} instead
      */
+    @Deprecated(since = "2.26.0")
     public void setXWikiProvider(String xwikiProvider)
     {
         this.xobject.setStringValue(FIELD_XWIKI_PROVIDER, xwikiProvider);
@@ -1025,7 +1054,6 @@ public class OIDCClientConfiguration
 
     /**
      * @return {@code true} if the ID Token should be skipped at logout, or {@code false} otherwise.
-     *
      * @since 2.18.0
      */
     public boolean isIdTokenSkippedFromLogout()

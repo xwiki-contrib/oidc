@@ -169,6 +169,9 @@ public class OIDCClientConfiguration extends OIDCConfiguration
     @Deprecated(since = "2.4.0")
     private static final String PROP_XWIKIPROVIDER = "oidc.xwikiprovider";
 
+    /**
+     * @since 2.26.0
+     */
     public static final String PROP_PROVIDER = "oidc.provider";
 
     public static final String PROP_USER_NAMEFORMATER = "oidc.user.nameFormater";
@@ -790,7 +793,7 @@ public class OIDCClientConfiguration extends OIDCConfiguration
         String provider = getProperty(PROP_PROVIDER, String.class);
 
         if (StringUtils.isEmpty(provider)) {
-            // Try the old property
+            // Try the old property 
             provider = getProperty(PROP_XWIKIPROVIDER, String.class);
         }
 
@@ -1794,6 +1797,9 @@ public class OIDCClientConfiguration extends OIDCConfiguration
                 break;
             case PROP_USER_MAPPING:
                 returnValue = clientConfiguration.getUserMapping();
+                break;
+            case PROP_PROVIDER:
+                returnValue = clientConfiguration.getProvider();
                 break;
             case PROP_XWIKIPROVIDER:
                 returnValue = clientConfiguration.getXWikiProvider();

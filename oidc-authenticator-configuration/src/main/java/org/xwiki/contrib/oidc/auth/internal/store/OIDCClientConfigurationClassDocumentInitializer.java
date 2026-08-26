@@ -76,7 +76,7 @@ public class OIDCClientConfigurationClassDocumentInitializer extends AbstractMan
         xclass.addTextField(OIDCClientConfiguration.FIELD_FORMATTER_USER_NAME_FORBIDDEN_REPLACEMENT, "XWiki username forbidden replacement", 255);
         xclass.addTextAreaField(OIDCClientConfiguration.FIELD_USER_MAPPING, "User mapping", 50, 10,
             TextAreaClass.EditorType.PURE_TEXT, TextAreaClass.ContentType.PURE_TEXT);
-        xclass.addTextField(OIDCClientConfiguration.FIELD_XWIKI_PROVIDER, "XWiki provider", 255);
+        xclass.addTextField(OIDCClientConfiguration.FIELD_PROVIDER, "OIDC provider", 255);
         xclass.addTextField(OIDCClientConfiguration.FIELD_ENDPOINT_AUTHORIZATION, "Authorization OIDC endpoint", 255);
         xclass.addTextField(OIDCClientConfiguration.FIELD_ENDPOINT_TOKEN, "Token OIDC endpoint", 255);
         xclass.addTextField(OIDCClientConfiguration.FIELD_ENDPOINT_USERINFO, "User info OIDC endpoint", 255);
