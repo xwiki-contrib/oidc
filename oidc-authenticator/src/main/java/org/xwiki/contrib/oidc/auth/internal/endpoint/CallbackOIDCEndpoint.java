@@ -206,7 +206,7 @@ public class CallbackOIDCEndpoint implements OIDCEndpoint
             // Nonce is mandatory when the id token is directly provided (implicit and hybrid flows)
             Nonce nonce = this.configuration.removeSessionNonce();
             if (nonce != null) {
-                idToken = parseIdToken(nonce, authenticationResponse.getIDToken());
+                idToken = parseImplicitIdToken(nonce, authenticationResponse.getIDToken());
             }
         }
         this.logger.debug("Auth response: the provider sent back the id token [{}]", idToken);
@@ -228,7 +228,7 @@ public class CallbackOIDCEndpoint implements OIDCEndpoint
 
                 // Also parse and validate the id token if we don't already have it
                 if (configuration.isAuthenticationConfiguration() && idToken == null) {
-                    idToken = parseIdToken(null, tokenResponse.getOIDCTokens().getIDToken());
+                    idToken = parseCodeIdToken(tokenResponse.getOIDCTokens().getIDToken());
                 }
             }
         }
@@ -284,8 +284,34 @@ public class CallbackOIDCEndpoint implements OIDCEndpoint
         return new RedirectResponse(this.configuration.getSuccessRedirectURI());
     }
 
-    private IDTokenClaimsSet parseIdToken(Nonce nonce, JWT token) throws GeneralException, IOException,
-        URISyntaxException, BadJOSEException, JOSEException, ParseException, OIDCProviderException
+    private IDTokenClaimsSet parseImplicitIdToken(Nonce nonce, JWT token)
+        throws GeneralException, IOException, URISyntaxException, BadJOSEException, JOSEException, OIDCProviderException
+    {
+        // Parse and validate the id token
+        ClientProvider clientProvider = this.configuration.getClientProvider();
+
+        if (clientProvider != null) {
+            IDTokenClaimsSet idToken = IDTokenValidator.create(clientProvider.getMetadata(),
+                this.configuration.createClientInformation(token), this.oidc.getJWKSource()).validate(token, nonce);
+
+            verifyACR(idToken);
+
+            storeIdToken(token, idToken);
+
+            return idToken;
+        }
+
+        // Impossible to verify the id token, ignore it since verifying the signature is mandatory for implicit and
+        // hybrid flows. We don't throw an exception here in the home that the id token will be provided later, by the
+        // token endpoint.
+        this.logger
+            .debug("No provider available. Ignoring the ID token because it's impossible to verify the signature.");
+
+        return null;
+    }
+
+    private IDTokenClaimsSet parseCodeIdToken(JWT token) throws GeneralException, IOException, URISyntaxException,
+        BadJOSEException, JOSEException, ParseException, OIDCProviderException
     {
         // Parse and validate the id token
         ClientProvider clientProvider = this.configuration.getClientProvider();
@@ -293,17 +319,34 @@ public class CallbackOIDCEndpoint implements OIDCEndpoint
         IDTokenClaimsSet idToken;
         if (clientProvider != null) {
             idToken = IDTokenValidator.create(clientProvider.getMetadata(),
-                this.configuration.createClientInformation(token), this.oidc.getJWKSource()).validate(token, nonce);
+                this.configuration.createClientInformation(token), this.oidc.getJWKSource()).validate(token, null);
         } else {
-            // TODO: add support for null ClientProvider
-            this.logger.warn("No provider available in the configuration."
+            this.logger.debug("No provider available in the configuration."
                 + " Skipping id token validation and assuming it's not encrypted,"
-                + " because it's not possible to access the provider metadata and keys to validate the id token."
-                + " This is a security risk and should only be used for testing purposes.");
+                + " because it's not possible to access the provider metadata and keys to validate the id token.");
 
             idToken = new IDTokenClaimsSet(token.getJWTClaimsSet());
         }
 
+        verifyACR(idToken);
+
+        storeIdToken(token, idToken);
+
+        return idToken;
+    }
+
+    private void storeIdToken(JWT token, IDTokenClaimsSet idToken)
+    {
+        this.logger.debug("OIDC Id Token: {}", idToken);
+
+        // Store the original id token as sent by the provider
+        this.configuration.setIdTokenJWT(token);
+        // Store the id token in the session
+        this.configuration.setIdToken(idToken);
+    }
+
+    private void verifyACR(IDTokenClaimsSet idToken) throws OIDCProviderException
+    {
         // Check if ACR is specified and if yes, if value from config matches value returned in id token
         OIDCClaimsRequest claimsRequest = this.configuration.getClaimsRequest();
         ClaimsSetRequest idTokenClaimsRequest = claimsRequest.getIDTokenClaimsRequest();
@@ -329,15 +372,6 @@ public class CallbackOIDCEndpoint implements OIDCEndpoint
                 }
             }
         }
-
-        this.logger.debug("OIDC Id Token: {}", idToken);
-
-        // Store the original id token as sent by the provider
-        this.configuration.setIdTokenJWT(token);
-        // Store the id token in the session
-        this.configuration.setIdToken(idToken);
-
-        return idToken;
     }
 
     private OIDCTokenResponse requestTokenFromAuthenticationResponse(

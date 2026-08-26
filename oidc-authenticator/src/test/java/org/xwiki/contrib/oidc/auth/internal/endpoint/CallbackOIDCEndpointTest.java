@@ -72,6 +72,7 @@ import com.nimbusds.oauth2.sdk.GeneralException;
 import com.nimbusds.oauth2.sdk.Response;
 import com.nimbusds.oauth2.sdk.http.HTTPRequest;
 import com.nimbusds.oauth2.sdk.http.HTTPResponse;
+import com.nimbusds.oauth2.sdk.id.Subject;
 import com.xpn.xwiki.test.MockitoOldcore;
 import com.xpn.xwiki.test.junit5.mockito.InjectMockitoOldcore;
 import com.xpn.xwiki.test.junit5.mockito.OldcoreTest;
@@ -79,6 +80,7 @@ import com.xpn.xwiki.test.reference.ReferenceComponentList;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.okJson;
+import static com.github.tomakehurst.wiremock.client.WireMock.post;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
 import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.options;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -104,6 +106,8 @@ class CallbackOIDCEndpointTest
     private static final String CLIENT_ID = "myclientid";
 
     private static final String SUBJECT = "subject";
+
+    private static final String OTHER_SUBJECT = "othersubject";
 
     private static final String STATE = "mystate";
 
@@ -226,6 +230,19 @@ class CallbackOIDCEndpointTest
         return wireMockServer;
     }
 
+    /**
+     * Make the provider token endpoint answer the passed ID token, as in a standard code flow.
+     */
+    private void stubTokenEndpoint(JWT idToken)
+    {
+        JSONObject tokens = new JSONObject();
+        tokens.put("token_type", "Bearer");
+        tokens.put("access_token", "myaccesstoken");
+        tokens.put("id_token", idToken.serialize());
+
+        this.provider.stubFor(post(urlEqualTo("/token")).willReturn(okJson(tokens.toString())));
+    }
+
     private JWTClaimsSet.Builder claims()
     {
         long now = System.currentTimeMillis();
@@ -343,25 +360,73 @@ class CallbackOIDCEndpointTest
 
     /**
      * When the provider endpoints are configured individually, there is no configured issuer to compare the RFC 9207
-     * {@code iss} response parameter with, and the authentication must not be refused because of it.
+     * {@code iss} response parameter with, and the authentication must not be refused because of it. It's done with a
+     * code flow since an ID token coming from the authorization endpoint cannot be trusted without the metadata of a
+     * configured provider to validate its signature.
      */
     @Test
     void callbackWithIssuerAndWithoutConfiguredProvider() throws Exception
     {
         this.oldcore.getConfigurationSource().removeProperty(OIDCClientConfiguration.PROP_PROVIDER);
+        this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_ENDPOINT_TOKEN,
+            this.issuer + "/token");
+        stubTokenEndpoint(signedIDToken(claims().build()));
 
         this.configuration.setSessionState(STATE);
-        this.configuration.setSessionNonce(NONCE);
         this.configuration.setSuccessRedirectURI(SUCCESS_URI);
 
-        Response response = callback("state=" + STATE + "&iss=" + this.issuer
-            + "&token_type=Bearer&access_token=myaccesstoken&id_token="
-            + signedIDToken(claims().build()).serialize());
+        Response response = callback("code=mycode&state=" + STATE + "&iss=" + this.issuer);
 
         assertTrue(response.indicatesSuccess());
         assertEquals(SUCCESS_URI, response.toHTTPResponse().getLocation());
 
         verify(this.httpSession).setAttribute(eq(SecurityRequestWrapper.PRINCIPAL_SESSION_KEY), any());
+    }
+
+    /**
+     * The signature of an ID token received from the authorization endpoint can only be verified with the metadata of
+     * a configured provider, so it must be ignored when the provider endpoints are configured individually. Since
+     * there is no authorization code to fallback on in an implicit flow response, no id token is left at all.
+     */
+    @Test
+    void callbackWithIDTokenAndWithoutConfiguredProvider() throws Exception
+    {
+        this.oldcore.getConfigurationSource().removeProperty(OIDCClientConfiguration.PROP_PROVIDER);
+
+        this.configuration.setSessionState(STATE);
+        this.configuration.setSessionNonce(NONCE);
+
+        assertErrorResponse(HTTPResponse.SC_BAD_REQUEST, "No id token could be found",
+            callbackWithIDToken(signedIDToken(claims().build())));
+    }
+
+    /**
+     * In a hybrid flow, the ID token sent by the authorization endpoint is ignored when there is no configured
+     * provider to validate its signature with, but the authentication still succeeds with the ID token returned by the
+     * token endpoint, which is received through a direct call to the provider.
+     */
+    @Test
+    void callbackWithIDTokenAndCodeAndWithoutConfiguredProvider() throws Exception
+    {
+        this.oldcore.getConfigurationSource().removeProperty(OIDCClientConfiguration.PROP_PROVIDER);
+        this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_ENDPOINT_TOKEN,
+            this.issuer + "/token");
+        stubTokenEndpoint(signedIDToken(claims().build()));
+
+        this.configuration.setSessionState(STATE);
+        this.configuration.setSessionNonce(NONCE);
+        this.configuration.setSuccessRedirectURI(SUCCESS_URI);
+
+        // Another subject than the one of the token endpoint id token, to identify which one is used
+        JWT ignoredIDToken = signedIDToken(claims().subject(OTHER_SUBJECT).build());
+
+        Response response = callback("code=mycode&state=" + STATE + "&id_token=" + ignoredIDToken.serialize());
+
+        assertTrue(response.indicatesSuccess());
+        assertEquals(SUCCESS_URI, response.toHTTPResponse().getLocation());
+
+        verify(this.httpSession).setAttribute(eq(SecurityRequestWrapper.PRINCIPAL_SESSION_KEY), any());
+        verify(this.sessions).onLogin(any(), eq(new Subject(SUBJECT)));
     }
 
     /**
