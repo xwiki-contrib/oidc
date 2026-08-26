@@ -102,7 +102,7 @@
 
     <!--
 		Not really needed by the provider, but added for retro compatibility reasons
-        (to not loose it and break authentication when upgrading for an old version of
+        (to not loose it and break authentication when upgrading from an old version of
         the provider which used to include the token authenticator).
     -->
     <dependency>
