@@ -28,6 +28,7 @@ import org.junit.jupiter.api.Test;
 import org.xwiki.contrib.oidc.OIDCException;
 import org.xwiki.model.reference.DocumentReference;
 import org.xwiki.model.reference.LocalDocumentReference;
+import org.xwiki.security.authorization.AuthorizationManager;
 import org.xwiki.sheet.SheetBinder;
 import org.xwiki.test.junit5.mockito.InjectMockComponents;
 import org.xwiki.test.junit5.mockito.MockComponent;
@@ -68,6 +69,8 @@ class OIDCConsentStoreTest
 
     private static final LocalDocumentReference USERS_CLASS_REFERENCE =
         new LocalDocumentReference("XWiki", "XWikiUsers");
+
+    private static final String SUPERADMIN_NAME = AuthorizationManager.SUPERADMIN_USER;
 
     @InjectMockitoOldcore
     private MockitoOldcore oldcore;
@@ -469,6 +472,59 @@ class OIDCConsentStoreTest
 
         assertEquals("xwiki:XWiki.Us/er/0", accessToken.getConsentReference());
         assertNotNull(this.store.getConsent(accessToken));
+    }
+
+    /**
+     * Create a document with a single consent and a token stored in it.
+     */
+    private XWikiBearerAccessToken createAndSaveAccessToken(DocumentReference userReference) throws Exception
+    {
+        XWikiContext xcontext = this.oldcore.getXWikiContext();
+
+        XWikiDocument userDocument = new XWikiDocument(userReference);
+        userDocument.newXObject(BaseObjectOIDCConsent.REFERENCE, xcontext);
+        saveUserDocument(userDocument);
+
+        BaseObjectOIDCConsent consent = new BaseObjectOIDCConsent("id",
+            this.oldcore.getSpyXWiki().getDocument(userReference, xcontext)
+                .getXObject(BaseObjectOIDCConsent.REFERENCE, 0),
+            xcontext);
+        XWikiBearerAccessToken accessToken = this.store.createAccessToken(consent);
+        saveUserDocument(consent.getOwnerDocument());
+
+        return accessToken;
+    }
+
+    @Test
+    void getConsentFromAccessTokenOfSuperadmin() throws Exception
+    {
+        // A consent stored in a document named like the superadmin user would give access to a user with all the
+        // rights, so it must never be usable
+        XWikiBearerAccessToken accessToken =
+            createAndSaveAccessToken(new DocumentReference("xwiki", "XWiki", SUPERADMIN_NAME));
+
+        assertEquals("xwiki:XWiki.superadmin/0", accessToken.getConsentReference());
+        assertNull(this.store.getConsent(accessToken));
+    }
+
+    @Test
+    void getConsentFromAccessTokenOfSuperadminWithAnotherCase() throws Exception
+    {
+        // The superadmin user name is not case sensitive
+        XWikiBearerAccessToken accessToken =
+            createAndSaveAccessToken(new DocumentReference("xwiki", "XWiki", "SuperAdmin"));
+
+        assertNull(this.store.getConsent(accessToken));
+    }
+
+    @Test
+    void getConsentFromAccessTokenOfSuperadminInAnotherSpace() throws Exception
+    {
+        // Whatever the space, a document named like the superadmin user is refused
+        XWikiBearerAccessToken accessToken =
+            createAndSaveAccessToken(new DocumentReference("xwiki", "Space", SUPERADMIN_NAME));
+
+        assertNull(this.store.getConsent(accessToken));
     }
 
 }

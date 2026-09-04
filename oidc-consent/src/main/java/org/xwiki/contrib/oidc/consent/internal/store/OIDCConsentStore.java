@@ -42,6 +42,7 @@ import org.xwiki.model.reference.DocumentReferenceResolver;
 import org.xwiki.model.reference.EntityReference;
 import org.xwiki.model.reference.EntityReferenceResolver;
 import org.xwiki.model.reference.EntityReferenceSerializer;
+import org.xwiki.security.authorization.AuthorizationManager;
 import org.xwiki.user.UserReference;
 import org.xwiki.user.UserReferenceSerializer;
 
@@ -133,8 +134,15 @@ public class OIDCConsentStore
 
         XWikiContext xcontext = this.xcontextProvider.get();
 
+        // Get the reference of the document containing the consent
+        DocumentReference documentReference = reference.getDocumentReference();
+        if (StringUtils.equalsIgnoreCase(documentReference.getName(), AuthorizationManager.SUPERADMIN_USER)) {
+            // Forbid any token which might be interpreted as the superadmin user
+            return null;
+        }
+
         // Get the document containing the consent
-        XWikiDocument consentDocument = xcontext.getWiki().getDocument(reference, xcontext);
+        XWikiDocument consentDocument = xcontext.getWiki().getDocument(documentReference, xcontext);
 
         // Make sure the document exist
         if (!consentDocument.isNew()) {
