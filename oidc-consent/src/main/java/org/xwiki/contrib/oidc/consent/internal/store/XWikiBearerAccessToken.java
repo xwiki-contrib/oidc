@@ -29,12 +29,13 @@ import com.nimbusds.oauth2.sdk.token.AccessToken;
 import com.nimbusds.oauth2.sdk.token.BearerAccessToken;
 
 /**
- * Extends {@link BearerAccessToken} with the reference of the consent object.
+ * Extends {@link BearerAccessToken} with the reference of the consent.
  * <p>
  * When serialize to an HTTP Authorization header:
  *
  * <pre>
- * Authorization: Bearer xwiki:XWiki.MyUser^XWiki.XWikiUsers[4]/2YotnFZFEjr1zCsicMWpAA
+ * 1.0: Authorization: Bearer xwiki:XWiki.MyUser^XWiki.XWikiUsers[4]/2YotnFZFEjr1zCsicMWpAA
+ * 2.0: Authorization: Bearer xwiki:XWiki.MyUser/4/2YotnFZFEjr1zCsicMWpAA
  * </pre>
  * 
  * @version $Id$
@@ -42,33 +43,33 @@ import com.nimbusds.oauth2.sdk.token.BearerAccessToken;
  */
 public class XWikiBearerAccessToken extends BearerAccessToken
 {
-    private final String objectReference;
+    private final String consentReference;
 
-    private final String random;
+    private final String tokenValue;
 
     private Date expiration;
 
     /**
      * @since 2.13.0
      */
-    protected XWikiBearerAccessToken(String objectReference, String random, long lifetime)
+    protected XWikiBearerAccessToken(String tokenReference, String tokenValue, long lifetime)
     {
-        this(objectReference, random, Date.from(Instant.now().plusSeconds(lifetime)));
+        this(tokenReference, tokenValue, Date.from(Instant.now().plusSeconds(lifetime)));
     }
 
     /**
      * @since 2.13.0
      */
-    protected XWikiBearerAccessToken(String objectReference, String random, Date expiration)
+    protected XWikiBearerAccessToken(String consentReference, String tokenValue, Date expiration)
     {
-        super(objectReference + '/' + random);
+        super(consentReference + '/' + tokenValue);
 
-        this.objectReference = objectReference;
-        this.random = random;
+        this.consentReference = consentReference;
+        this.tokenValue = tokenValue;
         this.expiration = expiration;
     }
 
-    private static String newRandom()
+    private static String newTokenValue()
     {
         byte[] n = new byte[DEFAULT_BYTE_LENGTH];
         secureRandom.nextBytes(n);
@@ -77,26 +78,25 @@ public class XWikiBearerAccessToken extends BearerAccessToken
     }
 
     /**
-     * @param documentObjectReference the reference of the object containing the consent
+     * @param consentReference the reference of the consent consent
      * @param expiration the expiration date
      * @return the new {@link XWikiBearerAccessToken} instance
      * @since 2.13.0
      */
-    public static XWikiBearerAccessToken create(String documentObjectReference, Date expiration)
+    public static XWikiBearerAccessToken create(String consentReference, Date expiration)
     {
-
-        return new XWikiBearerAccessToken(documentObjectReference, newRandom(), expiration);
+        return new XWikiBearerAccessToken(consentReference, newTokenValue(), expiration);
     }
 
     /**
-     * @param documentObjectReference the reference of the object containing the consent
+     * @param consentReference the reference of the consent consent
      * @param lifetime the lifetime in seconds, 0 if not specified
      * @return the new {@link XWikiBearerAccessToken} instance
      * @since 2.13.0
      */
-    public static XWikiBearerAccessToken create(String documentObjectReference, long lifetime)
+    public static XWikiBearerAccessToken create(String consentReference, long lifetime)
     {
-        return new XWikiBearerAccessToken(documentObjectReference, newRandom(), lifetime);
+        return new XWikiBearerAccessToken(consentReference, newTokenValue(), lifetime);
     }
 
     /**
@@ -121,29 +121,31 @@ public class XWikiBearerAccessToken extends BearerAccessToken
     }
 
     /**
-     * @return the reference of the object containing the consent
+     * @return the reference of the consent
+     * @since 2.26.0
      */
-    public String getDocumentObjectReference()
+    public String getConsentReference()
     {
-        return this.objectReference;
+        return this.consentReference;
     }
 
     /**
-     * @return the random value
+     * @return the actual token value
+     * @since 2.26.0
      */
-    public String getRandom()
+    public String getTokenValue()
     {
-        return this.random;
+        return this.tokenValue;
     }
 
     /**
-     * @param documentObjectReference the reference of the object containing the consent
+     * @param consentReference the reference of the consent
      * @return the new {@link XWikiBearerAccessToken} instance
      * @since 2.13.0
      */
-    public static XWikiBearerAccessToken create(String documentObjectReference)
+    public static XWikiBearerAccessToken create(String consentReference)
     {
-        return create(documentObjectReference, 0L);
+        return create(consentReference, 0L);
     }
 
     /**
@@ -169,13 +171,13 @@ public class XWikiBearerAccessToken extends BearerAccessToken
         int index = tokenValue.lastIndexOf('/');
 
         if (index == -1) {
-            throw new ParseException(
-                "The token value [" + tokenValue + "] does not have the expected format (<object reference>/<random>)");
+            throw new ParseException("The token value [" + tokenValue
+                + "] does not have the expected format (<consent reference>/<random>)");
         }
 
-        String objectReference = tokenValue.substring(0, index);
+        String consentReference = tokenValue.substring(0, index);
         String random = tokenValue.substring(index + 1);
 
-        return new XWikiBearerAccessToken(objectReference, random, null);
+        return new XWikiBearerAccessToken(consentReference, random, null);
     }
 }

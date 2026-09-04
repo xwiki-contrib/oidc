@@ -30,6 +30,7 @@ import javax.inject.Named;
 import javax.inject.Provider;
 import javax.inject.Singleton;
 
+import org.apache.commons.lang3.math.NumberUtils;
 import org.slf4j.Logger;
 import org.xwiki.component.annotation.Component;
 import org.xwiki.context.Execution;
@@ -69,6 +70,9 @@ public class OIDCConsentStore
     private DocumentReferenceResolver<String> resolver;
 
     @Inject
+    private DocumentReferenceResolver<String> documentResolver;
+
+    @Inject
     private EntityReferenceResolver<String> entityResolver;
 
     @Inject
@@ -84,6 +88,34 @@ public class OIDCConsentStore
     @Inject
     private Logger logger;
 
+    private String serializeConsentReference2(BaseObjectOIDCConsent consent)
+    {
+        return serializeConsentReference2(consent.getDocumentReference(), consent.getNumber());
+    }
+
+    private String serializeConsentReference2(DocumentReference documentReference, int objectNumber)
+    {
+        // Token version 2 (<documentReference>/<objectNumber>)
+        return this.defaultReferenceSerializer.serialize(documentReference) + "/" + objectNumber;
+    }
+
+    private ConsentReference parseConsentReference(String consentReference)
+    {
+        // Token version 2 (<documentReference>/<objectNumber>)
+        int index = consentReference.lastIndexOf('/');
+        if (index > 0) {
+            int objectNumber = NumberUtils.toInt(consentReference.substring(index + 1), -1);
+
+            if (objectNumber >= 0) {
+                return new ConsentReference(this.documentResolver.resolve(consentReference.substring(0, index)),
+                    objectNumber);
+            }
+        }
+
+        // Token version 1 (<objectReference>), which always ends with the number of the object between brackets
+        return new ConsentReference(this.entityResolver.resolve(consentReference, EntityType.OBJECT));
+    }
+
     /**
      * @param xwikiAccessToken the access token for which to return the consent
      * @return the consent associated to the access token, null if not found or if the token is invalid
@@ -91,8 +123,7 @@ public class OIDCConsentStore
      */
     public BaseObjectOIDCConsent getConsent(XWikiBearerAccessToken xwikiAccessToken) throws XWikiException
     {
-        EntityReference reference =
-            this.entityResolver.resolve(xwikiAccessToken.getDocumentObjectReference(), EntityType.OBJECT);
+        ConsentReference reference = parseConsentReference(xwikiAccessToken.getConsentReference());
 
         XWikiContext xcontext = this.xcontextProvider.get();
 
@@ -225,8 +256,8 @@ public class OIDCConsentStore
     public XWikiBearerAccessToken createAccessToken(BaseObjectOIDCConsent consent, Date expirationDate)
     {
         // TODO: set a configurable default scope ? readonly by default ?
-        XWikiBearerAccessToken accessToken = XWikiBearerAccessToken
-            .create(this.defaultReferenceSerializer.serialize(consent.getReference()), expirationDate);
+        XWikiBearerAccessToken accessToken =
+            XWikiBearerAccessToken.create(serializeConsentReference2(consent), expirationDate);
         consent.setAccessToken(accessToken);
 
         return accessToken;
@@ -279,8 +310,7 @@ public class OIDCConsentStore
      * @return a new consent for the user
      * @throws OIDCException when failing to create the consent
      */
-    public BaseObjectOIDCConsent createUserConsent(XWikiDocument userDocument, Date expirationDate)
-        throws OIDCException
+    public BaseObjectOIDCConsent createUserConsent(XWikiDocument userDocument, Date expirationDate) throws OIDCException
     {
         XWikiContext xcontext = this.xcontextProvider.get();
 

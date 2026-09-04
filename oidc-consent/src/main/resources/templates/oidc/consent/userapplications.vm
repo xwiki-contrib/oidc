@@ -145,6 +145,12 @@
             $escapetool.xml($services.localization.render('oidc.template.userapplications.expiration_date.display.none', [$!{xwiki.formatDate($consent.accessTokenExpiration)}]))
           #end
           </span>
+          ## Tokens created before the version 2 are stored in a less secure way
+          #if ($consent.version < 2)
+            <div class="box warningmessage">
+              $escapetool.xml($services.localization.render('oidc.template.userapplications.deprecatedVersion'))
+            </div>
+          #end
         </div>
 
         #if ($xcontext.action == 'view')

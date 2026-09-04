@@ -49,6 +49,15 @@ public class SafeOIDCConsent implements OIDCConsent
         return this.consent.getId();
     }
 
+    /**
+     * @return the version of the consent specification
+     * @since 2.26.0
+     */
+    public int getVersion()
+    {
+        return this.consent.getVersion();
+    }
+
     @Override
     public String getClientID()
     {

@@ -48,6 +48,9 @@ public class OIDCConsentClassDocumentInitializer extends AbstractMandatoryClassI
     @Override
     protected void createClass(BaseClass xclass)
     {
+        xclass.addNumberField(BaseObjectOIDCConsent.FIELD_VERSION, "Consent specification version (current is 2)", 1,
+            "integer");
+
         xclass.addTextField(BaseObjectOIDCConsent.FIELD_CLIENTID, "Client ID", 30);
         xclass.addTextField(BaseObjectOIDCConsent.FIELD_REDIRECTURI, "Redirect URI", 30);
         xclass.addTextAreaField(BaseObjectOIDCConsent.FIELD_CLAIMS, "Claims", 60, 10);

@@ -41,6 +41,7 @@ import com.xpn.xwiki.XWikiContext;
 import com.xpn.xwiki.doc.XWikiDocument;
 import com.xpn.xwiki.internal.filter.XWikiDocumentFilterUtils;
 import com.xpn.xwiki.objects.BaseObject;
+import com.xpn.xwiki.objects.classes.PasswordClass;
 import com.xpn.xwiki.test.MockitoOldcore;
 import com.xpn.xwiki.test.junit5.mockito.InjectMockitoOldcore;
 import com.xpn.xwiki.test.junit5.mockito.OldcoreTest;
@@ -48,6 +49,7 @@ import com.xpn.xwiki.test.reference.ReferenceComponentList;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -64,6 +66,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class BaseObjectOIDCConsentTest
 {
     private static final DocumentReference USER_REFERENCE = new DocumentReference("xwiki", "XWiki", "User");
+
+    private static final DocumentReference OTHERUSER_REFERENCE = new DocumentReference("xwiki", "XWiki", "OtherUser");
 
     @InjectMockitoOldcore
     private MockitoOldcore oldcore;
@@ -107,7 +111,45 @@ class BaseObjectOIDCConsentTest
 
     private XWikiBearerAccessToken createAccessToken()
     {
+        return XWikiBearerAccessToken.create("xwiki:XWiki.User/0");
+    }
+
+    /**
+     * @return a token in the format used before the version 2, i.e. based on the reference of the consent xobject
+     */
+    private XWikiBearerAccessToken createVersion1AccessToken()
+    {
         return XWikiBearerAccessToken.create("xwiki:XWiki.User^XWiki.OIDC.ConsentClass[0]");
+    }
+
+    /**
+     * Store the passed token the way it was stored before the version 2, i.e. hashed without any salt and without any
+     * version indicated in the consent.
+     */
+    private void storeVersion1AccessToken(XWikiBearerAccessToken accessToken)
+    {
+        this.xobject.set(BaseObjectOIDCConsent.FIELD_ACCESSTOKEN, accessToken.getTokenValue(),
+            this.oldcore.getXWikiContext());
+    }
+
+    /**
+     * @param targetReference the reference of the document to copy the consent to
+     * @return a consent holding a copy of the stored access token of {@link #consent}, but located in another document
+     */
+    private BaseObjectOIDCConsent copyConsentTo(DocumentReference targetReference) throws Exception
+    {
+        XWikiContext xcontext = this.oldcore.getXWikiContext();
+
+        XWikiDocument otherUserDocument = new XWikiDocument(targetReference);
+        BaseObject otherXObject = otherUserDocument.newXObject(BaseObjectOIDCConsent.REFERENCE, xcontext);
+
+        // Copy the stored fields as is, the way copying or renaming the document would
+        otherXObject.setIntValue(BaseObjectOIDCConsent.FIELD_VERSION,
+            this.xobject.getIntValue(BaseObjectOIDCConsent.FIELD_VERSION));
+        otherXObject.setStringValue(BaseObjectOIDCConsent.FIELD_ACCESSTOKEN,
+            this.xobject.getStringValue(BaseObjectOIDCConsent.FIELD_ACCESSTOKEN));
+
+        return new BaseObjectOIDCConsent("otherid", otherXObject, xcontext);
     }
 
     @Test
@@ -182,7 +224,7 @@ class BaseObjectOIDCConsentTest
 
         XWikiBearerAccessToken accessToken = createAccessToken();
         Date expiration = new Date(42);
-        accessToken = XWikiBearerAccessToken.create(accessToken.getDocumentObjectReference(), expiration);
+        accessToken = XWikiBearerAccessToken.create(accessToken.getConsentReference(), expiration);
 
         this.consent.setAccessToken(accessToken);
 
@@ -193,7 +235,7 @@ class BaseObjectOIDCConsentTest
         // The token is not stored in clear
         String stored = this.xobject.getStringValue(BaseObjectOIDCConsent.FIELD_ACCESSTOKEN);
         assertTrue(stored.startsWith("hash:"), stored);
-        assertFalse(stored.contains(accessToken.getRandom()), stored);
+        assertFalse(stored.contains(accessToken.getTokenValue()), stored);
     }
 
     @Test
@@ -314,4 +356,113 @@ class BaseObjectOIDCConsentTest
 
         assertTrue(this.consent.isModified());
     }
+    @Test
+    void getNumber()
+    {
+        assertEquals(0, this.consent.getNumber());
+    }
+
+    @Test
+    void version()
+    {
+        // A consent which does not indicate any version is a version 1 consent
+        assertEquals(1, this.consent.getVersion());
+
+        this.consent.setVersion(2);
+
+        assertEquals(2, this.consent.getVersion());
+        assertEquals(2, this.xobject.getIntValue(BaseObjectOIDCConsent.FIELD_VERSION));
+
+        // An unsupported version is a version 1 consent
+        this.xobject.setIntValue(BaseObjectOIDCConsent.FIELD_VERSION, 0);
+
+        assertEquals(1, this.consent.getVersion());
+    }
+
+    @Test
+    void setAccessTokenStoresAVersion2Token()
+    {
+        XWikiBearerAccessToken accessToken = createAccessToken();
+
+        this.consent.setAccessToken(accessToken);
+
+        // A new token is always a version 2 token
+        assertEquals(2, this.consent.getVersion());
+
+        // The stored value is the hash of the token value salted with the key of the document containing the consent
+        String stored = this.xobject.getStringValue(BaseObjectOIDCConsent.FIELD_ACCESSTOKEN);
+        assertEquals(stored, new PasswordClass().getEquivalentPassword(stored,
+            this.userDocument.getKey() + ":" + accessToken.getTokenValue()));
+        // The token value alone is not enough to produce the stored value
+        assertNotEquals(stored, new PasswordClass().getEquivalentPassword(stored, accessToken.getTokenValue()));
+    }
+
+    @Test
+    void isTokenValidWithVersion1Consent()
+    {
+        XWikiBearerAccessToken accessToken = createVersion1AccessToken();
+
+        storeVersion1AccessToken(accessToken);
+
+        assertEquals(1, this.consent.getVersion());
+        assertTrue(this.consent.isTokenValid(accessToken));
+        assertFalse(this.consent.isTokenValid(createVersion1AccessToken()));
+    }
+
+    @Test
+    void isTokenValidWhenTheConsentIsCopiedToAnotherUser() throws Exception
+    {
+        XWikiBearerAccessToken accessToken = createAccessToken();
+
+        this.consent.setAccessToken(accessToken);
+
+        BaseObjectOIDCConsent otherConsent = copyConsentTo(OTHERUSER_REFERENCE);
+
+        // The token remains valid for the user it was created for
+        assertTrue(this.consent.isTokenValid(accessToken));
+        // But it's not valid anymore in the document of another user
+        assertFalse(otherConsent.isTokenValid(accessToken));
+    }
+
+    @Test
+    void isTokenValidWhenTheConsentIsCopiedToAnotherWiki() throws Exception
+    {
+        XWikiBearerAccessToken accessToken = createAccessToken();
+
+        this.consent.setAccessToken(accessToken);
+
+        // Copy the consent to a user having the very same name in another wiki of the farm
+        BaseObjectOIDCConsent otherConsent =
+            copyConsentTo(new DocumentReference("otherwiki", "XWiki", "User"));
+
+        assertFalse(otherConsent.isTokenValid(accessToken));
+    }
+
+    @Test
+    void isTokenValidWhenAVersion1ConsentIsCopiedToAnotherUser() throws Exception
+    {
+        XWikiBearerAccessToken accessToken = createVersion1AccessToken();
+
+        storeVersion1AccessToken(accessToken);
+
+        BaseObjectOIDCConsent otherConsent = copyConsentTo(OTHERUSER_REFERENCE);
+
+        // A version 1 token is not bound to any document, so it remains valid wherever the consent is copied. This is
+        // the price of not invalidating the tokens created before the version 2.
+        assertTrue(otherConsent.isTokenValid(accessToken));
+    }
+
+    @Test
+    void isTokenValidWhenTheVersionIsDowngraded()
+    {
+        XWikiBearerAccessToken accessToken = createAccessToken();
+
+        this.consent.setAccessToken(accessToken);
+
+        // Pretending a version 2 consent is a version 1 consent does not allow validating the token without the salt
+        this.consent.setVersion(1);
+
+        assertFalse(this.consent.isTokenValid(accessToken));
+    }
+
 }

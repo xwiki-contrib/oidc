@@ -60,6 +60,13 @@ public class BaseObjectOIDCConsent implements OIDCConsent
         new LocalDocumentReference(Arrays.asList(XWiki.SYSTEM_SPACE, "OIDC"), "ConsentClass");
 
     /**
+     * The field containing the OIDC consent version.
+     * 
+     * @since 2.26.0
+     */
+    public static final String FIELD_VERSION = "version";
+
+    /**
      * The field containing the OIDC client ID.
      */
     public static final String FIELD_CLIENTID = "clientId";
@@ -140,6 +147,35 @@ public class BaseObjectOIDCConsent implements OIDCConsent
         return this.xobject.getReference();
     }
 
+    /**
+     * @return the object number
+     * @since 2.26.0
+     */
+    public int getNumber()
+    {
+        return this.xobject.getNumber();
+    }
+
+    /**
+     * @return the version of the consent
+     * @since 2.26.0
+     */
+    public int getVersion()
+    {
+        int version = this.xobject.getIntValue(FIELD_VERSION, 1);
+
+        return version > 0 ? version : 1;
+    }
+
+    /**
+     * @param version the version of the consent
+     * @since 2.26.0
+     */
+    public void setVersion(int version)
+    {
+        this.xobject.setIntValue(FIELD_VERSION, version);
+    }
+
     @Override
     public String getId()
     {
@@ -217,7 +253,9 @@ public class BaseObjectOIDCConsent implements OIDCConsent
             this.xobject.removeField(FIELD_ACCESSTOKEN_EXPIRE);
         } else {
             // Encrypt and set the token value
-            this.xobject.set(FIELD_ACCESSTOKEN, accessToken.getRandom(), this.xcontext);
+            this.xobject.set(FIELD_ACCESSTOKEN, getSaltedTokenValue(accessToken), this.xcontext);
+            // New token are always using version 2 (version 1 is only retro compatibility)
+            setVersion(2);
 
             // Set the expiration date
             setAccessTokenExpiration(accessToken.getExpiration());
@@ -230,9 +268,25 @@ public class BaseObjectOIDCConsent implements OIDCConsent
      */
     public boolean isTokenValid(XWikiBearerAccessToken accessToken)
     {
+        // The stored value
         String stored = this.xobject.getStringValue(FIELD_ACCESSTOKEN);
 
-        return new PasswordClass().getEquivalentPassword(stored, accessToken.getRandom()).equals(stored);
+        // The input value to validate
+        String input = getVersion() == 2 ? getSaltedTokenValue(accessToken) : accessToken.getTokenValue();
+
+        return new PasswordClass().getEquivalentPassword(stored, input).equals(stored);
+    }
+
+    /**
+     * Salt the token with the identifier of the document where it's expected to be stored, so that the stored value
+     * cannot be copied to the consent of another user.
+     *
+     * @param accessToken the token to salt
+     * @return the value to hash for a version 2 token
+     */
+    private String getSaltedTokenValue(XWikiBearerAccessToken accessToken)
+    {
+        return getOwnerDocument().getKey() + ":" + accessToken.getTokenValue();
     }
 
     @Override
