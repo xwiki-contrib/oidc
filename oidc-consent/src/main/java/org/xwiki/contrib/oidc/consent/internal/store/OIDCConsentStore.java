@@ -30,6 +30,7 @@ import javax.inject.Named;
 import javax.inject.Provider;
 import javax.inject.Singleton;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.math.NumberUtils;
 import org.slf4j.Logger;
 import org.xwiki.component.annotation.Component;
@@ -123,6 +124,11 @@ public class OIDCConsentStore
      */
     public BaseObjectOIDCConsent getConsent(XWikiBearerAccessToken xwikiAccessToken) throws XWikiException
     {
+        // Empty token are not allowed
+        if (StringUtils.isEmpty(xwikiAccessToken.getTokenValue())) {
+            return null;
+        }
+
         ConsentReference reference = parseConsentReference(xwikiAccessToken.getConsentReference());
 
         XWikiContext xcontext = this.xcontextProvider.get();

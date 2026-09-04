@@ -382,6 +382,26 @@ class OIDCConsentStoreTest
     }
 
     @Test
+    void getConsentFromAccessTokenWithEmptyTokenValue() throws Exception
+    {
+        // The consent does not have any token yet, so the stored token value is empty: an empty input token value
+        // must not be considered as a match
+        assertNull(this.store.getConsent(XWikiBearerAccessToken.parse("Bearer xwiki:XWiki.User/0/")));
+    }
+
+    @Test
+    void getConsentFromAccessTokenWithEmptyTokenValueAndVersion1Consent() throws Exception
+    {
+        XWikiDocument userDocument = getUserDocument().clone();
+        userDocument.getXObject(BaseObjectOIDCConsent.REFERENCE, 1).set(BaseObjectOIDCConsent.FIELD_ACCESSTOKEN, "",
+            this.oldcore.getXWikiContext());
+        saveUserDocument(userDocument);
+
+        assertNull(this.store
+            .getConsent(XWikiBearerAccessToken.parse("Bearer xwiki:XWiki.User^XWiki.OIDC.ConsentClass[1]/")));
+    }
+
+    @Test
     void getConsentFromAccessTokenWithUnknownDocument() throws Exception
     {
         assertNull(this.store.getConsent(XWikiBearerAccessToken.parse("Bearer xwiki:XWiki.NoSuchUser/0/value")));
