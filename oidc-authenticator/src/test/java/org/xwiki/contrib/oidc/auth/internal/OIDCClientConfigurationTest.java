@@ -32,6 +32,9 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import org.json.JSONArray;
+import org.json.JSONObject;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.xwiki.configuration.internal.MemoryConfigurationSource;
 import org.xwiki.container.Container;
@@ -40,18 +43,23 @@ import org.xwiki.container.servlet.ServletRequest;
 import org.xwiki.context.Execution;
 import org.xwiki.context.ExecutionContext;
 import org.xwiki.contrib.oidc.OAuth2TokenStore;
+import org.xwiki.contrib.oidc.auth.internal.endpoint.BackChannelLogoutOIDCEndpoint;
+import org.xwiki.contrib.oidc.auth.internal.endpoint.CallbackOIDCEndpoint;
+import org.xwiki.contrib.oidc.auth.internal.session.ClientProviders;
+import org.xwiki.contrib.oidc.auth.internal.session.ClientProviders.ClientProvider;
 import org.xwiki.contrib.oidc.auth.store.OIDCClientConfigurationStore;
 import org.xwiki.contrib.oidc.provider.internal.OIDCManager;
-import org.xwiki.contrib.oidc.provider.internal.endpoint.TokenOIDCEndpoint;
 import org.xwiki.contrib.usercommon.formatter.UserFormatterFactory;
 import org.xwiki.properties.ConverterManager;
 import org.xwiki.test.annotation.AfterComponent;
+import org.xwiki.test.annotation.ComponentList;
 import org.xwiki.test.junit5.mockito.ComponentTest;
 import org.xwiki.test.junit5.mockito.InjectComponentManager;
 import org.xwiki.test.junit5.mockito.InjectMockComponents;
 import org.xwiki.test.junit5.mockito.MockComponent;
 import org.xwiki.test.mockito.MockitoComponentManager;
 
+import com.github.tomakehurst.wiremock.WireMockServer;
 import com.nimbusds.oauth2.sdk.GeneralException;
 import com.nimbusds.oauth2.sdk.ResponseType;
 import com.nimbusds.oauth2.sdk.token.BearerAccessToken;
@@ -62,10 +70,20 @@ import com.nimbusds.openid.connect.sdk.claims.ClaimsSetRequest;
 import com.xpn.xwiki.test.reference.ReferenceComponentList;
 import com.xpn.xwiki.web.XWikiServletRequestStub;
 
+import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
+import static com.github.tomakehurst.wiremock.client.WireMock.get;
+import static com.github.tomakehurst.wiremock.client.WireMock.getRequestedFor;
+import static com.github.tomakehurst.wiremock.client.WireMock.okJson;
+import static com.github.tomakehurst.wiremock.client.WireMock.post;
+import static com.github.tomakehurst.wiremock.client.WireMock.postRequestedFor;
+import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
+import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.options;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyList;
@@ -82,9 +100,21 @@ import static org.xwiki.contrib.oidc.auth.internal.OIDCClientConfiguration.PROP_
  * @version $Id$
  */
 @ComponentTest
+@ComponentList(ClientProviders.class)
 @ReferenceComponentList
 class OIDCClientConfigurationTest
 {
+    private static final String DISCOVERY_PATH = "/custom/discovery";
+
+    private static final String OTHERISSUER_PATH = "/custom/otherissuer";
+
+    private static final String WELLKNOWN_PATH = "/.well-known/openid-configuration";
+
+    private static final String OTHER_ISSUER = "http://otherissuer";
+
+    /** The deprecated provider property, which is not public in {@link OIDCClientConfiguration}. */
+    private static final String PROP_XWIKIPROVIDER = "oidc.xwikiprovider";
+
     @InjectMockComponents
     private OIDCClientConfiguration configuration;
 
@@ -111,10 +141,94 @@ class OIDCClientConfigurationTest
 
     private MemoryConfigurationSource sourceConfiguration;
 
+    private WireMockServer provider;
+
+    private String providerURL;
+
     @AfterComponent
     void afterComponent() throws Exception
     {
         this.sourceConfiguration = this.componentManager.registerMemoryConfigurationSource();
+    }
+
+    @AfterEach
+    void afterEach()
+    {
+        if (this.provider != null) {
+            this.provider.stop();
+        }
+    }
+
+    /**
+     * Start a provider exposing a discovery document at the standard location and another one at a custom location, so
+     * that the tests can tell which one has been used.
+     */
+    private void startProvider()
+    {
+        this.provider = new WireMockServer(options().dynamicPort());
+        this.provider.start();
+        this.providerURL = "http://localhost:" + this.provider.port();
+
+        // The standard location is exposed by a spec compliant provider, for which the issuer is enough
+        this.provider.stubFor(
+            get(urlEqualTo(WELLKNOWN_PATH)).willReturn(okJson(metadata("wellknown", this.providerURL).toString())));
+        // The custom location is exposed by a provider which cannot be discovered from its issuer
+        this.provider.stubFor(
+            get(urlEqualTo(DISCOVERY_PATH)).willReturn(okJson(metadata("custom", this.providerURL).toString())));
+        // Another custom location, exposing a document which does not indicate the same issuer
+        this.provider.stubFor(
+            get(urlEqualTo(OTHERISSUER_PATH)).willReturn(okJson(metadata("otherissuer", OTHER_ISSUER).toString())));
+    }
+
+    /**
+     * Expose a discovery document containing only the mandatory metadata at the passed path.
+     */
+    private void stubMinimalMetadata(String path)
+    {
+        JSONObject metadata = new JSONObject();
+
+        metadata.put("issuer", this.providerURL);
+        metadata.put("authorization_endpoint", this.providerURL + "/minimal/authorization");
+        metadata.put("jwks_uri", this.providerURL + "/minimal/jwks");
+        metadata.put("response_types_supported", new JSONArray(List.of("code")));
+        metadata.put("subject_types_supported", new JSONArray(List.of("public")));
+        metadata.put("id_token_signing_alg_values_supported", new JSONArray(List.of("RS256")));
+
+        this.provider.stubFor(get(urlEqualTo(path)).willReturn(okJson(metadata.toString())));
+    }
+
+    /**
+     * @param prefix the prefix of the endpoint paths, to identify the discovery document the endpoints are coming from
+     * @param issuer the issuer indicated in the metadata
+     * @return a minimal but valid OpenID Connect provider metadata
+     */
+    private JSONObject metadata(String prefix, String issuer)
+    {
+        JSONObject metadata = new JSONObject();
+
+        metadata.put("issuer", issuer);
+        metadata.put("authorization_endpoint", this.providerURL + '/' + prefix + "/authorization");
+        metadata.put("token_endpoint", this.providerURL + '/' + prefix + "/token");
+        metadata.put("userinfo_endpoint", this.providerURL + '/' + prefix + "/userinfo");
+        metadata.put("end_session_endpoint", this.providerURL + '/' + prefix + "/logout");
+        metadata.put("jwks_uri", this.providerURL + '/' + prefix + "/jwks");
+        metadata.put("response_types_supported", new JSONArray(List.of("code")));
+        metadata.put("subject_types_supported", new JSONArray(List.of("public")));
+        metadata.put("id_token_signing_alg_values_supported", new JSONArray(List.of("RS256")));
+
+        return metadata;
+    }
+
+    private void assertEndPoints(String prefix) throws Exception
+    {
+        assertEquals(URI.create(this.providerURL + '/' + prefix + "/authorization"),
+            this.configuration.getAuthorizationOIDCEndpoint().getURI());
+        assertEquals(URI.create(this.providerURL + '/' + prefix + "/token"),
+            this.configuration.getTokenOIDCEndpoint().getURI());
+        assertEquals(URI.create(this.providerURL + '/' + prefix + "/userinfo"),
+            this.configuration.getUserInfoOIDCEndpoint().getURI());
+        assertEquals(URI.create(this.providerURL + '/' + prefix + "/logout"),
+            this.configuration.getLogoutOIDCEndpoint().getURI());
     }
 
     private org.xwiki.contrib.oidc.auth.store.OIDCClientConfiguration setUpWikiConfig() throws Exception
@@ -203,40 +317,6 @@ class OIDCClientConfigurationTest
 
         assertEquals(uri, endpoint.getURI());
         assertEquals(headers, endpoint.getHeaders());
-    }
-
-    @Test
-    void getPropertyOrder() throws URISyntaxException, GeneralException, IOException
-    {
-        String provider = "http://urlprovider";
-        URI urlauthorization = new URI("http://urlauthorization");
-
-        XWikiServletRequestStub requestStub = new XWikiServletRequestStub(new URL("http://url"), null);
-
-        when(this.container.getRequest()).thenReturn(new ServletRequest(requestStub));
-
-        assertFalse(this.configuration.isSkipped());
-        assertTrue(this.configuration.isTryLocalEnabled());
-        assertNull(this.configuration.getProvider());
-        assertNull(this.configuration.getAuthorizationOIDCEndpoint());
-        assertNull(this.configuration.getAuthorizationOIDCEndpoint());
-        assertNull(this.configuration.getTokenOIDCEndpoint());
-
-        requestStub.put(OIDCClientConfiguration.PROP_SKIPPED, "true");
-        when(this.converterManager.convert(Boolean.class, "true")).thenReturn(true);
-
-        assertTrue(this.configuration.isSkipped());
-
-        requestStub.put(OIDCClientConfiguration.PROP_GROUPS_ALLOWED, "true");
-
-        assertNull(this.configuration.getAllowedGroups());
-
-        requestStub.put(OIDCClientConfiguration.PROP_PROVIDER, provider.toString());
-        requestStub.put(OIDCClientConfiguration.PROP_ENDPOINT_AUTHORIZATION, urlauthorization.toString());
-        when(this.manager.createEndPointURI(provider, TokenOIDCEndpoint.HINT)).thenReturn(new URI(provider));
-
-        assertEquals(urlauthorization, this.configuration.getAuthorizationOIDCEndpoint().getURI());
-        assertEquals(provider, this.configuration.getTokenOIDCEndpoint().getURI().toString());
     }
 
     @Test
@@ -509,5 +589,292 @@ class OIDCClientConfigurationTest
         Thread.sleep(1100);
         assertTrue(this.configuration.isAccessTokenExpired(),
             "1.1 seconds in the future, an access token valid for one sec expired 0.1 seconds ago");
+    }
+
+    @Test
+    void getEndPointsWithoutProviderAndDiscoveryEndpoint() throws Exception
+    {
+        assertNull(this.configuration.getDiscoveryOIDCEndpoint());
+        assertNull(this.configuration.getAuthorizationOIDCEndpoint());
+        assertNull(this.configuration.getTokenOIDCEndpoint());
+        assertNull(this.configuration.getUserInfoOIDCEndpoint());
+        assertNull(this.configuration.getLogoutOIDCEndpoint());
+        assertNull(this.configuration.getClientProvider());
+    }
+
+    @Test
+    void getEndPointsFromDiscoveryEndpoint() throws Exception
+    {
+        startProvider();
+
+        this.sourceConfiguration.setProperty(OIDCClientConfiguration.PROP_ENDPOINT_DISCOVERY,
+            this.providerURL + DISCOVERY_PATH);
+
+        assertEquals(URI.create(this.providerURL + DISCOVERY_PATH),
+            this.configuration.getDiscoveryOIDCEndpoint().getURI());
+
+        assertEndPoints("custom");
+
+        // The standard location should not be involved at all when the discovery endpoint is configured
+        this.provider.verify(0, getRequestedFor(urlEqualTo(WELLKNOWN_PATH)));
+    }
+
+    @Test
+    void getEndPointsFromDiscoveryEndpointWithoutProvider() throws Exception
+    {
+        startProvider();
+
+        this.sourceConfiguration.setProperty(OIDCClientConfiguration.PROP_ENDPOINT_DISCOVERY,
+            this.providerURL + OTHERISSUER_PATH);
+
+        // There is nothing to compare the issuer indicated by the metadata with, so any issuer is accepted
+        assertEndPoints("otherissuer");
+        assertEquals(OTHER_ISSUER, this.configuration.getClientProvider().getMetadata().getIssuer().getValue());
+    }
+
+    @Test
+    void getEndPointsFromDiscoveryEndpointWithUnexpectedIssuer() throws Exception
+    {
+        startProvider();
+
+        this.sourceConfiguration.setProperty(OIDCClientConfiguration.PROP_PROVIDER, this.providerURL);
+        this.sourceConfiguration.setProperty(OIDCClientConfiguration.PROP_ENDPOINT_DISCOVERY,
+            this.providerURL + OTHERISSUER_PATH);
+
+        // The metadata does not indicate the configured provider as issuer
+        GeneralException exception =
+            assertThrows(GeneralException.class, () -> this.configuration.getAuthorizationOIDCEndpoint());
+
+        assertEquals("The returned issuer [" + OTHER_ISSUER + "] doesn't match the expected [" + this.providerURL + ']',
+            exception.getMessage());
+    }
+
+    @Test
+    void getEndPointsFromDiscoveryEndpointWithHeaders() throws Exception
+    {
+        startProvider();
+
+        this.sourceConfiguration.setProperty(OIDCClientConfiguration.PROP_ENDPOINT_DISCOVERY,
+            this.providerURL + DISCOVERY_PATH);
+        this.sourceConfiguration.setProperty(OIDCClientConfiguration.PROP_ENDPOINT_DISCOVERY + ".headers",
+            List.of("key1:value1", "key2:value2"));
+
+        assertEndPoints("custom");
+
+        // The configured headers are sent along with the discovery request
+        this.provider.verify(getRequestedFor(urlEqualTo(DISCOVERY_PATH)).withHeader("key1", equalTo("value1"))
+            .withHeader("key2", equalTo("value2")));
+    }
+
+    @Test
+    void getEndPointsFromProvider() throws Exception
+    {
+        startProvider();
+
+        this.sourceConfiguration.setProperty(OIDCClientConfiguration.PROP_PROVIDER, this.providerURL);
+
+        // No discovery endpoint is configured, it's deduced from the provider
+        assertNull(this.configuration.getDiscoveryOIDCEndpoint());
+
+        assertEndPoints("wellknown");
+
+        assertEquals(URI.create(this.providerURL + WELLKNOWN_PATH),
+            this.configuration.getClientProvider().getDiscoveryURI());
+    }
+
+    @Test
+    void getEndPointsFromDiscoveryEndpointWithProvider() throws Exception
+    {
+        startProvider();
+
+        this.sourceConfiguration.setProperty(OIDCClientConfiguration.PROP_PROVIDER, this.providerURL);
+        this.sourceConfiguration.setProperty(OIDCClientConfiguration.PROP_ENDPOINT_DISCOVERY,
+            this.providerURL + DISCOVERY_PATH);
+
+        // The explicitly configured discovery endpoint wins over the one deduced from the provider
+        assertEndPoints("custom");
+
+        this.provider.verify(0, getRequestedFor(urlEqualTo(WELLKNOWN_PATH)));
+    }
+
+    @Test
+    void getEndPointsFromConfigurationWithDiscoveryEndpoint() throws Exception
+    {
+        startProvider();
+
+        this.sourceConfiguration.setProperty(OIDCClientConfiguration.PROP_ENDPOINT_DISCOVERY,
+            this.providerURL + DISCOVERY_PATH);
+        this.sourceConfiguration.setProperty(OIDCClientConfiguration.PROP_ENDPOINT_AUTHORIZATION,
+            "http://configured/authorization");
+
+        // An explicitly configured endpoint wins over the one indicated by the discovery document
+        assertEquals(URI.create("http://configured/authorization"),
+            this.configuration.getAuthorizationOIDCEndpoint().getURI());
+
+        // The other endpoints still come from the discovery document
+        assertEquals(URI.create(this.providerURL + "/custom/token"),
+            this.configuration.getTokenOIDCEndpoint().getURI());
+    }
+
+    @Test
+    void getClientProviderIsCachedByDiscoveryEndpoint() throws Exception
+    {
+        startProvider();
+
+        this.sourceConfiguration.setProperty(OIDCClientConfiguration.PROP_ENDPOINT_DISCOVERY,
+            this.providerURL + DISCOVERY_PATH);
+
+        ClientProvider clientProvider = this.configuration.getClientProvider();
+
+        assertNotNull(clientProvider);
+        assertEquals(URI.create(this.providerURL + DISCOVERY_PATH), clientProvider.getDiscoveryURI());
+        assertEquals(this.providerURL, clientProvider.getMetadata().getIssuer().getValue());
+
+        // The metadata is downloaded only once
+        assertSame(clientProvider, this.configuration.getClientProvider());
+        assertEndPoints("custom");
+        this.provider.verify(1, getRequestedFor(urlEqualTo(DISCOVERY_PATH)));
+
+        // Changing the discovery endpoint leads to a new client provider
+        this.sourceConfiguration.setProperty(OIDCClientConfiguration.PROP_ENDPOINT_DISCOVERY,
+            this.providerURL + WELLKNOWN_PATH);
+
+        ClientProvider otherClientProvider = this.configuration.getClientProvider();
+
+        assertNotNull(otherClientProvider);
+        assertEquals(URI.create(this.providerURL + WELLKNOWN_PATH), otherClientProvider.getDiscoveryURI());
+        assertEquals(this.providerURL, otherClientProvider.getMetadata().getIssuer().getValue());
+        assertEndPoints("wellknown");
+    }
+
+    @Test
+    void getEndPointsWithFailingDiscoveryEndpoint() throws Exception
+    {
+        startProvider();
+
+        this.sourceConfiguration.setProperty(OIDCClientConfiguration.PROP_ENDPOINT_DISCOVERY,
+            this.providerURL + "/unknown");
+
+        IOException exception =
+            assertThrows(IOException.class, () -> this.configuration.getAuthorizationOIDCEndpoint());
+
+        assertEquals("Couldn't download OpenID Provider metadata from " + this.providerURL + "/unknown"
+            + ": Status code 404", exception.getMessage());
+    }
+
+    @Test
+    void getPropertyFromRequest() throws Exception
+    {
+        XWikiServletRequestStub requestStub = new XWikiServletRequestStub(new URL("http://url"), null);
+
+        when(this.container.getRequest()).thenReturn(new ServletRequest(requestStub));
+
+        assertFalse(this.configuration.isSkipped());
+        assertTrue(this.configuration.isTryLocalEnabled());
+
+        requestStub.put(OIDCClientConfiguration.PROP_SKIPPED, "true");
+        when(this.converterManager.convert(Boolean.class, "true")).thenReturn(true);
+
+        assertTrue(this.configuration.isSkipped());
+
+        requestStub.put(OIDCClientConfiguration.PROP_GROUPS_ALLOWED, "true");
+
+        assertNull(this.configuration.getAllowedGroups());
+
+        requestStub.put(OIDCClientConfiguration.PROP_PROVIDER, "http://urlprovider");
+        requestStub.put(OIDCClientConfiguration.PROP_ENDPOINT_DISCOVERY, "http://urldiscovery");
+        requestStub.put(OIDCClientConfiguration.PROP_ENDPOINT_AUTHORIZATION, "http://urlauthorization");
+
+        // Neither the provider nor the endpoints can be injected through the request
+        assertNull(this.configuration.getProvider());
+        assertNull(this.configuration.getDiscoveryOIDCEndpoint());
+        assertNull(this.configuration.getAuthorizationOIDCEndpoint());
+        assertNull(this.configuration.getTokenOIDCEndpoint());
+    }
+
+    @Test
+    void getEndPointsWithEmptyProvider() throws Exception
+    {
+        startProvider();
+
+        // An empty provider is not a provider
+        this.sourceConfiguration.setProperty(OIDCClientConfiguration.PROP_PROVIDER, "");
+        this.sourceConfiguration.setProperty(PROP_XWIKIPROVIDER, "");
+
+        assertNull(this.configuration.getProvider());
+        assertNull(this.configuration.getIssuer());
+        assertNull(this.configuration.getClientProvider());
+        assertNull(this.configuration.getAuthorizationOIDCEndpoint());
+
+        // The discovery endpoint is still enough to resolve the endpoints
+        this.sourceConfiguration.setProperty(OIDCClientConfiguration.PROP_ENDPOINT_DISCOVERY,
+            this.providerURL + DISCOVERY_PATH);
+
+        assertEndPoints("custom");
+    }
+
+    @Test
+    void getEndPointsMissingFromMetadata() throws Exception
+    {
+        startProvider();
+
+        stubMinimalMetadata(DISCOVERY_PATH);
+
+        this.sourceConfiguration.setProperty(OIDCClientConfiguration.PROP_ENDPOINT_DISCOVERY,
+            this.providerURL + DISCOVERY_PATH);
+
+        assertEquals(URI.create(this.providerURL + "/minimal/authorization"),
+            this.configuration.getAuthorizationOIDCEndpoint().getURI());
+
+        // The endpoints the metadata does not indicate are simply unknown
+        assertNull(this.configuration.getTokenOIDCEndpoint());
+        assertNull(this.configuration.getUserInfoOIDCEndpoint());
+        assertNull(this.configuration.getLogoutOIDCEndpoint());
+    }
+
+    @Test
+    void getDiscoveryOIDCEndpointFromWikiConfig() throws Exception
+    {
+        org.xwiki.contrib.oidc.auth.store.OIDCClientConfiguration wikiConfiguration = setUpWikiConfig();
+
+        startProvider();
+
+        when(wikiConfiguration.getDiscoveryEndpoint()).thenReturn(this.providerURL + DISCOVERY_PATH);
+
+        assertEquals(URI.create(this.providerURL + DISCOVERY_PATH),
+            this.configuration.getDiscoveryOIDCEndpoint().getURI());
+
+        assertEndPoints("custom");
+    }
+
+    @Test
+    void getClientIDRegisteredThroughDiscoveryEndpoint() throws Exception
+    {
+        startProvider();
+
+        // The provider indicates a registration endpoint and no client id is configured
+        JSONObject metadata = metadata("custom", this.providerURL);
+        metadata.put("registration_endpoint", this.providerURL + "/register");
+        this.provider.stubFor(get(urlEqualTo(DISCOVERY_PATH)).willReturn(okJson(metadata.toString())));
+
+        JSONObject registration = new JSONObject();
+        registration.put("client_id", "registeredclientid");
+        this.provider.stubFor(post(urlEqualTo("/register")).willReturn(okJson(registration.toString())));
+
+        this.sourceConfiguration.setProperty(OIDCClientConfiguration.PROP_ENDPOINT_DISCOVERY,
+            this.providerURL + DISCOVERY_PATH);
+        when(this.manager.createEndPointURI(CallbackOIDCEndpoint.HINT))
+            .thenReturn(URI.create("http://xwiki/oidc/authenticator/callback"));
+        when(this.manager.createEndPointURI(BackChannelLogoutOIDCEndpoint.HINT))
+            .thenReturn(URI.create("http://xwiki/oidc/authenticator/backchannel_logout"));
+
+        assertEquals("registeredclientid", this.configuration.getClientProvider().getClientID().getValue());
+        assertEquals("registeredclientid", this.configuration.getClientID().getValue());
+
+        // The client is registered only once
+        this.provider.verify(1, postRequestedFor(urlEqualTo("/register")));
+
+        // A configured client id makes the registration useless
+        assertNull(this.configuration.getConfiguredClientID());
     }
 }

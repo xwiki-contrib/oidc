@@ -154,4 +154,18 @@ class OIDCClientConfigurationTest
 
         assertEquals(List.of("code", "token"), this.configuration.getResponseType());
     }
+
+    @Test
+    void getDiscoveryEndpoint()
+    {
+        // As for the other endpoints, an unset endpoint is an empty string, it's up to the caller to consider it as
+        // unset
+        assertEquals("", this.configuration.getDiscoveryEndpoint());
+
+        this.configuration.setDiscoveryEndpoint("http://provider/custom/discovery");
+
+        assertEquals("http://provider/custom/discovery", this.configuration.getDiscoveryEndpoint());
+        assertEquals("http://provider/custom/discovery",
+            this.xobject.getStringValue(OIDCClientConfiguration.FIELD_ENDPOINT_DISCOVERY));
+    }
 }

@@ -122,6 +122,8 @@ import com.xpn.xwiki.XWikiException;
 import com.xpn.xwiki.user.api.XWikiUser;
 import com.xpn.xwiki.web.XWikiServletRequest;
 
+import net.minidev.json.JSONObject;
+
 /**
  * Various OpenID Connect authenticator configurations.
  * 
@@ -226,6 +228,14 @@ public class OIDCClientConfiguration extends OIDCConfiguration
 
     public static final String PROPPREFIX_ENDPOINT = "oidc.endpoint.";
 
+    /**
+     * The endpoint from which the provider metadata is downloaded. Generally only needed when the provider does not
+     * expose it at the standard location relative to its issuer URL.
+     *
+     * @since 2.26.0
+     */
+    public static final String PROP_ENDPOINT_DISCOVERY = PROPPREFIX_ENDPOINT + "discovery";
+
     public static final String PROP_ENDPOINT_AUTHORIZATION = PROPPREFIX_ENDPOINT + AuthorizationOIDCEndpoint.HINT;
 
     public static final String PROP_ENDPOINT_TOKEN = PROPPREFIX_ENDPOINT + TokenOIDCEndpoint.HINT;
@@ -238,11 +248,6 @@ public class OIDCClientConfiguration extends OIDCConfiguration
     public static final String PROP_ENDPOINT_LOGOUT = PROPPREFIX_ENDPOINT + "logout";
 
     public static final String PROP_CLIENTID = "oidc.clientid";
-
-    /**
-     * @since 2.4.0
-     */
-    public static final String PROP_PROVIDERMETADATA = "oidc.providermetadata";
 
     /**
      * @since 1.13
@@ -793,11 +798,12 @@ public class OIDCClientConfiguration extends OIDCConfiguration
         String provider = getProperty(PROP_PROVIDER, String.class);
 
         if (StringUtils.isEmpty(provider)) {
-            // Try the old property 
+            // Try the old property
             provider = getProperty(PROP_XWIKIPROVIDER, String.class);
         }
 
-        return provider;
+        // An empty provider is the same as no provider at all
+        return StringUtils.isEmpty(provider) ? null : provider;
     }
 
     /**
@@ -810,41 +816,40 @@ public class OIDCClientConfiguration extends OIDCConfiguration
         return provider != null ? Issuer.parse(provider) : null;
     }
 
+    private URI getEndPointFromProvider(Function<OIDCProviderMetadata, URI> providerSupplier)
+        throws GeneralException, IOException, URISyntaxException
+    {
+        if (providerSupplier != null) {
+            ClientProvider clientProvider = getClientProvider();
+            if (clientProvider != null) {
+                return providerSupplier.apply(clientProvider.getMetadata());
+            }
+        }
+
+        return null;
+    }
+
     private Endpoint getEndPoint(String hint, Function<OIDCProviderMetadata, URI> providerSupplier)
         throws URISyntaxException, GeneralException, IOException
     {
-        // TODO: use URI directly when upgrading to a version of XWiki providing a URI converter
+        // URI
+
+        // TODO: use URI as Type when upgrading to a version of XWiki providing a URI converter
         String uriString = getProperty(PROPPREFIX_ENDPOINT + hint, String.class);
 
-        // If no direct endpoint check if the provided gave indicated one
         URI uri;
-        if (uriString == null && providerSupplier != null) {
-            ClientProvider clientProvider = getClientProvider();
-            if (clientProvider != null) {
-                uri = providerSupplier.apply(clientProvider.getMetadata());
-            } else {
-                uri = null;
+        if (uriString == null) {
+            // If no direct endpoint check if the configured provided indicates one
+            uri = getEndPointFromProvider(providerSupplier);
+            if (uri == null) {
+                return null;
             }
         } else {
             uri = new URI(uriString);
         }
 
-        // If we still don't have any endpoint URI, try the request
-        if (uri == null) {
-            uriString = getRequestParameter(PROPPREFIX_ENDPOINT + hint);
-            if (uriString == null) {
-                String provider = getRequestParameter(PROP_PROVIDER);
-                if (provider == null) {
-                    return null;
-                }
+        // Headers
 
-                uri = this.manager.createEndPointURI(provider, hint);
-            } else {
-                uri = new URI(uriString);
-            }
-        }
-
-        // Find custom headers
         Map<String, List<String>> headers = new LinkedHashMap<>();
 
         List<String> entries = getProperty(PROPPREFIX_ENDPOINT + hint + ".headers", List.class);
@@ -860,6 +865,14 @@ public class OIDCClientConfiguration extends OIDCConfiguration
         }
 
         return new Endpoint(uri, headers);
+    }
+
+    /**
+     * @since 2.26.0
+     */
+    public Endpoint getDiscoveryOIDCEndpoint() throws URISyntaxException, GeneralException, IOException
+    {
+        return getEndPoint("discovery", null);
     }
 
     public Endpoint getAuthorizationOIDCEndpoint() throws URISyntaxException, GeneralException, IOException
@@ -887,7 +900,20 @@ public class OIDCClientConfiguration extends OIDCConfiguration
 
     public ClientID getClientID() throws GeneralException, IOException, URISyntaxException
     {
-        return getClientID(getIssuer());
+        // Try the configuration
+        ClientID clientId = getConfiguredClientID();
+        if (clientId != null) {
+            return clientId;
+        }
+
+        // Ask the provider
+        ClientProvider clientProvider = getClientProvider();
+        if (clientProvider != null && clientProvider.getClientID() != null) {
+            return clientProvider.getClientID();
+        }
+
+        // Fallback on instance id
+        return new ClientID(this.instance.getInstanceId().getInstanceId());
     }
 
     public ClientID getConfiguredClientID()
@@ -897,43 +923,39 @@ public class OIDCClientConfiguration extends OIDCConfiguration
         return clientIdString != null ? new ClientID(clientIdString) : null;
     }
 
-    public ClientID getClientID(Issuer issuer) throws GeneralException, IOException, URISyntaxException
+    private Endpoint resolveDiscoveryEndpoint() throws GeneralException, IOException, URISyntaxException
     {
-        // Try the configuration
-        ClientID clientId = getConfiguredClientID();
-        if (clientId != null) {
-            return clientId;
+        // Check if the discovery endpoint is explicitly configured
+        Endpoint discoveryEndpoint = getDiscoveryOIDCEndpoint();
+        if (discoveryEndpoint != null) {
+            return discoveryEndpoint;
         }
 
-        // Ask the provider
-        ClientProvider clientProvider = getClientProvider(issuer);
-        if (clientProvider != null && clientProvider.getClientID() != null) {
-            return clientProvider.getClientID();
+        // If not, try to resolve it from the issuer
+        Issuer issuer = getIssuer();
+        if (issuer != null) {
+            return new Endpoint(OIDCProviderMetadata.resolveURL(issuer).toURI(), Map.of());
         }
 
-        // Fallback on instance id
-        return new ClientID(this.instance.getInstanceId().getInstanceId());
+        return null;
     }
 
     public ClientProvider getClientProvider() throws GeneralException, IOException, URISyntaxException
     {
-        return getClientProvider(getIssuer());
-    }
-
-    public ClientProvider getClientProvider(Issuer issuer) throws GeneralException, IOException, URISyntaxException
-    {
-        if (issuer == null) {
+        // Resolve the discovery endpoint URI
+        Endpoint discoveryEndpoint = resolveDiscoveryEndpoint();
+        if (discoveryEndpoint == null) {
             return null;
         }
 
-        ClientProvider clientProvider = this.providers.getClientProvider(issuer);
-
+        // Check the cache
+        ClientProvider clientProvider = this.providers.getClientProvider(discoveryEndpoint.getURI());
         if (clientProvider != null) {
             return clientProvider;
         }
 
         // Get provider metadata
-        OIDCProviderMetadata providerMetadata = OIDCProviderMetadata.resolve(issuer);
+        OIDCProviderMetadata providerMetadata = loadOIDCProviderMetadata(discoveryEndpoint);
 
         // If not client id is explicitly provided, try to register the client
         ClientID clientID = getConfiguredClientID();
@@ -952,7 +974,34 @@ public class OIDCClientConfiguration extends OIDCConfiguration
             }
         }
 
-        return this.providers.setClientProvider(issuer, providerMetadata, clientID);
+        return this.providers.setClientProvider(discoveryEndpoint.getURI(), providerMetadata, clientID);
+    }
+
+    private OIDCProviderMetadata loadOIDCProviderMetadata(Endpoint discoveryEndpoint)
+        throws GeneralException, IOException
+    {
+        HTTPRequest httpRequest = new HTTPRequest(HTTPRequest.Method.GET, discoveryEndpoint.getURI());
+        discoveryEndpoint.prepare(httpRequest);
+
+        HTTPResponse httpResponse = httpRequest.send();
+
+        if (httpResponse.getStatusCode() != 200) {
+            throw new IOException("Couldn't download OpenID Provider metadata from " + discoveryEndpoint.getURI()
+                + ": Status code " + httpResponse.getStatusCode());
+        }
+
+        JSONObject jsonObject = httpResponse.getBodyAsJSONObject();
+
+        OIDCProviderMetadata providerMetadata = OIDCProviderMetadata.parse(jsonObject);
+
+        // Make sure the returned issuer matches the expected one, if any.
+        Issuer issuer = getIssuer();
+        if (issuer != null && !issuer.equalsIgnoreTrailingSlash(providerMetadata.getIssuer())) {
+            throw new GeneralException(String.format("The returned issuer [%s] doesn't match the expected [%s]",
+                providerMetadata.getIssuer(), issuer));
+        }
+
+        return providerMetadata;
     }
 
     public OIDCClientMetadata createClientMetadata() throws MalformedURLException, URISyntaxException
@@ -968,7 +1017,7 @@ public class OIDCClientConfiguration extends OIDCConfiguration
 
     private OIDCClientInformation createClientInformation() throws URISyntaxException, GeneralException, IOException
     {
-        return new OIDCClientInformation(getClientID(getIssuer()), createClientMetadata());
+        return new OIDCClientInformation(getClientID(), createClientMetadata());
     }
 
     /**
@@ -1803,6 +1852,9 @@ public class OIDCClientConfiguration extends OIDCConfiguration
                 break;
             case PROP_XWIKIPROVIDER:
                 returnValue = clientConfiguration.getXWikiProvider();
+                break;
+            case PROP_ENDPOINT_DISCOVERY:
+                returnValue = clientConfiguration.getDiscoveryEndpoint();
                 break;
             case PROP_ENDPOINT_AUTHORIZATION:
                 returnValue = clientConfiguration.getAuthorizationEndpoint();

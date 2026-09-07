@@ -162,6 +162,13 @@ public class OIDCClientConfiguration
     public static final String FIELD_XWIKI_PROVIDER = "xwikiProvider";
 
     /**
+     * Name of the property containing the discovery endpoint.
+     * 
+     * @since 2.26.0
+     */
+    public static final String FIELD_ENDPOINT_DISCOVERY = "discoveryEndpoint";
+
+    /**
      * Name of the property containing the authorization endpoint.
      */
     public static final String FIELD_ENDPOINT_AUTHORIZATION = "authorizationEndpoint";
@@ -626,6 +633,24 @@ public class OIDCClientConfiguration
     public void setXWikiProvider(String xwikiProvider)
     {
         this.xobject.setStringValue(FIELD_XWIKI_PROVIDER, xwikiProvider);
+    }
+
+    /**
+     * @return the discovery endpoint
+     * @since 2.26.0
+     */
+    public String getDiscoveryEndpoint()
+    {
+        return this.xobject.getStringValue(FIELD_ENDPOINT_DISCOVERY);
+    }
+
+    /**
+     * @param discoveryEndpoint the discovery endpoint
+     * @since 2.26.0
+     */
+    public void setDiscoveryEndpoint(String discoveryEndpoint)
+    {
+        this.xobject.setStringValue(FIELD_ENDPOINT_DISCOVERY, discoveryEndpoint);
     }
 
     /**

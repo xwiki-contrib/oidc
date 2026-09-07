@@ -66,8 +66,6 @@
           <input type="hidden" name="oidc.srid" value="$escapetool.xml($srid)"/>
         #end
 
-        ## TODO: allow giving the endpoints
-
         <input type="submit" class="button" value="$escapetool.xml($services.localization.render('oidc.template.provider.submit'))"/>
       </form>
 

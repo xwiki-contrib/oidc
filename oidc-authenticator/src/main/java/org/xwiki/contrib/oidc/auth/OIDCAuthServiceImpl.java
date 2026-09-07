@@ -271,15 +271,23 @@ public class OIDCAuthServiceImpl extends XWikiAuthServiceImpl
         this.configuration.setSuccessRedirectURI(URI.create(createSuccessRedirectURI(savedRequestId, context)));
 
         // Remember the provider when it's provided by the request (which is only allowed when it's not configured
-        // already)
-        if (this.configuration.getProvider() == null) {
+        // already). Unless the authorization endpoint is configured, in which case the provider is not needed and
+        // should not be provided by the user.
+        if (this.configuration.getProvider() == null && this.configuration.getAuthorizationOIDCEndpoint() == null) {
             maybeStoreRequestParameterInSession(request, OIDCClientConfiguration.PROP_PROVIDER);
+        }
+
+        // The authorization endpoint might still be unknown, when the provider was just indicated by the request but
+        // its metadata does not contain any authorization endpoint
+        Endpoint authorizationEndpoint = this.configuration.getAuthorizationOIDCEndpoint();
+        if (authorizationEndpoint == null) {
+            throw new GeneralException("No authorization endpoint could be found for the configured provider");
         }
 
         // Create the request URL
         AuthenticationRequest.Builder requestBuilder = new AuthenticationRequest.Builder(responseType,
             this.configuration.getScope(), this.configuration.getClientID(), callback);
-        requestBuilder.endpointURI(this.configuration.getAuthorizationOIDCEndpoint().getURI());
+        requestBuilder.endpointURI(authorizationEndpoint.getURI());
 
         // Nonce, if required
         Nonce nonce;

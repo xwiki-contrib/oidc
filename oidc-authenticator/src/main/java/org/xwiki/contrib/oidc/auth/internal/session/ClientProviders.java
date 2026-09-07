@@ -19,6 +19,7 @@
  */
 package org.xwiki.contrib.oidc.auth.internal.session;
 
+import java.net.URI;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -27,7 +28,6 @@ import javax.inject.Singleton;
 import org.xwiki.component.annotation.Component;
 
 import com.nimbusds.oauth2.sdk.id.ClientID;
-import com.nimbusds.oauth2.sdk.id.Issuer;
 import com.nimbusds.openid.connect.sdk.op.OIDCProviderMetadata;
 
 /**
@@ -44,30 +44,32 @@ public class ClientProviders
      */
     public class ClientProvider
     {
-        private final Issuer issuer;
+        private final URI discoveryURI;
 
         private OIDCProviderMetadata metadata;
 
         private ClientID clientID;
 
         /**
-         * @param issuer the issuer
+         * @param discoveryURI the URI of the discovery endpoint
          * @param metadata the metadata
          * @param clientID the client ID provided by the provider
+         * @since 2.26.0
          */
-        public ClientProvider(Issuer issuer, OIDCProviderMetadata metadata, ClientID clientID)
+        public ClientProvider(URI discoveryURI, OIDCProviderMetadata metadata, ClientID clientID)
         {
-            this.issuer = issuer;
+            this.discoveryURI = discoveryURI;
             this.metadata = metadata;
             this.clientID = clientID;
         }
 
         /**
-         * @return the issuer
+         * @return the URI of the discovery endpoint
+         * @since 2.26.0
          */
-        public Issuer getIssuer()
+        public URI getDiscoveryURI()
         {
-            return issuer;
+            return this.discoveryURI;
         }
 
         /**
@@ -75,7 +77,7 @@ public class ClientProviders
          */
         public OIDCProviderMetadata getMetadata()
         {
-            return metadata;
+            return this.metadata;
         }
 
         /**
@@ -95,28 +97,30 @@ public class ClientProviders
         }
     }
 
-    private final Map<Issuer, ClientProvider> providers = new ConcurrentHashMap<>();
+    private final Map<URI, ClientProvider> providers = new ConcurrentHashMap<>();
 
     /**
-     * @param issuer the issuer
+     * @param discoveryURI the URI of the discovery endpoint
      * @return the {@link ClientProvider} instance
+     * @since 2.26.0
      */
-    public ClientProvider getClientProvider(Issuer issuer)
+    public ClientProvider getClientProvider(URI discoveryURI)
     {
-        return this.providers.get(issuer);
+        return this.providers.get(discoveryURI);
     }
 
     /**
-     * @param issuer the issuer
+     * @param discoveryURI the URI of the discovery endpoint
      * @param metadata the metadata
      * @param clientID the client ID provider by the provider
      * @return the new {@link ClientProvider}
+     * @since 2.26.0
      */
-    public ClientProvider setClientProvider(Issuer issuer, OIDCProviderMetadata metadata, ClientID clientID)
+    public ClientProvider setClientProvider(URI discoveryURI, OIDCProviderMetadata metadata, ClientID clientID)
     {
-        ClientProvider clientProvider = new ClientProvider(issuer, metadata, clientID);
+        ClientProvider clientProvider = new ClientProvider(discoveryURI, metadata, clientID);
 
-        this.providers.put(issuer, clientProvider);
+        this.providers.put(discoveryURI, clientProvider);
 
         return clientProvider;
     }

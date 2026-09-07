@@ -39,12 +39,12 @@ public class Endpoint
 
     /**
      * @param uri the URI
-     * @param headers the custom headers to send with the endpoint
+     * @param headers the custom headers to send with the endpoint, can be null when there is none
      */
     public Endpoint(URI uri, Map<String, List<String>> headers)
     {
         this.uri = uri;
-        this.headers = headers;
+        this.headers = headers != null ? headers : Map.of();
     }
 
     /**
