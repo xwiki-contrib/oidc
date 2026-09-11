@@ -22,6 +22,8 @@ package org.xwiki.contrib.oidc.auth.internal;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.net.HttpURLConnection;
 import java.net.InetSocketAddress;
 import java.net.MalformedURLException;
@@ -38,6 +40,9 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import javax.inject.Named;
+import javax.script.ScriptContext;
+import javax.script.SimpleBindings;
+import javax.script.SimpleScriptContext;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
 
@@ -51,6 +56,7 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 import org.mockito.Spy;
 import org.xwiki.container.Container;
@@ -77,19 +83,25 @@ import org.xwiki.properties.ConverterManager;
 import org.xwiki.query.Query;
 import org.xwiki.query.QueryException;
 import org.xwiki.query.QueryManager;
+import org.xwiki.script.ScriptContextManager;
 import org.xwiki.security.authorization.AuthorExecutor;
 import org.xwiki.template.TemplateManager;
 import org.xwiki.test.annotation.ComponentList;
 import org.xwiki.test.junit5.mockito.InjectMockComponents;
 import org.xwiki.test.junit5.mockito.MockComponent;
 
+import com.nimbusds.jwt.JWTClaimsSet;
+import com.nimbusds.jwt.PlainJWT;
+import com.nimbusds.oauth2.sdk.http.HTTPRequest;
 import com.nimbusds.oauth2.sdk.id.Audience;
 import com.nimbusds.oauth2.sdk.id.Issuer;
 import com.nimbusds.oauth2.sdk.id.Subject;
 import com.nimbusds.oauth2.sdk.token.BearerAccessToken;
+import com.nimbusds.oauth2.sdk.util.URLUtils;
 import com.nimbusds.openid.connect.sdk.claims.Address;
 import com.nimbusds.openid.connect.sdk.claims.IDTokenClaimsSet;
 import com.nimbusds.openid.connect.sdk.claims.UserInfo;
+import com.xpn.xwiki.XWikiContext;
 import com.xpn.xwiki.XWikiException;
 import com.xpn.xwiki.doc.MandatoryDocumentInitializer;
 import com.xpn.xwiki.doc.XWikiDocument;
@@ -99,13 +111,19 @@ import com.xpn.xwiki.test.MockitoOldcore;
 import com.xpn.xwiki.test.junit5.mockito.InjectMockitoOldcore;
 import com.xpn.xwiki.test.junit5.mockito.OldcoreTest;
 import com.xpn.xwiki.test.reference.ReferenceComponentList;
+import com.xpn.xwiki.web.XWikiResponse;
+import com.xpn.xwiki.web.XWikiServletRequestStub;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
@@ -120,6 +138,18 @@ import static org.mockito.Mockito.when;
 @ReferenceComponentList
 class OIDCUserManagerTest
 {
+    private static final String CLIENT_ID = "clientid";
+
+    private static final String PROVIDER = "http://provider";
+
+    private static final String LOGOUT_ENDPOINT = "http://provider/logout";
+
+    private static final String AFTER_LOGOUT_URL = "http://wiki/afterlogout";
+
+    private static final String LOGOUT_TEMPLATE = "oidc/client/logout.vm";
+
+    private static final String LOGOUT_FORM = "<form/>";
+
     @MockComponent
     QueryManager queryManager;
 
@@ -151,6 +181,9 @@ class OIDCUserManagerTest
     @MockComponent
     ContextualLocalizationManager contextualLocalizationManager;
 
+    @MockComponent
+    ScriptContextManager scriptContextManager;
+
     @InjectMockComponents
     OIDCUserClassDocumentInitializer classInitializer;
 
@@ -166,6 +199,8 @@ class OIDCUserManagerTest
     @InjectMockComponents
     @Spy
     OIDCClientConfiguration configuration;
+
+    private final PlainJWT idToken = new PlainJWT(new JWTClaimsSet.Builder().subject("subject").build());
 
     private DocumentReference xwikiallgroupReference;
 
@@ -976,6 +1011,104 @@ class OIDCUserManagerTest
         } finally {
             server.stop(0);
         }
+    }
+
+    @Test
+    void logoutWithGetEndpointMethod() throws Exception
+    {
+        XWikiResponse response = prepareLogout(HTTPRequest.Method.GET);
+
+        this.manager.logout();
+
+        // The logout request is sent through a redirect
+        ArgumentCaptor<String> location = ArgumentCaptor.forClass(String.class);
+        verify(response).sendRedirect(location.capture());
+        verify(this.templateManager, never()).render(LOGOUT_TEMPLATE);
+
+        assertTrue(location.getValue().startsWith(LOGOUT_ENDPOINT + '?'),
+            () -> "Unexpected logout location: " + location.getValue());
+        assertEquals(logoutParameters(), URLUtils.parseParameters(URI.create(location.getValue()).getRawQuery()));
+    }
+
+    @Test
+    void logoutWithPostEndpointMethod() throws Exception
+    {
+        this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_PROVIDER, PROVIDER);
+        XWikiResponse response = prepareLogout(HTTPRequest.Method.POST);
+        StringWriter content = new StringWriter();
+        when(response.getWriter()).thenReturn(new PrintWriter(content));
+        when(this.templateManager.render(LOGOUT_TEMPLATE)).thenReturn(LOGOUT_FORM);
+        ScriptContext scriptContext = prepareScriptContext();
+
+        this.manager.logout();
+
+        // The logout request is sent by the browser through a form instead of a redirect
+        verify(response, never()).sendRedirect(anyString());
+        assertEquals(LOGOUT_FORM, content.toString());
+
+        // The form is filled with the logout request and the issuer to display
+        assertEquals(LOGOUT_ENDPOINT, scriptContext.getAttribute("logoutEndpoint"));
+        assertEquals(logoutParameters(), scriptContext.getAttribute("logoutParameters"));
+        assertEquals(PROVIDER, scriptContext.getAttribute("logoutIssuer"));
+    }
+
+    @Test
+    void logoutWithPostEndpointMethodWithoutProvider() throws Exception
+    {
+        XWikiResponse response = prepareLogout(HTTPRequest.Method.POST);
+        when(response.getWriter()).thenReturn(new PrintWriter(new StringWriter()));
+        ScriptContext scriptContext = prepareScriptContext();
+
+        this.manager.logout();
+
+        verify(this.templateManager).render(LOGOUT_TEMPLATE);
+        assertEquals(logoutParameters(), scriptContext.getAttribute("logoutParameters"));
+
+        // There is no issuer to display when no provider is configured
+        assertNull(scriptContext.getAttribute("logoutIssuer"));
+    }
+
+    /**
+     * @return the script context in which the logout form content is expected
+     */
+    private ScriptContext prepareScriptContext()
+    {
+        ScriptContext scriptContext = new SimpleScriptContext();
+        scriptContext.setBindings(new SimpleBindings(), ScriptContext.GLOBAL_SCOPE);
+        when(this.scriptContextManager.getCurrentScriptContext()).thenReturn(scriptContext);
+
+        return scriptContext;
+    }
+
+    /**
+     * @param method the HTTP method to use to send the logout request to the provider
+     * @return the response in which the logout request is expected
+     */
+    private XWikiResponse prepareLogout(HTTPRequest.Method method)
+    {
+        this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_CLIENTID, CLIENT_ID);
+        this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_ENDPOINT_LOGOUT,
+            LOGOUT_ENDPOINT);
+        this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_ENDPOINT_LOGOUT_METHOD, method);
+
+        this.configuration.setIdTokenJWT(this.idToken);
+
+        XWikiContext xcontext = this.oldcore.getXWikiContext();
+        xcontext.setRequest(new XWikiServletRequestStub.Builder()
+            .setRequestParameters(Map.of("xredirect", new String[] {AFTER_LOGOUT_URL})).build());
+        XWikiResponse response = mock(XWikiResponse.class);
+        xcontext.setResponse(response);
+
+        return response;
+    }
+
+    /**
+     * @return the parameters expected in the logout request
+     */
+    private Map<String, List<String>> logoutParameters()
+    {
+        return Map.of("id_token_hint", List.of(this.idToken.serialize()), "client_id", List.of(CLIENT_ID),
+            "post_logout_redirect_uri", List.of(AFTER_LOGOUT_URL));
     }
 
     private HttpServer startServer() throws IOException

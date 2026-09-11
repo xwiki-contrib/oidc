@@ -1105,6 +1105,15 @@ public class OIDCClientConfiguration extends OIDCConfiguration
         return getProperty(PROP_ENDPOINT_USERINFO_METHOD, HTTPRequest.Method.GET);
     }
 
+    /**
+     * @return the HTTP method to use to send the RP-initiated logout request to the provider
+     * @since 2.27.0
+     */
+    public HTTPRequest.Method getLogoutEndPointMethod()
+    {
+        return getProperty(PROP_ENDPOINT_LOGOUT_METHOD, HTTPRequest.Method.GET);
+    }
+
     public String getSessionState()
     {
         return getSessionAttribute(PROP_STATE);

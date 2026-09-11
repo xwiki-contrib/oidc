@@ -45,6 +45,7 @@ import java.util.stream.Collectors;
 import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
+import javax.script.ScriptContext;
 import javax.servlet.http.HttpSession;
 
 import com.nimbusds.oauth2.sdk.AccessTokenResponse;
@@ -88,6 +89,7 @@ import org.xwiki.model.reference.DocumentReference;
 import org.xwiki.model.reference.SpaceReference;
 import org.xwiki.observation.ObservationManager;
 import org.xwiki.query.QueryException;
+import org.xwiki.script.ScriptContextManager;
 import org.xwiki.user.SuperAdminUserReference;
 
 import com.nimbusds.jose.JOSEException;
@@ -97,6 +99,7 @@ import com.nimbusds.oauth2.sdk.GeneralException;
 import com.nimbusds.oauth2.sdk.http.HTTPRequest;
 import com.nimbusds.oauth2.sdk.http.HTTPResponse;
 import com.nimbusds.oauth2.sdk.id.ClientID;
+import com.nimbusds.oauth2.sdk.id.Issuer;
 import com.nimbusds.oauth2.sdk.token.AccessToken;
 import com.nimbusds.openid.connect.sdk.LogoutRequest;
 import com.nimbusds.openid.connect.sdk.UserInfoErrorResponse;
@@ -161,6 +164,9 @@ public class OIDCUserManager
     @Inject
     private Execution execution;
 
+    @Inject
+    private ScriptContextManager scriptContextManager;
+
     private Executor executor = Executors.newFixedThreadPool(1);
 
     private static final String XWIKI_GROUP_MEMBERFIELD = "member";
@@ -168,6 +174,14 @@ public class OIDCUserManager
     private static final String XWIKI_USER_ACTIVEFIELD = "active";
 
     private static final String XWIKI_GROUP_PREFIX = "XWiki.";
+
+    private static final String LOGOUT_TEMPLATE = "oidc/client/logout.vm";
+
+    private static final String LOGOUT_TEMPLATE_ENDPOINT = "logoutEndpoint";
+
+    private static final String LOGOUT_TEMPLATE_PARAMETERS = "logoutParameters";
+
+    private static final String LOGOUT_TEMPLATE_ISSUER = "logoutIssuer";
 
     public void updateUserInfoAsync()
     {
@@ -1027,8 +1041,7 @@ public class OIDCUserManager
         }
     }
 
-    private void logoutProvider(Endpoint logoutEndpoint, ClientID clientID, JWT idToken)
-        throws URISyntaxException, IOException
+    private void logoutProvider(Endpoint logoutEndpoint, ClientID clientID, JWT idToken) throws Exception
     {
         XWikiContext context = this.xcontextProvider.get();
 
@@ -1051,7 +1064,38 @@ public class OIDCUserManager
 
         LogoutRequest logoutRequest = new LogoutRequest(logoutEndpoint.getURI(),
             !this.configuration.skipIdTokenFromLogout() ? idToken : null, null, clientID, redirectURI, null, null);
-        // Redirect to the provider
-        this.manager.redirect(logoutRequest.toURI().toString(), true);
+
+        if (this.configuration.getLogoutEndPointMethod() == HTTPRequest.Method.POST) {
+            submitLogoutRequest(logoutRequest, context);
+        } else {
+            // Redirect to the provider
+            this.manager.redirect(logoutRequest.toURI().toString(), true);
+        }
+    }
+
+    /**
+     * Send the logout request to the provider with a POST, as allowed by the RP-Initiated Logout specification.
+     * <p>
+     * The request has to be sent by the browser, since the provider needs the cookies identifying the session to close
+     * and ends the flow by redirecting the browser to the post logout URI. A redirect can only produce a GET, so a form
+     * submitting itself is sent to the browser instead. The submit button is a visible fallback for the cases where the
+     * script cannot be executed.
+     */
+    private void submitLogoutRequest(LogoutRequest logoutRequest, XWikiContext context) throws Exception
+    {
+        ScriptContext scriptContext = this.scriptContextManager.getCurrentScriptContext();
+        scriptContext.setAttribute(LOGOUT_TEMPLATE_ENDPOINT, logoutRequest.getEndpointURI().toString(),
+            ScriptContext.GLOBAL_SCOPE);
+        scriptContext.setAttribute(LOGOUT_TEMPLATE_PARAMETERS, logoutRequest.toParameters(),
+            ScriptContext.GLOBAL_SCOPE);
+
+        // The issuer is only known when a provider is configured
+        Issuer issuer = this.configuration.getIssuer();
+        scriptContext.setAttribute(LOGOUT_TEMPLATE_ISSUER, issuer != null ? issuer.getValue() : null,
+            ScriptContext.GLOBAL_SCOPE);
+
+        this.manager.executeTemplate(LOGOUT_TEMPLATE, context.getResponse());
+
+        context.setFinished(true);
     }
 }

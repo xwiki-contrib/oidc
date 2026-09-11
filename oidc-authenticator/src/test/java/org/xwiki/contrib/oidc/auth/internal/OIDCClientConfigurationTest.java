@@ -62,6 +62,7 @@ import org.xwiki.test.mockito.MockitoComponentManager;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.nimbusds.oauth2.sdk.GeneralException;
 import com.nimbusds.oauth2.sdk.ResponseType;
+import com.nimbusds.oauth2.sdk.http.HTTPRequest;
 import com.nimbusds.oauth2.sdk.token.BearerAccessToken;
 import com.nimbusds.oauth2.sdk.token.RefreshToken;
 import com.nimbusds.openid.connect.sdk.OIDCClaimsRequest;
@@ -317,6 +318,33 @@ class OIDCClientConfigurationTest
 
         assertEquals(uri, endpoint.getURI());
         assertEquals(headers, endpoint.getHeaders());
+    }
+
+    @Test
+    void getLogoutEndPointMethod()
+    {
+        assertEquals(HTTPRequest.Method.GET, this.configuration.getLogoutEndPointMethod());
+
+        this.sourceConfiguration.setProperty(OIDCClientConfiguration.PROP_ENDPOINT_LOGOUT_METHOD,
+            HTTPRequest.Method.POST);
+
+        assertEquals(HTTPRequest.Method.POST, this.configuration.getLogoutEndPointMethod());
+    }
+
+    @Test
+    void getLogoutEndPointMethodFromWikiConfig() throws Exception
+    {
+        org.xwiki.contrib.oidc.auth.store.OIDCClientConfiguration wikiConfiguration = setUpWikiConfig();
+
+        // An empty configuration does not count as a set method
+        when(wikiConfiguration.getLogoutEndpointMethod()).thenReturn("");
+
+        assertEquals(HTTPRequest.Method.GET, this.configuration.getLogoutEndPointMethod());
+
+        when(wikiConfiguration.getLogoutEndpointMethod()).thenReturn("POST");
+        when(this.converterManager.convert(HTTPRequest.Method.class, "POST")).thenReturn(HTTPRequest.Method.POST);
+
+        assertEquals(HTTPRequest.Method.POST, this.configuration.getLogoutEndPointMethod());
     }
 
     @Test
