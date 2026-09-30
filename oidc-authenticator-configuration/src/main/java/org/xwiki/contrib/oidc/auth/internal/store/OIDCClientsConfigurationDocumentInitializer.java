@@ -75,7 +75,6 @@ public class OIDCClientsConfigurationDocumentInitializer extends AbstractMandato
     public boolean updateDocument(XWikiDocument document)
     {
         boolean modified = updateDocumentFields(document, getTitle());
-        // Ensure the document has an XWikiGroups object
         if (document.getXObject(OIDCClientsConfigurationClassDocumentInitializer.CLASS_REFERENCE) == null) {
             try {
                 document.newXObject(OIDCClientsConfigurationClassDocumentInitializer.CLASS_REFERENCE,
