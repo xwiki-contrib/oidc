@@ -70,6 +70,7 @@ import org.xwiki.contrib.oidc.auth.internal.endpoint.CallbackOIDCEndpoint;
 import org.xwiki.contrib.oidc.auth.internal.session.ClientProviders;
 import org.xwiki.contrib.oidc.auth.internal.session.ClientProviders.ClientProvider;
 import org.xwiki.contrib.oidc.auth.store.OIDCClientConfigurationStore;
+import org.xwiki.contrib.oidc.auth.store.OIDCClientsConfigurationStore;
 import org.xwiki.contrib.oidc.internal.NimbusOAuth2Token;
 import org.xwiki.contrib.oidc.internal.OIDCConfiguration;
 import org.xwiki.contrib.oidc.provider.internal.OIDCManager;
@@ -126,7 +127,7 @@ import net.minidev.json.JSONObject;
 
 /**
  * Various OpenID Connect authenticator configurations.
- * 
+ *
  * @version $Id$
  */
 @Component(roles = OIDCClientConfiguration.class)
@@ -392,7 +393,7 @@ public class OIDCClientConfiguration extends OIDCConfiguration
 
     /**
      * The name of the logout mechanism property.
-     * 
+     *
      * @since 1.31
      */
     public static final String PROP_LOGOUT_MECHANISM = "oidc.logoutMechanism";
@@ -417,7 +418,7 @@ public class OIDCClientConfiguration extends OIDCConfiguration
 
     /**
      * The name of the property in which the name of the OIDC configuration should be stored.
-     * 
+     *
      * @since 1.30
      */
     public static final String CLIENT_CONFIGURATION_COOKIE_PROPERTY =
@@ -425,14 +426,14 @@ public class OIDCClientConfiguration extends OIDCConfiguration
 
     /**
      * The default name of the cookie in which the OIDC client configuration is defined.
-     * 
+     *
      * @since 1.30
      */
     public static final String DEFAULT_OIDC_CONFIGURATION_COOKIE = "oidcProvider";
 
     /**
      * The name of the property which stores the name of the default OIDC client configuration.
-     * 
+     *
      * @since 1.30
      */
     public static final String DEFAULT_CLIENT_CONFIGURATION_PROPERTY =
@@ -455,14 +456,14 @@ public class OIDCClientConfiguration extends OIDCConfiguration
 
     /**
      * Default client configuration to use when no configuration is defined.
-     * 
+     *
      * @since 1.30
      */
     public static final String DEFAULT_CLIENT_CONFIGURATION = "default";
 
     /**
      * Support for PKCE
-     * 
+     *
      * @since 2.20.0
      */
     public static final String PROP_SESSION_CODE_VERIFIER = "oidc.codeverifier";
@@ -508,9 +509,12 @@ public class OIDCClientConfiguration extends OIDCConfiguration
     @Inject
     private Execution execution;
 
+    @Inject
+    private OIDCClientsConfigurationStore clientsConfigurationStore;
+
     /**
      * @param oidcSession the session to store in the execution context. This is useful when using the configuration
-     *            from a runnable called when the http session is already gone.
+     *     from a runnable called when the http session is already gone.
      * @since 2.4.0
      */
     public void setContextOIDCSession(Map<String, Object> oidcSession)
@@ -655,7 +659,7 @@ public class OIDCClientConfiguration extends OIDCConfiguration
         if (wikiClientConfiguration != null) {
             T wikiValue = getWikiConfigurationAttribute(wikiClientConfiguration, key, valueClass);
             if (wikiValue != null) {
-                this.logger.debug("  -> wiki value: [{}]", wikiValue);
+                this.logger.debug("  -> wiki client value: [{}]", wikiValue);
 
                 return wikiValue;
             }
@@ -697,7 +701,7 @@ public class OIDCClientConfiguration extends OIDCConfiguration
             T wikiValue =
                 getWikiConfigurationAttribute(wikiClientConfiguration, key, def != null ? def.getClass() : null);
             if (wikiValue != null) {
-                this.logger.debug("  -> wiki value: [{}]", wikiValue);
+                this.logger.debug("  -> wiki client value: [{}]", wikiValue);
 
                 return wikiValue;
             }
@@ -1121,7 +1125,7 @@ public class OIDCClientConfiguration extends OIDCConfiguration
 
     /**
      * PKCE support
-     * 
+     *
      * @since 2.20.0
      */
     public CodeVerifier getSessionCodeVerifier()
@@ -1586,9 +1590,9 @@ public class OIDCClientConfiguration extends OIDCConfiguration
     }
 
     /**
-     * @since 2.15.0
      * @param accessToken the access token to store
      * @param refreshToken the refresh token to store
+     * @since 2.15.0
      */
     public void storeTokens(AccessToken accessToken, RefreshToken refreshToken)
     {
@@ -1596,7 +1600,8 @@ public class OIDCClientConfiguration extends OIDCConfiguration
 
         if (wikiConfiguration != null
             && !org.xwiki.contrib.oidc.auth.store.OIDCClientConfiguration.TokenStorageScope.NONE
-                .equals(wikiConfiguration.getTokenStorageScope())) {
+            .equals(wikiConfiguration.getTokenStorageScope()))
+        {
             try {
                 XWikiContext context = contextProvider.get();
                 XWikiUser user = context.getWiki().checkAuth(context);
@@ -1690,7 +1695,7 @@ public class OIDCClientConfiguration extends OIDCConfiguration
 
     /**
      * @return true if groups should be synchronized (in which case if the provider does not answer to the group claim
-     *         it means the user does not belong to any group)
+     *     it means the user does not belong to any group)
      * @since 1.14
      */
     public boolean isGroupSync()
@@ -1765,11 +1770,18 @@ public class OIDCClientConfiguration extends OIDCConfiguration
             return sessionProviderName;
         }
 
-        String cookieName =
-            configuration.getProperty(CLIENT_CONFIGURATION_COOKIE_PROPERTY, DEFAULT_OIDC_CONFIGURATION_COOKIE);
+        // The wiki configuration takes precedence over xwiki.properties
+        String cookieName = this.clientsConfigurationStore.getClientConfigurationCookie();
+        if (cookieName == null) {
+            cookieName =
+                this.configuration.getProperty(CLIENT_CONFIGURATION_COOKIE_PROPERTY, DEFAULT_OIDC_CONFIGURATION_COOKIE);
+        }
 
-        String fallbackProviderName =
-            configuration.getProperty(DEFAULT_CLIENT_CONFIGURATION_PROPERTY, DEFAULT_CLIENT_CONFIGURATION);
+        String fallbackProviderName = this.clientsConfigurationStore.getDefaultClientConfiguration();
+        if (fallbackProviderName == null) {
+            fallbackProviderName =
+                this.configuration.getProperty(DEFAULT_CLIENT_CONFIGURATION_PROPERTY, DEFAULT_CLIENT_CONFIGURATION);
+        }
 
         // Check if a cookie exists, indicating which configuration to use
         XWikiContext context = contextProvider.get();
@@ -1941,19 +1953,24 @@ public class OIDCClientConfiguration extends OIDCConfiguration
 
         this.logger.debug("The value of configuration property [{}] is [{}]", key, returnValue);
 
+        return getConvertedValue(returnType, returnValue);
+    }
+
+    private <T> T getConvertedValue(Type returnType, Object returnValue)
+    {
         // Consider as unset:
         // * null values
         // * empty strings
         // * empty lists
         if (returnValue != null && (!(returnValue instanceof String) || StringUtils.isNotBlank((String) returnValue))
-            && (!(returnValue instanceof List) || CollectionUtils.isNotEmpty((List) returnValue))) {
+            && (!(returnValue instanceof List) || CollectionUtils.isNotEmpty((List) returnValue)))
+        {
             T convertedValue = returnType != null ? this.converter.convert(returnType, returnValue) : (T) returnValue;
 
             this.logger.debug("  Converted to [{}]", returnValue);
 
             return convertedValue;
         }
-
         return null;
     }
 }

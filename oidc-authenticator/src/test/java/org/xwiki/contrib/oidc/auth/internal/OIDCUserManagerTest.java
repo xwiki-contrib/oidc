@@ -46,10 +46,6 @@ import javax.script.SimpleScriptContext;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
 
-import com.nimbusds.oauth2.sdk.token.BearerTokenError;
-import com.nimbusds.oauth2.sdk.token.RefreshToken;
-import com.sun.net.httpserver.HttpExchange;
-import com.sun.net.httpserver.HttpServer;
 import org.apache.commons.collections4.ListUtils;
 import org.joda.time.LocalDateTime;
 import org.json.JSONArray;
@@ -66,6 +62,7 @@ import org.xwiki.contrib.oidc.auth.internal.session.ClientProviders;
 import org.xwiki.contrib.oidc.auth.internal.store.DefaultOIDCUserStore;
 import org.xwiki.contrib.oidc.auth.internal.store.OIDCUserClassDocumentInitializer;
 import org.xwiki.contrib.oidc.auth.store.OIDCClientConfigurationStore;
+import org.xwiki.contrib.oidc.auth.store.OIDCClientsConfigurationStore;
 import org.xwiki.contrib.oidc.auth.store.OIDCUser;
 import org.xwiki.contrib.oidc.consent.internal.store.OIDCConsentStore;
 import org.xwiki.contrib.oidc.provider.internal.OIDCManager;
@@ -97,10 +94,14 @@ import com.nimbusds.oauth2.sdk.id.Audience;
 import com.nimbusds.oauth2.sdk.id.Issuer;
 import com.nimbusds.oauth2.sdk.id.Subject;
 import com.nimbusds.oauth2.sdk.token.BearerAccessToken;
+import com.nimbusds.oauth2.sdk.token.BearerTokenError;
+import com.nimbusds.oauth2.sdk.token.RefreshToken;
 import com.nimbusds.oauth2.sdk.util.URLUtils;
 import com.nimbusds.openid.connect.sdk.claims.Address;
 import com.nimbusds.openid.connect.sdk.claims.IDTokenClaimsSet;
 import com.nimbusds.openid.connect.sdk.claims.UserInfo;
+import com.sun.net.httpserver.HttpExchange;
+import com.sun.net.httpserver.HttpServer;
 import com.xpn.xwiki.XWikiContext;
 import com.xpn.xwiki.XWikiException;
 import com.xpn.xwiki.doc.MandatoryDocumentInitializer;
@@ -128,13 +129,13 @@ import static org.mockito.Mockito.when;
 
 /**
  * Validate {@link OIDCUserManager}.
- * 
+ *
  * @version $Id$
  */
 @OldcoreTest
-@ComponentList({OIDCManager.class, OIDCClientConfiguration.class, DefaultOIDCUserStore.class,
+@ComponentList({ OIDCManager.class, OIDCClientConfiguration.class, DefaultOIDCUserStore.class,
     OIDCProviderConfiguration.class, OIDCProviderStore.class, OIDCConsentStore.class, ProviderOIDCSessions.class,
-    OIDCClients.class, ClientProviders.class, DefaultUserFormatterFactory.class})
+    OIDCClients.class, ClientProviders.class, DefaultUserFormatterFactory.class })
 @ReferenceComponentList
 class OIDCUserManagerTest
 {
@@ -195,6 +196,9 @@ class OIDCUserManagerTest
 
     @MockComponent
     OAuth2TokenStore tokenStore;
+
+    @MockComponent
+    OIDCClientsConfigurationStore clientsConfigurationStore;
 
     @InjectMockComponents
     @Spy
@@ -272,7 +276,6 @@ class OIDCUserManagerTest
 
             this.oldcore.getSpyXWiki().saveDocument(groupDocument, this.oldcore.getXWikiContext());
         }
-
     }
 
     private boolean groupContains(DocumentReference group, String member) throws XWikiException
@@ -304,7 +307,6 @@ class OIDCUserManagerTest
         LocalDateTime exp = iat.plusYears(1);
 
         return new IDTokenClaimsSet(issuer, subject, Audience.create("aud"), exp.toDate(), iat.toDate());
-
     }
 
     // Tests
@@ -473,7 +475,7 @@ class OIDCUserManagerTest
         assertFalse(groupContains(this.existinggroupReference, userDocument.getFullName()));
         assertTrue(groupContains(this.xwikiallgroupReference, userFullName));
     }
-    
+
     @Test
     void updateUserInfoWithGroupSyncWithoutMappingAndIncludeRegex()
         throws XWikiException, QueryException, OIDCProviderException, MalformedURLException
@@ -763,11 +765,14 @@ class OIDCUserManagerTest
         this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_USER_NAMEFORMATER,
             "custom-${oidc.user.mail}-${oidc.user.mail.upperCase}-${oidc.user.mail.clean.upperCase}");
         this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_USER_NAMEFORBIDDENPATTERN, "@");
-        this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_USER_NAMEFORBIDDENREPLACEMENT, "_AT_");
+        this.oldcore.getConfigurationSource()
+            .setProperty(OIDCClientConfiguration.PROP_USER_NAMEFORBIDDENREPLACEMENT, "_AT_");
         this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_USER_SUBJECTFORMATER,
             "custom-${oidc.user.mail}-${oidc.user.mail.upperCase}-${oidc.user.mail.clean.upperCase}");
-        this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_USER_SUBJECTFORBIDDENPATTERN, "com");
-        this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_USER_SUBJECTFORBIDDENREPLACEMENT, "MOC");
+        this.oldcore.getConfigurationSource()
+            .setProperty(OIDCClientConfiguration.PROP_USER_SUBJECTFORBIDDENPATTERN, "com");
+        this.oldcore.getConfigurationSource()
+            .setProperty(OIDCClientConfiguration.PROP_USER_SUBJECTFORBIDDENREPLACEMENT, "MOC");
 
         Subject subject = new Subject("subject");
         UserInfo userInfo = new UserInfo(subject);
@@ -786,7 +791,8 @@ class OIDCUserManagerTest
 
         Principal principal = this.manager.updateUser(userInfo);
 
-        assertEquals("xwiki:XWiki.custom-mail@domain\\.com-MAIL@DOMAIN\\.COM-MAIL_AT_DOMAIN\\.COM", principal.getName());
+        assertEquals("xwiki:XWiki.custom-mail@domain\\.com-MAIL@DOMAIN\\.COM-MAIL_AT_DOMAIN\\.COM",
+            principal.getName());
 
         XWikiDocument userDocument =
             this.oldcore.getSpyXWiki().getDocument(new DocumentReference(this.oldcore.getXWikiContext().getWikiId(),
@@ -836,7 +842,8 @@ class OIDCUserManagerTest
     }
 
     @Test
-    void updateUserInfoWithAllowedGroup() throws XWikiException, QueryException, OIDCProviderException, MalformedURLException
+    void updateUserInfoWithAllowedGroup()
+        throws XWikiException, QueryException, OIDCProviderException, MalformedURLException
     {
         this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_GROUPS_ALLOWED,
             Arrays.asList("pgroup1", "pgroup2"));
@@ -958,11 +965,14 @@ class OIDCUserManagerTest
     void getUserInfoRefreshesExpiredTokenValue() throws Exception
     {
         this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_CLIENTID, "myclientid");
-        this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_PROVIDER, "http://localhost:8081/");
-        this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_ENDPOINT_USERINFO, "http://localhost:8081/userinfo");
+        this.oldcore.getConfigurationSource()
+            .setProperty(OIDCClientConfiguration.PROP_PROVIDER, "http://localhost:8081/");
+        this.oldcore.getConfigurationSource()
+            .setProperty(OIDCClientConfiguration.PROP_ENDPOINT_USERINFO, "http://localhost:8081/userinfo");
         this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_SECRET, "mysecret");
 
-        this.configuration.setAccessToken(new BearerAccessToken("expiredaccesstoken", 0, this.configuration.getScope()), new RefreshToken("validrefreshtoken"));
+        this.configuration.setAccessToken(new BearerAccessToken("expiredaccesstoken", 0, this.configuration.getScope()),
+            new RefreshToken("validrefreshtoken"));
         HttpServer server = startServer();
         try {
             this.manager.getUserInfo();
@@ -977,11 +987,14 @@ class OIDCUserManagerTest
     void getUserInfoDoesNotRefreshNonExpiredToken() throws Exception
     {
         this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_CLIENTID, "myclientid");
-        this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_PROVIDER, "http://localhost:8081/");
-        this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_ENDPOINT_USERINFO, "http://localhost:8081/userinfo");
+        this.oldcore.getConfigurationSource()
+            .setProperty(OIDCClientConfiguration.PROP_PROVIDER, "http://localhost:8081/");
+        this.oldcore.getConfigurationSource()
+            .setProperty(OIDCClientConfiguration.PROP_ENDPOINT_USERINFO, "http://localhost:8081/userinfo");
         this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_SECRET, "mysecret");
 
-        this.configuration.setAccessToken(new BearerAccessToken("validaccesstoken", 0, this.configuration.getScope()), new RefreshToken("validrefreshtoken"));
+        this.configuration.setAccessToken(new BearerAccessToken("validaccesstoken", 0, this.configuration.getScope()),
+            new RefreshToken("validrefreshtoken"));
         HttpServer server = startServer();
         try {
             this.manager.getUserInfo();
@@ -992,16 +1005,18 @@ class OIDCUserManagerTest
         }
     }
 
-
     @Test
     void getUserInfoRefreshesExpiredTokenExpiredLifetime() throws Exception
     {
         this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_CLIENTID, "myclientid");
-        this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_PROVIDER, "http://localhost:8081/");
-        this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_ENDPOINT_USERINFO, "http://localhost:8081/userinfo");
+        this.oldcore.getConfigurationSource()
+            .setProperty(OIDCClientConfiguration.PROP_PROVIDER, "http://localhost:8081/");
+        this.oldcore.getConfigurationSource()
+            .setProperty(OIDCClientConfiguration.PROP_ENDPOINT_USERINFO, "http://localhost:8081/userinfo");
         this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_SECRET, "mysecret");
 
-        this.configuration.setAccessToken(new BearerAccessToken("validaccesstoken", 1, this.configuration.getScope()), new RefreshToken("validrefreshtoken"));
+        this.configuration.setAccessToken(new BearerAccessToken("validaccesstoken", 1, this.configuration.getScope()),
+            new RefreshToken("validrefreshtoken"));
         HttpServer server = startServer();
         try {
             Thread.sleep(1100);
@@ -1095,7 +1110,7 @@ class OIDCUserManagerTest
 
         XWikiContext xcontext = this.oldcore.getXWikiContext();
         xcontext.setRequest(new XWikiServletRequestStub.Builder()
-            .setRequestParameters(Map.of("xredirect", new String[] {AFTER_LOGOUT_URL})).build());
+            .setRequestParameters(Map.of("xredirect", new String[] { AFTER_LOGOUT_URL })).build());
         XWikiResponse response = mock(XWikiResponse.class);
         xcontext.setResponse(response);
 
@@ -1113,7 +1128,8 @@ class OIDCUserManagerTest
 
     private HttpServer startServer() throws IOException
     {
-        HttpServer httpServer = HttpServer.create(new InetSocketAddress(8081), 0); // or use InetSocketAddress(0) for ephemeral port
+        HttpServer httpServer =
+            HttpServer.create(new InetSocketAddress(8081), 0); // or use InetSocketAddress(0) for ephemeral port
         httpServer.createContext("/.well-known/openid-configuration", exchange -> {
             JSONObject r = new JSONObject();
             r.put("issuer", "http://localhost:8081/");
@@ -1205,8 +1221,8 @@ class OIDCUserManagerTest
     {
         String body = new BufferedReader(
             new InputStreamReader(exchange.getRequestBody(), StandardCharsets.UTF_8))
-                             .lines()
-                             .collect(Collectors.joining("\n"));
+            .lines()
+            .collect(Collectors.joining("\n"));
 
         return parseURLEncodedParameters(body);
     }

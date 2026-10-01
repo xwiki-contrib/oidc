@@ -44,6 +44,7 @@ import org.xwiki.contrib.oidc.auth.internal.OIDCUserManager;
 import org.xwiki.contrib.oidc.auth.internal.session.ClientHttpSessions;
 import org.xwiki.contrib.oidc.auth.internal.session.ClientProviders;
 import org.xwiki.contrib.oidc.auth.store.OIDCClientConfigurationStore;
+import org.xwiki.contrib.oidc.auth.store.OIDCClientsConfigurationStore;
 import org.xwiki.contrib.oidc.provider.internal.OIDCManager;
 import org.xwiki.contrib.oidc.provider.internal.OIDCResourceReference;
 import org.xwiki.instance.InstanceIdManager;
@@ -99,7 +100,7 @@ import static org.mockito.Mockito.when;
  * @version $Id$
  */
 @OldcoreTest
-@ComponentList({OIDCClientConfiguration.class, ClientProviders.class})
+@ComponentList({ OIDCClientConfiguration.class, ClientProviders.class })
 @ReferenceComponentList
 class CallbackOIDCEndpointTest
 {
@@ -149,6 +150,9 @@ class CallbackOIDCEndpointTest
 
     @MockComponent
     private OAuth2TokenStore tokenStore;
+
+    @MockComponent
+    OIDCClientsConfigurationStore clientsConfigurationStore;
 
     @InjectMockComponents
     private CallbackOIDCEndpoint endpoint;
@@ -384,9 +388,9 @@ class CallbackOIDCEndpointTest
     }
 
     /**
-     * The signature of an ID token received from the authorization endpoint can only be verified with the metadata of
-     * a configured provider, so it must be ignored when the provider endpoints are configured individually. Since
-     * there is no authorization code to fallback on in an implicit flow response, no id token is left at all.
+     * The signature of an ID token received from the authorization endpoint can only be verified with the metadata of a
+     * configured provider, so it must be ignored when the provider endpoints are configured individually. Since there
+     * is no authorization code to fallback on in an implicit flow response, no id token is left at all.
      */
     @Test
     void callbackWithIDTokenAndWithoutConfiguredProvider() throws Exception
@@ -401,9 +405,9 @@ class CallbackOIDCEndpointTest
     }
 
     /**
-     * In a hybrid flow, the ID token sent by the authorization endpoint is ignored when there is no configured
-     * provider to validate its signature with, but the authentication still succeeds with the ID token returned by the
-     * token endpoint, which is received through a direct call to the provider.
+     * In a hybrid flow, the ID token sent by the authorization endpoint is ignored when there is no configured provider
+     * to validate its signature with, but the authentication still succeeds with the ID token returned by the token
+     * endpoint, which is received through a direct call to the provider.
      */
     @Test
     void callbackWithIDTokenAndCodeAndWithoutConfiguredProvider() throws Exception
