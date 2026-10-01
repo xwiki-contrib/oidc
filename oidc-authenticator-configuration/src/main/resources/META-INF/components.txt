@@ -4,4 +4,4 @@ org.xwiki.contrib.oidc.auth.internal.store.OIDCClientConfigurationClassDocumentI
 org.xwiki.contrib.oidc.auth.internal.store.OIDCClientsConfigurationClassDocumentInitializer
 org.xwiki.contrib.oidc.auth.internal.store.OIDCClientsConfigurationDocumentInitializer
 org.xwiki.contrib.oidc.auth.internal.store.OIDCClientConfigurationListener
-org.xwiki.contrib.oidc.auth.internal.store.OIDCClientsConfigurationSource
+org.xwiki.contrib.oidc.auth.internal.store.DefaultOIDCClientsConfigurationStore

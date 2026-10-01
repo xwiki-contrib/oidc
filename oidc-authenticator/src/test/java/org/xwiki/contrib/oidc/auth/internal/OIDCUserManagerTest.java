@@ -55,7 +55,6 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 import org.mockito.Spy;
-import org.xwiki.configuration.ConfigurationSource;
 import org.xwiki.container.Container;
 import org.xwiki.container.servlet.ServletSession;
 import org.xwiki.contrib.oidc.OAuth2TokenStore;
@@ -63,6 +62,7 @@ import org.xwiki.contrib.oidc.auth.internal.session.ClientProviders;
 import org.xwiki.contrib.oidc.auth.internal.store.DefaultOIDCUserStore;
 import org.xwiki.contrib.oidc.auth.internal.store.OIDCUserClassDocumentInitializer;
 import org.xwiki.contrib.oidc.auth.store.OIDCClientConfigurationStore;
+import org.xwiki.contrib.oidc.auth.store.OIDCClientsConfigurationStore;
 import org.xwiki.contrib.oidc.auth.store.OIDCUser;
 import org.xwiki.contrib.oidc.consent.internal.store.OIDCConsentStore;
 import org.xwiki.contrib.oidc.provider.internal.OIDCManager;
@@ -198,8 +198,7 @@ class OIDCUserManagerTest
     OAuth2TokenStore tokenStore;
 
     @MockComponent
-    @Named("oidcclients")
-    ConfigurationSource clientsXWikiCfg;
+    OIDCClientsConfigurationStore clientsConfigurationStore;
 
     @InjectMockComponents
     @Spy

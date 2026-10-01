@@ -42,11 +42,6 @@
       <artifactId>xwiki-platform-oldcore</artifactId>
       <version>${platform.version}</version>
     </dependency>
-    <dependency>
-      <groupId>org.xwiki.platform</groupId>
-      <artifactId>xwiki-platform-configuration-default</artifactId>
-      <version>${platform.version}</version>
-    </dependency>
 
     <!-- Test dependencies -->
     <dependency>

@@ -38,7 +38,7 @@ import com.xpn.xwiki.doc.AbstractMandatoryDocumentInitializer;
 import com.xpn.xwiki.doc.XWikiDocument;
 
 /**
- * Initializes the OIDC Clients document in order for the {@link OIDCClientsConfigurationSource} to be able to update
+ * Initializes the OIDC Clients document in order for the {@link OIDCClientsConfigurationStore} to be able to read
  * its entries if necessary.
  *
  * @version $Id$

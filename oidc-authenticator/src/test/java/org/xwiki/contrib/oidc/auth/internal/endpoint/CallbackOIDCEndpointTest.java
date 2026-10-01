@@ -36,7 +36,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.securityfilter.filter.SecurityRequestWrapper;
 import org.securityfilter.realm.SimplePrincipal;
-import org.xwiki.configuration.ConfigurationSource;
 import org.xwiki.container.Container;
 import org.xwiki.container.servlet.ServletSession;
 import org.xwiki.contrib.oidc.OAuth2TokenStore;
@@ -45,6 +44,7 @@ import org.xwiki.contrib.oidc.auth.internal.OIDCUserManager;
 import org.xwiki.contrib.oidc.auth.internal.session.ClientHttpSessions;
 import org.xwiki.contrib.oidc.auth.internal.session.ClientProviders;
 import org.xwiki.contrib.oidc.auth.store.OIDCClientConfigurationStore;
+import org.xwiki.contrib.oidc.auth.store.OIDCClientsConfigurationStore;
 import org.xwiki.contrib.oidc.provider.internal.OIDCManager;
 import org.xwiki.contrib.oidc.provider.internal.OIDCResourceReference;
 import org.xwiki.instance.InstanceIdManager;
@@ -152,8 +152,7 @@ class CallbackOIDCEndpointTest
     private OAuth2TokenStore tokenStore;
 
     @MockComponent
-    @Named("oidcclients")
-    ConfigurationSource clientsXWikiCfg;
+    OIDCClientsConfigurationStore clientsConfigurationStore;
 
     @InjectMockComponents
     private CallbackOIDCEndpoint endpoint;

@@ -70,6 +70,7 @@ import org.xwiki.contrib.oidc.auth.internal.endpoint.CallbackOIDCEndpoint;
 import org.xwiki.contrib.oidc.auth.internal.session.ClientProviders;
 import org.xwiki.contrib.oidc.auth.internal.session.ClientProviders.ClientProvider;
 import org.xwiki.contrib.oidc.auth.store.OIDCClientConfigurationStore;
+import org.xwiki.contrib.oidc.auth.store.OIDCClientsConfigurationStore;
 import org.xwiki.contrib.oidc.internal.NimbusOAuth2Token;
 import org.xwiki.contrib.oidc.internal.OIDCConfiguration;
 import org.xwiki.contrib.oidc.provider.internal.OIDCManager;
@@ -509,8 +510,7 @@ public class OIDCClientConfiguration extends OIDCConfiguration
     private Execution execution;
 
     @Inject
-    @Named("oidcclients")
-    protected ConfigurationSource wikiClientsConfiguration;
+    private OIDCClientsConfigurationStore clientsConfigurationStore;
 
     /**
      * @param oidcSession the session to store in the execution context. This is useful when using the configuration
@@ -664,15 +664,9 @@ public class OIDCClientConfiguration extends OIDCConfiguration
                 return wikiValue;
             }
         }
-        T value = this.wikiClientsConfiguration.getProperty(
-            key.startsWith(PREFIX_PROP) ? key.substring(PREFIX_PROP.length()) : key, valueClass);
 
-        if (value != null) {
-            this.logger.debug("  -> wiki app-wide value: [{}]", value);
-            return value;
-        }
         // Get property from configuration
-        value = this.configuration.getProperty(key, valueClass);
+        T value = this.configuration.getProperty(key, valueClass);
 
         this.logger.debug("  -> xwiki.properties value: [{}]", value);
 
@@ -712,20 +706,9 @@ public class OIDCClientConfiguration extends OIDCConfiguration
                 return wikiValue;
             }
         }
-        return getFromConfigurationSources(key, def != null ? (Class<T>) def.getClass() : null, def);
-    }
 
-    private <T> T getFromConfigurationSources(String key, Class<T> type, T def)
-    {
-        T value = this.wikiClientsConfiguration.getProperty(
-            key.startsWith(PREFIX_PROP) ? key.substring(PREFIX_PROP.length()) : key, type);
-
-        if (value != null) {
-            this.logger.debug("  -> wiki app-wide value: [{}]", value);
-            return value;
-        }
         // Get property from configuration
-        value = this.configuration.getProperty(key, def);
+        T value = this.configuration.getProperty(key, def);
 
         this.logger.debug("  -> xwiki.properties value: [{}]", value);
 
@@ -1787,13 +1770,18 @@ public class OIDCClientConfiguration extends OIDCConfiguration
             return sessionProviderName;
         }
 
-        String cookieName =
-            getFromConfigurationSources(CLIENT_CONFIGURATION_COOKIE_PROPERTY, String.class,
-                DEFAULT_OIDC_CONFIGURATION_COOKIE);
+        // The wiki configuration takes precedence over xwiki.properties
+        String cookieName = this.clientsConfigurationStore.getClientConfigurationCookie();
+        if (cookieName == null) {
+            cookieName =
+                this.configuration.getProperty(CLIENT_CONFIGURATION_COOKIE_PROPERTY, DEFAULT_OIDC_CONFIGURATION_COOKIE);
+        }
 
-        String fallbackProviderName =
-            getFromConfigurationSources(DEFAULT_CLIENT_CONFIGURATION_PROPERTY, String.class,
-                DEFAULT_CLIENT_CONFIGURATION);
+        String fallbackProviderName = this.clientsConfigurationStore.getDefaultClientConfiguration();
+        if (fallbackProviderName == null) {
+            fallbackProviderName =
+                this.configuration.getProperty(DEFAULT_CLIENT_CONFIGURATION_PROPERTY, DEFAULT_CLIENT_CONFIGURATION);
+        }
 
         // Check if a cookie exists, indicating which configuration to use
         XWikiContext context = contextProvider.get();
