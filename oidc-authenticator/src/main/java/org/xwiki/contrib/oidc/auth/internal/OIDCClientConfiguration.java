@@ -392,13 +392,6 @@ public class OIDCClientConfiguration extends OIDCConfiguration
     public static final String PROP_SESSION_USERINFO_EXPORATIONDATE = "oidc.session.userinfoexpirationdate";
 
     /**
-     * The name of the logout mechanism property.
-     *
-     * @since 1.31
-     */
-    public static final String PROP_LOGOUT_MECHANISM = "oidc.logoutMechanism";
-
-    /**
      * The URL to redirect to after logout (optional).
      *
      * @since 2.31.2
@@ -1933,9 +1926,6 @@ public class OIDCClientConfiguration extends OIDCConfiguration
                 break;
             case PROP_USERINFO_SKIP:
                 returnValue = clientConfiguration.getUserInfoSkip();
-                break;
-            case PROP_LOGOUT_MECHANISM:
-                returnValue = clientConfiguration.getLogoutMechanism();
                 break;
             case PROP_LOGOUT_REDIRECT_URL:
                 returnValue = clientConfiguration.getAfterLogoutURL();

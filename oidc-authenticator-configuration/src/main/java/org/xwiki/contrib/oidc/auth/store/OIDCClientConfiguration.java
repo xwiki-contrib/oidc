@@ -269,13 +269,6 @@ public class OIDCClientConfiguration
     public static final String FIELD_USER_INFO_SKIP = "userInfoSkip";
 
     /**
-     * The name of the logout mechanism to be used.
-     * 
-     * @since 1.31
-     */
-    public static final String FIELD_LOGOUT_MECHANISM = "logoutMechanism";
-
-    /**
      * The name of the property defining if users should be enabled by default or not.
      *
      * @since 2.5.0
@@ -999,24 +992,6 @@ public class OIDCClientConfiguration
     public void setUserInfoRefreshRate(int userInfoRefreshRate)
     {
         this.xobject.setIntValue(FIELD_USER_INFO_REFRESH_RATE, userInfoRefreshRate);
-    }
-
-    /**
-     * @return the logout mechanism
-     * @since 1.31
-     */
-    public String getLogoutMechanism()
-    {
-        return this.xobject.getStringValue(FIELD_LOGOUT_MECHANISM);
-    }
-
-    /**
-     * @param logoutMechanism the logout mechanism
-     * @since 1.31
-     */
-    public void setLogoutMechanism(String logoutMechanism)
-    {
-        this.xobject.setStringValue(FIELD_LOGOUT_MECHANISM, logoutMechanism);
     }
 
     /**
