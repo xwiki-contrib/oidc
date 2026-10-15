@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.List;
+import java.util.concurrent.locks.Lock;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -86,9 +87,13 @@ public class DefaultOAuth2ClientManager implements OAuth2ClientManager
     @Override
     public void authorize(OIDCClientConfiguration config, URI redirectURI) throws OAuth2Exception
     {
+        // Make sure the session is not modified by a callback or another authorization start (from other browser tabs,
+        // for example) while this authorization is started
+        Lock lock = this.authConfig.getSessionLock();
+        lock.lock();
         try {
             // Clear the OIDC session to remove any information that could be coming from previous authorizations.
-            this.authConfig.getOIDCSession(true).clear();
+            this.authConfig.resetOIDCSession();
 
             // Generate unique state, populate the session
             State state = new State();
@@ -111,6 +116,10 @@ public class DefaultOAuth2ClientManager implements OAuth2ClientManager
                     .scope(scope)
                     .endpointURI(this.authConfig.getAuthorizationOIDCEndpoint().getURI());
 
+            // Remember this authorization in case another one is started from the same session before the provider
+            // answers
+            this.authConfig.savePendingAuthorization(state.getValue());
+
             // Redirect the user to the provider
             String redirectURL = requestBuilder.build().toURI().toString();
             logger.debug("Redirecting the user to [{}]", redirectURL);
@@ -118,6 +127,8 @@ public class DefaultOAuth2ClientManager implements OAuth2ClientManager
 
         } catch (URISyntaxException | IOException | GeneralException e) {
             throw new OAuth2Exception("Failed to perform authorization request", e);
+        } finally {
+            lock.unlock();
         }
     }
 

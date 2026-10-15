@@ -25,7 +25,9 @@ import java.net.URISyntaxException;
 import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.locks.Lock;
 
 import javax.inject.Inject;
 import javax.inject.Named;
@@ -139,6 +141,38 @@ public class CallbackOIDCEndpoint implements OIDCEndpoint
         if (this.configuration.getOIDCSession(false) == null) {
             return new ErrorResponse(HTTPResponse.SC_BAD_REQUEST,
                 "There is no OpenID Connection information in the current session (anymore?)");
+        }
+
+        // Make sure the session is not modified by other callbacks or authorization starts (from other browser tabs,
+        // for example) while this one is handled. Waiting is fine since the requests sent to the provider are limited
+        // in time.
+        Lock lock = this.configuration.getSessionLock();
+        lock.lock();
+        try {
+            return handle(httpRequest, authorizationResponse);
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    private Response handle(HTTPRequest httpRequest, AuthorizationResponse authorizationResponse) throws Exception
+    {
+        // Other authorizations might have been started from the same session (from other browser tabs, for example)
+        // since the one this callback answers, so get back the session as it was when this one was started
+        State responseState = authorizationResponse.getState();
+        Map<String, Object> authorization =
+            responseState != null ? this.configuration.removePendingAuthorization(responseState.getValue()) : null;
+        if (authorization != null) {
+            if (isAuthenticated() && isAuthentication(authorization)) {
+                // The user was authenticated by a parallel authentication in the meantime, so there is no need to go
+                // further (and lose the information associated with the current authentication)
+                this.logger.debug("OIDC callback: the user is already authenticated, redirect to [{}]",
+                    authorization.get(OIDCClientConfiguration.PROP_INITIAL_REQUEST));
+
+                return new RedirectResponse((URI) authorization.get(OIDCClientConfiguration.PROP_INITIAL_REQUEST));
+            }
+
+            this.configuration.restorePendingAuthorization(authorization);
         }
 
         // Validate state
@@ -282,6 +316,19 @@ public class CallbackOIDCEndpoint implements OIDCEndpoint
 
         // Redirect to original request
         return new RedirectResponse(this.configuration.getSuccessRedirectURI());
+    }
+
+    private boolean isAuthenticated()
+    {
+        HttpSession session = ((ServletSession) this.container.getSession()).getHttpSession();
+
+        return session.getAttribute(SecurityRequestWrapper.PRINCIPAL_SESSION_KEY) != null;
+    }
+
+    private boolean isAuthentication(Map<String, Object> authorization)
+    {
+        // Authorizations which are not explicitly flagged are authentications
+        return !Boolean.FALSE.equals(authorization.get(OIDCClientConfiguration.PROP_IS_USED_FOR_AUTHENTICATION));
     }
 
     private IDTokenClaimsSet parseImplicitIdToken(Nonce nonce, JWT token)

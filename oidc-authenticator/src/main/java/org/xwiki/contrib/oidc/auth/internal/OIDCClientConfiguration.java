@@ -30,12 +30,15 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
@@ -258,6 +261,21 @@ public class OIDCClientConfiguration extends OIDCConfiguration
     public static final String PROP_SKIPPED = "oidc.skipped";
 
     /**
+     * The maximum time to wait for the connection to a provider endpoint to be established, in milliseconds, 0 for no
+     * limit.
+     *
+     * @since 2.28.2
+     */
+    public static final String PROP_HTTP_CONNECT_TIMEOUT = "oidc.http.connectTimeout";
+
+    /**
+     * The maximum time to wait for a provider endpoint to answer, in milliseconds, 0 for no limit.
+     *
+     * @since 2.28.2
+     */
+    public static final String PROP_HTTP_READ_TIMEOUT = "oidc.http.readTimeout";
+
+    /**
      * @since 2.24.0
      */
     public static final String PROP_TRYLOCAL = "oidc.tryLocal";
@@ -461,6 +479,34 @@ public class OIDCClientConfiguration extends OIDCConfiguration
      */
     public static final String PROP_SESSION_CODE_VERIFIER = "oidc.codeverifier";
 
+    /**
+     * The OIDC session attribute holding the authorizations started from the session and still waiting for the
+     * provider answer, indexed by state.
+     *
+     * @since 2.28.2
+     */
+    public static final String PROP_SESSION_PENDING_AUTHORIZATIONS = "oidc.pendingauthorizations";
+
+    /**
+     * The OIDC session attribute holding the lock used to make sure that only one authorization at a time is started or
+     * completed in a session.
+     *
+     * @since 2.28.2
+     */
+    public static final String PROP_SESSION_LOCK = "oidc.lock";
+
+    /**
+     * The OIDC session attributes which are not associated with a specific authorization.
+     */
+    private static final Set<String> SESSION_AUTHORIZATIONS_PROPERTIES =
+        Set.of(PROP_SESSION_PENDING_AUTHORIZATIONS, PROP_SESSION_LOCK);
+
+    /**
+     * The maximum number of authorizations waiting for the provider answer remembered in a session. The oldest ones are
+     * forgotten first, they are the most likely to have been abandoned.
+     */
+    private static final int MAX_PENDING_AUTHORIZATIONS = 10;
+
     private static final String CONTEXTPROP_SESSION = "oidc.clientsession";
 
     @Inject
@@ -587,6 +633,102 @@ public class OIDCClientConfiguration extends OIDCConfiguration
             } else {
                 session.put(name, value);
             }
+        }
+    }
+
+    /**
+     * Starting or completing an authorization involves several modifications of the OIDC session, which must not be
+     * mixed with the ones of another authorization started or completed at the same time in the same session (from
+     * other browser tabs, for example).
+     *
+     * @return the lock to hold while starting or completing an authorization
+     * @since 2.28.2
+     */
+    public Lock getSessionLock()
+    {
+        Map<String, Object> session = getOIDCSession(true);
+        if (session != null) {
+            return (Lock) session.computeIfAbsent(PROP_SESSION_LOCK, k -> new ReentrantLock());
+        }
+
+        // No session to protect
+        return new ReentrantLock();
+    }
+
+    /**
+     * Remove from the OIDC session anything coming from a previous authorization, before starting a new one. The
+     * authorizations still waiting for the provider answer are kept, so that the user can complete them.
+     *
+     * @since 2.28.2
+     */
+    public void resetOIDCSession()
+    {
+        Map<String, Object> session = getOIDCSession(true);
+        if (session != null) {
+            session.keySet().removeIf(key -> !SESSION_AUTHORIZATIONS_PROPERTIES.contains(key));
+        }
+    }
+
+    /**
+     * Remember the authorization currently described by the OIDC session, so that the callback can still find it when
+     * other authorizations are started from the same session (from other browser tabs, for example) before the
+     * provider answers.
+     *
+     * @param state the state sent to the provider for this authorization
+     * @since 2.28.2
+     */
+    public void savePendingAuthorization(String state)
+    {
+        Map<String, Object> session = getOIDCSession(true);
+        if (session != null) {
+            Map<String, Object> authorization = new HashMap<>(session);
+            authorization.keySet().removeAll(SESSION_AUTHORIZATIONS_PROPERTIES);
+
+            Map<String, Map<String, Object>> authorizations = (Map<String, Map<String, Object>>) session
+                .computeIfAbsent(PROP_SESSION_PENDING_AUTHORIZATIONS, k -> new LinkedHashMap<>());
+            synchronized (authorizations) {
+                authorizations.put(state, authorization);
+
+                // Don't let the session grow indefinitely with authorizations the user never completed
+                Iterator<String> iterator = authorizations.keySet().iterator();
+                while (authorizations.size() > MAX_PENDING_AUTHORIZATIONS) {
+                    iterator.next();
+                    iterator.remove();
+                }
+            }
+        }
+    }
+
+    /**
+     * @param state the state sent back by the provider
+     * @return the authorization associated with the passed state, or {@code null} if none could be found
+     * @since 2.28.2
+     */
+    public Map<String, Object> removePendingAuthorization(String state)
+    {
+        Map<String, Map<String, Object>> authorizations = getSessionAttribute(PROP_SESSION_PENDING_AUTHORIZATIONS);
+        if (authorizations != null) {
+            synchronized (authorizations) {
+                return authorizations.remove(state);
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Make the passed authorization the one described by the OIDC session, as it was when it was started.
+     *
+     * @param authorization the authorization to restore
+     * @since 2.28.2
+     */
+    public void restorePendingAuthorization(Map<String, Object> authorization)
+    {
+        resetOIDCSession();
+
+        Map<String, Object> session = getOIDCSession(true);
+        if (session != null) {
+            session.putAll(authorization);
         }
     }
 
@@ -861,7 +1003,31 @@ public class OIDCClientConfiguration extends OIDCConfiguration
             }
         }
 
-        return new Endpoint(uri, headers);
+        return createEndpoint(uri, headers);
+    }
+
+    private Endpoint createEndpoint(URI uri, Map<String, List<String>> headers)
+    {
+        return new Endpoint(uri, headers, getHTTPConnectTimeout(), getHTTPReadTimeout());
+    }
+
+    /**
+     * @return the maximum time to wait for the connection to a provider endpoint to be established, in milliseconds, 0
+     *     for no limit
+     * @since 2.28.2
+     */
+    public int getHTTPConnectTimeout()
+    {
+        return getProperty(PROP_HTTP_CONNECT_TIMEOUT, Endpoint.DEFAULT_CONNECT_TIMEOUT);
+    }
+
+    /**
+     * @return the maximum time to wait for a provider endpoint to answer, in milliseconds, 0 for no limit
+     * @since 2.28.2
+     */
+    public int getHTTPReadTimeout()
+    {
+        return getProperty(PROP_HTTP_READ_TIMEOUT, Endpoint.DEFAULT_READ_TIMEOUT);
     }
 
     /**
@@ -931,7 +1097,7 @@ public class OIDCClientConfiguration extends OIDCConfiguration
         // If not, try to resolve it from the issuer
         Issuer issuer = getIssuer();
         if (issuer != null) {
-            return new Endpoint(OIDCProviderMetadata.resolveURL(issuer).toURI(), Map.of());
+            return createEndpoint(OIDCProviderMetadata.resolveURL(issuer).toURI(), Map.of());
         }
 
         return null;
@@ -962,7 +1128,7 @@ public class OIDCClientConfiguration extends OIDCConfiguration
                 OIDCClientRegistrationRequest request = new OIDCClientRegistrationRequest(registrationEndpoint,
                     createClientMetadata(), getRegisterEndpointToken());
 
-                HTTPRequest httpRequest = request.toHTTPRequest();
+                HTTPRequest httpRequest = createEndpoint(registrationEndpoint, null).prepare(request.toHTTPRequest());
                 HTTPResponse httpResponse = httpRequest.send();
 
                 OIDCClientInformationResponse response = OIDCClientInformationResponse.parse(httpResponse);

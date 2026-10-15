@@ -33,9 +33,27 @@ import com.nimbusds.oauth2.sdk.http.HTTPRequest;
  */
 public class Endpoint
 {
+    /**
+     * The default maximum time to wait for the connection to the endpoint to be established, in milliseconds.
+     *
+     * @since 2.28.2
+     */
+    public static final int DEFAULT_CONNECT_TIMEOUT = 10000;
+
+    /**
+     * The default maximum time to wait for the endpoint to answer, in milliseconds.
+     *
+     * @since 2.28.2
+     */
+    public static final int DEFAULT_READ_TIMEOUT = 30000;
+
     private final URI uri;
 
     private final Map<String, List<String>> headers;
+
+    private final int connectTimeout;
+
+    private final int readTimeout;
 
     /**
      * @param uri the URI
@@ -43,13 +61,28 @@ public class Endpoint
      */
     public Endpoint(URI uri, Map<String, List<String>> headers)
     {
+        this(uri, headers, DEFAULT_CONNECT_TIMEOUT, DEFAULT_READ_TIMEOUT);
+    }
+
+    /**
+     * @param uri the URI
+     * @param headers the custom headers to send with the endpoint, can be null when there is none
+     * @param connectTimeout the maximum time to wait for the connection to the endpoint to be established, in
+     *     milliseconds, 0 for no limit
+     * @param readTimeout the maximum time to wait for the endpoint to answer, in milliseconds, 0 for no limit
+     * @since 2.28.2
+     */
+    public Endpoint(URI uri, Map<String, List<String>> headers, int connectTimeout, int readTimeout)
+    {
         this.uri = uri;
         this.headers = headers != null ? headers : Map.of();
+        this.connectTimeout = connectTimeout;
+        this.readTimeout = readTimeout;
     }
 
     /**
      * @param request the request to complete
-     * @return inject custom headers to the passed request
+     * @return inject custom headers and timeouts to the passed request
      */
     public HTTPRequest prepare(HTTPRequest request)
     {
@@ -59,6 +92,10 @@ public class Endpoint
         // Set a proper user agent
         request.setHeader("User-Agent", this.getClass().getPackage().getImplementationTitle() + '/'
             + this.getClass().getPackage().getImplementationVersion());
+
+        // Don't wait forever for a provider which does not answer
+        request.setConnectTimeout(this.connectTimeout);
+        request.setReadTimeout(this.readTimeout);
 
         return request;
     }
@@ -77,5 +114,24 @@ public class Endpoint
     public Map<String, List<String>> getHeaders()
     {
         return this.headers;
+    }
+
+    /**
+     * @return the maximum time to wait for the connection to the endpoint to be established, in milliseconds, 0 for no
+     *     limit
+     * @since 2.28.2
+     */
+    public int getConnectTimeout()
+    {
+        return this.connectTimeout;
+    }
+
+    /**
+     * @return the maximum time to wait for the endpoint to answer, in milliseconds, 0 for no limit
+     * @since 2.28.2
+     */
+    public int getReadTimeout()
+    {
+        return this.readTimeout;
     }
 }

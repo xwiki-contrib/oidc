@@ -19,11 +19,15 @@
  */
 package org.xwiki.contrib.oidc.auth.internal.endpoint;
 
+import java.net.SocketTimeoutException;
 import java.net.URI;
 import java.util.Date;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 import javax.inject.Named;
 import javax.servlet.http.HttpServletRequest;
@@ -74,14 +78,17 @@ import com.nimbusds.oauth2.sdk.Response;
 import com.nimbusds.oauth2.sdk.http.HTTPRequest;
 import com.nimbusds.oauth2.sdk.http.HTTPResponse;
 import com.nimbusds.oauth2.sdk.id.Subject;
+import com.nimbusds.oauth2.sdk.pkce.CodeVerifier;
 import com.xpn.xwiki.test.MockitoOldcore;
 import com.xpn.xwiki.test.junit5.mockito.InjectMockitoOldcore;
 import com.xpn.xwiki.test.junit5.mockito.OldcoreTest;
 import com.xpn.xwiki.test.reference.ReferenceComponentList;
 
+import static com.github.tomakehurst.wiremock.client.WireMock.containing;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.okJson;
 import static com.github.tomakehurst.wiremock.client.WireMock.post;
+import static com.github.tomakehurst.wiremock.client.WireMock.postRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
 import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.options;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -89,6 +96,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -112,13 +120,19 @@ class CallbackOIDCEndpointTest
 
     private static final String STATE = "mystate";
 
+    private static final String OTHER_STATE = "otherstate";
+
     private static final String NONCE = "mynonce";
+
+    private static final String OTHER_NONCE = "othernonce";
 
     private static final String KEY_ID = "mykeyid";
 
     private static final String OTHER_ISSUER = "http://otherissuer";
 
     private static final URI SUCCESS_URI = URI.create("http://xwiki/initialrequest");
+
+    private static final URI OTHER_SUCCESS_URI = URI.create("http://xwiki/otherinitialrequest");
 
     @MockComponent
     private Container container;
@@ -199,8 +213,11 @@ class CallbackOIDCEndpointTest
     {
         HttpServletRequest httpServletRequest = mock(HttpServletRequest.class);
         this.httpSession = mock(HttpSession.class);
-        Map<String, Object> session = new HashMap<>();
-        when(this.httpSession.getAttribute(OIDCClientConfiguration.SESSION)).thenReturn(session);
+        Map<String, Object> attributes = new ConcurrentHashMap<>();
+        attributes.put(OIDCClientConfiguration.SESSION, new ConcurrentHashMap<>());
+        when(this.httpSession.getAttribute(any())).then(invocation -> attributes.get(invocation.getArgument(0)));
+        doAnswer(invocation -> attributes.put(invocation.getArgument(0), invocation.getArgument(1)))
+            .when(this.httpSession).setAttribute(any(), any());
         when(httpServletRequest.getSession()).thenReturn(this.httpSession);
         when(httpServletRequest.getSession(true)).thenReturn(this.httpSession);
         ServletSession servletSession = new ServletSession(httpServletRequest);
@@ -239,12 +256,18 @@ class CallbackOIDCEndpointTest
      */
     private void stubTokenEndpoint(JWT idToken)
     {
+        stubTokenEndpoint(idToken, 0);
+    }
+
+    private void stubTokenEndpoint(JWT idToken, int delay)
+    {
         JSONObject tokens = new JSONObject();
         tokens.put("token_type", "Bearer");
         tokens.put("access_token", "myaccesstoken");
         tokens.put("id_token", idToken.serialize());
 
-        this.provider.stubFor(post(urlEqualTo("/token")).willReturn(okJson(tokens.toString())));
+        this.provider
+            .stubFor(post(urlEqualTo("/token")).willReturn(okJson(tokens.toString()).withFixedDelay(delay)));
     }
 
     private JWTClaimsSet.Builder claims()
@@ -285,9 +308,27 @@ class CallbackOIDCEndpointTest
 
     private Response callbackWithIDToken(JWT idToken) throws Exception
     {
+        return callbackWithIDToken(STATE, idToken);
+    }
+
+    private Response callbackWithIDToken(String state, JWT idToken) throws Exception
+    {
         // An access token is sent along with the ID token, as in a standard implicit flow
-        return callback("state=" + STATE + "&token_type=Bearer&access_token=myaccesstoken&id_token="
+        return callback("state=" + state + "&token_type=Bearer&access_token=myaccesstoken&id_token="
             + idToken.serialize());
+    }
+
+    /**
+     * Simulate what is stored in the session when an authorization is started.
+     */
+    private void startAuthorization(String state, String nonce, CodeVerifier codeVerifier, URI successURI)
+    {
+        this.configuration.resetOIDCSession();
+        this.configuration.setSessionState(state);
+        this.configuration.setSessionNonce(nonce);
+        this.configuration.setSessionCodeVerifier(codeVerifier);
+        this.configuration.setSuccessRedirectURI(successURI);
+        this.configuration.savePendingAuthorization(state);
     }
 
     private void assertErrorResponse(int code, String description, Response response)
@@ -557,6 +598,112 @@ class CallbackOIDCEndpointTest
         assertTrue(response.indicatesSuccess());
         assertEquals(SUCCESS_URI, response.toHTTPResponse().getLocation());
 
+        verify(this.httpSession).setAttribute(eq(SecurityRequestWrapper.PRINCIPAL_SESSION_KEY), any());
+    }
+
+    /**
+     * Several authentications can be started in parallel from the same session, typically when several browser tabs
+     * are reloaded after the session expired. Each one must be validated against what was stored for it, whatever the
+     * order in which they were started, and the ones answered after the user got authenticated just send the user back
+     * to where they started.
+     */
+    @Test
+    void callbackWithParallelAuthentications() throws Exception
+    {
+        startAuthorization(STATE, NONCE, new CodeVerifier(), SUCCESS_URI);
+        startAuthorization(OTHER_STATE, OTHER_NONCE, new CodeVerifier(), OTHER_SUCCESS_URI);
+
+        // The provider answers the first authentication first, with an ID token bound to the first nonce
+        Response response = callbackWithIDToken(STATE, signedIDToken(claims().build()));
+
+        assertTrue(response.indicatesSuccess());
+        assertEquals(SUCCESS_URI, response.toHTTPResponse().getLocation());
+        verify(this.httpSession).setAttribute(eq(SecurityRequestWrapper.PRINCIPAL_SESSION_KEY), any());
+
+        response = callbackWithIDToken(OTHER_STATE, signedIDToken(claims().claim("nonce", OTHER_NONCE).build()));
+
+        assertTrue(response.indicatesSuccess());
+        assertEquals(OTHER_SUCCESS_URI, response.toHTTPResponse().getLocation());
+        // The user is not authenticated again
+        verify(this.users).updateUser(any());
+        // The information associated with the first authentication is kept
+        assertEquals("myaccesstoken", this.configuration.getAccessToken().getValue());
+
+        // An authorization can only be completed once
+        HTTPResponse httpResponse = callbackWithIDToken(STATE, signedIDToken(claims().build())).toHTTPResponse();
+        assertEquals(HTTPResponse.SC_BAD_REQUEST, httpResponse.getStatusCode());
+        assertEquals("No state could be found in the current OpenID Connection session"
+            + " which suggest it was lost or that this callback endpoint was called directly", httpResponse.getBody());
+    }
+
+    /**
+     * When the provider answers several parallel authentications at the same time (typically because the user is still
+     * authenticated on the provider side), the callbacks must not mix their session information, and only the first
+     * one needs to authenticate the user.
+     */
+    @Test
+    void callbackWithConcurrentAuthentications() throws Exception
+    {
+        startAuthorization(STATE, NONCE, new CodeVerifier(), SUCCESS_URI);
+        startAuthorization(OTHER_STATE, OTHER_NONCE, new CodeVerifier(), OTHER_SUCCESS_URI);
+
+        // Answer slowly to make sure the two callbacks overlap if nothing prevents it
+        stubTokenEndpoint(signedIDToken(claims().build()), 500);
+
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        try {
+            Future<Response> response = executor.submit(() -> callback("code=mycode&state=" + STATE));
+            Future<Response> otherResponse = executor.submit(() -> callback("code=othercode&state=" + OTHER_STATE));
+
+            assertEquals(SUCCESS_URI, response.get().toHTTPResponse().getLocation());
+            assertEquals(OTHER_SUCCESS_URI, otherResponse.get().toHTTPResponse().getLocation());
+        } finally {
+            executor.shutdownNow();
+        }
+
+        // Only the first callback needed to ask the provider and authenticate the user
+        this.provider.verify(1, postRequestedFor(urlEqualTo("/token")));
+        verify(this.users).updateUser(any());
+    }
+
+    /**
+     * A provider which does not answer must not block the callback (and the other callbacks of the same session)
+     * forever.
+     */
+    @Test
+    void callbackWithTokenEndpointNotAnswering() throws Exception
+    {
+        this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_HTTP_READ_TIMEOUT, 100);
+        stubTokenEndpoint(signedIDToken(claims().build()), 5000);
+
+        startAuthorization(STATE, NONCE, new CodeVerifier(), SUCCESS_URI);
+
+        assertThrows(SocketTimeoutException.class, () -> callback("code=mycode&state=" + STATE));
+        assertNotAuthenticated();
+    }
+
+    /**
+     * The code of an authentication started before another one must be exchanged with its own PKCE code verifier.
+     */
+    @Test
+    void callbackWithParallelCodeAuthentications() throws Exception
+    {
+        CodeVerifier codeVerifier = new CodeVerifier();
+        startAuthorization(STATE, NONCE, codeVerifier, SUCCESS_URI);
+        startAuthorization(OTHER_STATE, OTHER_NONCE, new CodeVerifier(), OTHER_SUCCESS_URI);
+
+        JSONObject tokens = new JSONObject();
+        tokens.put("token_type", "Bearer");
+        tokens.put("access_token", "myaccesstoken");
+        tokens.put("id_token", signedIDToken(claims().build()).serialize());
+        this.provider.stubFor(post(urlEqualTo("/token"))
+            .withRequestBody(containing("code_verifier=" + codeVerifier.getValue()))
+            .willReturn(okJson(tokens.toString())));
+
+        Response response = callback("code=mycode&state=" + STATE);
+
+        assertTrue(response.indicatesSuccess());
+        assertEquals(SUCCESS_URI, response.toHTTPResponse().getLocation());
         verify(this.httpSession).setAttribute(eq(SecurityRequestWrapper.PRINCIPAL_SESSION_KEY), any());
     }
 }

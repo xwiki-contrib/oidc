@@ -620,6 +620,54 @@ class OIDCClientConfigurationTest
     }
 
     @Test
+    void getEndPointTimeouts() throws Exception
+    {
+        this.sourceConfiguration.setProperty(OIDCClientConfiguration.PROP_ENDPOINT_TOKEN, "http://provider/token");
+
+        Endpoint endpoint = this.configuration.getTokenOIDCEndpoint();
+
+        assertEquals(Endpoint.DEFAULT_CONNECT_TIMEOUT, endpoint.getConnectTimeout());
+        assertEquals(Endpoint.DEFAULT_READ_TIMEOUT, endpoint.getReadTimeout());
+
+        this.sourceConfiguration.setProperty(OIDCClientConfiguration.PROP_HTTP_CONNECT_TIMEOUT, 1000);
+        this.sourceConfiguration.setProperty(OIDCClientConfiguration.PROP_HTTP_READ_TIMEOUT, 2000);
+
+        endpoint = this.configuration.getTokenOIDCEndpoint();
+        HTTPRequest request = endpoint.prepare(new HTTPRequest(HTTPRequest.Method.POST, endpoint.getURI()));
+
+        assertEquals(1000, request.getConnectTimeout());
+        assertEquals(2000, request.getReadTimeout());
+    }
+
+    @Test
+    void pendingAuthorizations()
+    {
+        when(this.execution.getContext()).thenReturn(new ExecutionContext());
+        this.configuration.setContextOIDCSession(new HashMap<>());
+
+        for (int i = 0; i <= 10; ++i) {
+            this.configuration.resetOIDCSession();
+            this.configuration.setSessionState("state" + i);
+            this.configuration.savePendingAuthorization("state" + i);
+        }
+
+        // The session describes the last started authorization
+        assertEquals("state10", this.configuration.getSessionState());
+
+        // The oldest authorization was forgotten
+        assertNull(this.configuration.removePendingAuthorization("state0"));
+
+        Map<String, Object> authorization = this.configuration.removePendingAuthorization("state1");
+        this.configuration.restorePendingAuthorization(authorization);
+
+        assertEquals("state1", this.configuration.getSessionState());
+        // An authorization can only be restored once
+        assertNull(this.configuration.removePendingAuthorization("state1"));
+        // The other authorizations are still pending
+        assertNotNull(this.configuration.removePendingAuthorization("state10"));
+    }
+
+    @Test
     void getEndPointsWithoutProviderAndDiscoveryEndpoint() throws Exception
     {
         assertNull(this.configuration.getDiscoveryOIDCEndpoint());

@@ -28,6 +28,7 @@ import java.net.URLEncoder;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.locks.Lock;
 
 import javax.script.ScriptContext;
 
@@ -251,6 +252,20 @@ public class OIDCAuthServiceImpl extends XWikiAuthServiceImpl
     private void authenticate(String savedRequestId, XWikiContext context)
         throws URISyntaxException, IOException, GeneralException
     {
+        // Make sure the session is not modified by a callback or another authorization start (from other browser tabs,
+        // for example) while this authentication is started
+        Lock lock = this.configuration.getSessionLock();
+        lock.lock();
+        try {
+            startAuthentication(savedRequestId, context);
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    private void startAuthentication(String savedRequestId, XWikiContext context)
+        throws URISyntaxException, IOException, GeneralException
+    {
         // Generate callback URL
         URI callback = this.oidc.createEndPointURI(CallbackOIDCEndpoint.HINT);
 
@@ -258,7 +273,7 @@ public class OIDCAuthServiceImpl extends XWikiAuthServiceImpl
         XWikiRequest request = context.getRequest();
 
         // Clear previous OIDC session information
-        this.configuration.getOIDCSession(true).clear();
+        this.configuration.resetOIDCSession();
 
         // Get configured response type
         ResponseType responseType = this.configuration.getResponseType();
@@ -311,6 +326,9 @@ public class OIDCAuthServiceImpl extends XWikiAuthServiceImpl
         CodeVerifier codeVerifier = new CodeVerifier();
         this.configuration.setSessionCodeVerifier(codeVerifier);
         requestBuilder.codeChallenge(codeVerifier, CodeChallengeMethod.S256);
+
+        // Remember this authorization in case another one is started from the same session before the provider answers
+        this.configuration.savePendingAuthorization(state.getValue());
 
         // Redirect the user to the provider
         String redirectURL = requestBuilder.build().toURI().toString();
