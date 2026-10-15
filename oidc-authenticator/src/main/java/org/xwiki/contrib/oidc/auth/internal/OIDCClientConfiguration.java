@@ -264,14 +264,14 @@ public class OIDCClientConfiguration extends OIDCConfiguration
      * The maximum time to wait for the connection to a provider endpoint to be established, in milliseconds, 0 for no
      * limit.
      *
-     * @since 2.28.2
+     * @since 2.29.0
      */
     public static final String PROP_HTTP_CONNECT_TIMEOUT = "oidc.http.connectTimeout";
 
     /**
      * The maximum time to wait for a provider endpoint to answer, in milliseconds, 0 for no limit.
      *
-     * @since 2.28.2
+     * @since 2.29.0
      */
     public static final String PROP_HTTP_READ_TIMEOUT = "oidc.http.readTimeout";
 
@@ -483,7 +483,7 @@ public class OIDCClientConfiguration extends OIDCConfiguration
      * The OIDC session attribute holding the authorizations started from the session and still waiting for the
      * provider answer, indexed by state.
      *
-     * @since 2.28.2
+     * @since 2.29.0
      */
     public static final String PROP_SESSION_PENDING_AUTHORIZATIONS = "oidc.pendingauthorizations";
 
@@ -491,7 +491,7 @@ public class OIDCClientConfiguration extends OIDCConfiguration
      * The OIDC session attribute holding the lock used to make sure that only one authorization at a time is started or
      * completed in a session.
      *
-     * @since 2.28.2
+     * @since 2.29.0
      */
     public static final String PROP_SESSION_LOCK = "oidc.lock";
 
@@ -642,7 +642,7 @@ public class OIDCClientConfiguration extends OIDCConfiguration
      * other browser tabs, for example).
      *
      * @return the lock to hold while starting or completing an authorization
-     * @since 2.28.2
+     * @since 2.29.0
      */
     public Lock getSessionLock()
     {
@@ -659,7 +659,7 @@ public class OIDCClientConfiguration extends OIDCConfiguration
      * Remove from the OIDC session anything coming from a previous authorization, before starting a new one. The
      * authorizations still waiting for the provider answer are kept, so that the user can complete them.
      *
-     * @since 2.28.2
+     * @since 2.29.0
      */
     public void resetOIDCSession()
     {
@@ -675,7 +675,7 @@ public class OIDCClientConfiguration extends OIDCConfiguration
      * provider answers.
      *
      * @param state the state sent to the provider for this authorization
-     * @since 2.28.2
+     * @since 2.29.0
      */
     public void savePendingAuthorization(String state)
     {
@@ -702,7 +702,7 @@ public class OIDCClientConfiguration extends OIDCConfiguration
     /**
      * @param state the state sent back by the provider
      * @return the authorization associated with the passed state, or {@code null} if none could be found
-     * @since 2.28.2
+     * @since 2.29.0
      */
     public Map<String, Object> removePendingAuthorization(String state)
     {
@@ -720,7 +720,7 @@ public class OIDCClientConfiguration extends OIDCConfiguration
      * Make the passed authorization the one described by the OIDC session, as it was when it was started.
      *
      * @param authorization the authorization to restore
-     * @since 2.28.2
+     * @since 2.29.0
      */
     public void restorePendingAuthorization(Map<String, Object> authorization)
     {
@@ -1014,7 +1014,7 @@ public class OIDCClientConfiguration extends OIDCConfiguration
     /**
      * @return the maximum time to wait for the connection to a provider endpoint to be established, in milliseconds, 0
      *     for no limit
-     * @since 2.28.2
+     * @since 2.29.0
      */
     public int getHTTPConnectTimeout()
     {
@@ -1023,7 +1023,7 @@ public class OIDCClientConfiguration extends OIDCConfiguration
 
     /**
      * @return the maximum time to wait for a provider endpoint to answer, in milliseconds, 0 for no limit
-     * @since 2.28.2
+     * @since 2.29.0
      */
     public int getHTTPReadTimeout()
     {

@@ -36,14 +36,14 @@ public class Endpoint
     /**
      * The default maximum time to wait for the connection to the endpoint to be established, in milliseconds.
      *
-     * @since 2.28.2
+     * @since 2.29.0
      */
     public static final int DEFAULT_CONNECT_TIMEOUT = 10000;
 
     /**
      * The default maximum time to wait for the endpoint to answer, in milliseconds.
      *
-     * @since 2.28.2
+     * @since 2.29.0
      */
     public static final int DEFAULT_READ_TIMEOUT = 30000;
 
@@ -70,7 +70,7 @@ public class Endpoint
      * @param connectTimeout the maximum time to wait for the connection to the endpoint to be established, in
      *     milliseconds, 0 for no limit
      * @param readTimeout the maximum time to wait for the endpoint to answer, in milliseconds, 0 for no limit
-     * @since 2.28.2
+     * @since 2.29.0
      */
     public Endpoint(URI uri, Map<String, List<String>> headers, int connectTimeout, int readTimeout)
     {
@@ -119,7 +119,7 @@ public class Endpoint
     /**
      * @return the maximum time to wait for the connection to the endpoint to be established, in milliseconds, 0 for no
      *     limit
-     * @since 2.28.2
+     * @since 2.29.0
      */
     public int getConnectTimeout()
     {
@@ -128,7 +128,7 @@ public class Endpoint
 
     /**
      * @return the maximum time to wait for the endpoint to answer, in milliseconds, 0 for no limit
-     * @since 2.28.2
+     * @since 2.29.0
      */
     public int getReadTimeout()
     {
