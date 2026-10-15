@@ -70,6 +70,13 @@ public class ConfigurationOIDCEndpoint implements OIDCEndpoint
     private OIDCProviderStore providerStore;
 
     @Override
+    public boolean isCORSAllowed()
+    {
+        // JavaScript clients need the provider metadata to find the other endpoints
+        return true;
+    }
+
+    @Override
     public Response handle(HTTPRequest httpRequest, OIDCResourceReference reference) throws Exception
     {
         Issuer issuer = this.manager.getIssuer();

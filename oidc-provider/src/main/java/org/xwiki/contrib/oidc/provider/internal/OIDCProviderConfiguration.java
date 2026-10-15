@@ -19,7 +19,13 @@
  */
 package org.xwiki.contrib.oidc.provider.internal;
 
+import java.util.List;
+import java.util.Objects;
+import java.util.stream.Collectors;
+
 import javax.inject.Singleton;
+
+import org.apache.commons.lang3.StringUtils;
 
 import org.xwiki.component.annotation.Component;
 import org.xwiki.contrib.oidc.internal.OIDCConfiguration;
@@ -47,6 +53,21 @@ public class OIDCProviderConfiguration extends OIDCConfiguration
     public static final String PROP_SUBFORMAT = PREFIX_PROP + "subFormat";
 
     /**
+     * The name of the property containing the origins allowed to access the provider endpoints meant to be called
+     * directly by JavaScript clients (CORS).
+     * 
+     * @since 2.29.0
+     */
+    public static final String PROP_CORS_ALLOWEDORIGINS = PREFIX_PROP + "cors.allowedOrigins";
+
+    /**
+     * The value used to allow any origin.
+     * 
+     * @since 2.29.0
+     */
+    public static final String CORS_ANY_ORIGIN = "*";
+
+    /**
      * The format of the sub to return in the user info endpoint.
      *
      * @version $Id$
@@ -72,5 +93,27 @@ public class OIDCProviderConfiguration extends OIDCConfiguration
     public SubFormat getSubMode()
     {
         return getProperty(PROP_SUBFORMAT, SubFormat.FULL);
+    }
+
+    /**
+     * @return the origins allowed to access the provider endpoints meant to be called directly by JavaScript clients
+     *         ({@link #CORS_ANY_ORIGIN} to allow any origin, empty to disable CORS support)
+     * @since 2.29.0
+     */
+    public List<String> getCORSAllowedOrigins()
+    {
+        // The OpenID Connect specification recommends to support CORS on the userinfo endpoint so allow any origin
+        // by default
+        if (!this.configuration.containsKey(PROP_CORS_ALLOWEDORIGINS)) {
+            return List.of(CORS_ANY_ORIGIN);
+        }
+
+        List<?> origins = getProperty(PROP_CORS_ALLOWEDORIGINS, List.class);
+        if (origins == null) {
+            return List.of();
+        }
+
+        return origins.stream().filter(Objects::nonNull).map(origin -> StringUtils.trim(origin.toString()))
+            .filter(StringUtils::isNotEmpty).collect(Collectors.toList());
     }
 }

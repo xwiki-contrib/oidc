@@ -31,6 +31,7 @@ import javax.servlet.http.HttpSession;
 
 import org.slf4j.Logger;
 import org.xwiki.component.annotation.Component;
+import org.xwiki.component.manager.ComponentLookupException;
 import org.xwiki.component.manager.ComponentManager;
 import org.xwiki.container.Container;
 import org.xwiki.container.Request;
@@ -89,6 +90,9 @@ public class OIDCResourceReferenceHandler extends AbstractResourceReferenceHandl
     private OIDCConfiguration configuration;
 
     @Inject
+    private OIDCRequestFilter requestFilter;
+
+    @Inject
     private Logger logger;
 
     @Override
@@ -141,6 +145,15 @@ public class OIDCResourceReferenceHandler extends AbstractResourceReferenceHandl
         HttpServletResponse httpServletReponse =
             ((ServletResponse) this.container.getResponse()).getHttpServletResponse();
 
+        OIDCEndpoint endpoint = getEndpoint(reference);
+
+        // Take care of CORS and unsupported HTTP methods (which cannot be converted to a generic http request)
+        if (this.requestFilter.filter(endpoint, httpServletRequest, httpServletReponse)) {
+            chain.handleNext(reference);
+
+            return;
+        }
+
         XWikiContext xcontext = initializeXWikiContext(httpServletRequest, httpServletReponse);
 
         this.logger.debug("XWikiContext->request: {}", xcontext.getRequest().toString());
@@ -148,7 +161,7 @@ public class OIDCResourceReferenceHandler extends AbstractResourceReferenceHandl
             xcontext.getRequest().getSession() != null ? xcontext.getRequest().getSession().toString() : null);
 
         try {
-            handle(reference, httpServletRequest, httpServletReponse);
+            handle(endpoint, reference, httpServletRequest, httpServletReponse);
         } catch (Exception e) {
             this.logger.debug(FAILED_HANDLER, e);
 
@@ -160,7 +173,22 @@ public class OIDCResourceReferenceHandler extends AbstractResourceReferenceHandl
         chain.handleNext(reference);
     }
 
-    private void handle(OIDCResourceReference reference, HttpServletRequest httpServletRequest,
+    private OIDCEndpoint getEndpoint(OIDCResourceReference reference) throws ResourceReferenceHandlerException
+    {
+        try {
+            if (this.componentManager.hasComponent(OIDCEndpoint.class, reference.getEndpoint())) {
+                return this.componentManager.getInstance(OIDCEndpoint.class, reference.getEndpoint());
+            } else if (this.componentManager.hasComponent(OIDCEndpoint.class, reference.getPath())) {
+                return this.componentManager.getInstance(OIDCEndpoint.class, reference.getPath());
+            }
+        } catch (ComponentLookupException e) {
+            throw new ResourceReferenceHandlerException(FAILED_HANDLER, e);
+        }
+
+        return this.unknown;
+    }
+
+    private void handle(OIDCEndpoint endpoint, OIDCResourceReference reference, HttpServletRequest httpServletRequest,
         HttpServletResponse servletResponse) throws Exception
     {
         // Convert from Servlet http request to generic http request
@@ -170,17 +198,7 @@ public class OIDCResourceReferenceHandler extends AbstractResourceReferenceHandl
 
         Response response;
         try {
-            if (this.componentManager.hasComponent(OIDCEndpoint.class, reference.getEndpoint())) {
-                OIDCEndpoint endpoint = this.componentManager.getInstance(OIDCEndpoint.class, reference.getEndpoint());
-
-                response = endpoint.handle(httpRequest, reference);
-            } else if (this.componentManager.hasComponent(OIDCEndpoint.class, reference.getPath())) {
-                OIDCEndpoint endpoint = this.componentManager.getInstance(OIDCEndpoint.class, reference.getPath());
-
-                response = endpoint.handle(httpRequest, reference);
-            } else {
-                response = this.unknown.handle(httpRequest, reference);
-            }
+            response = endpoint.handle(httpRequest, reference);
         } catch (GeneralException e) {
             if (e.getErrorObject() != null) {
                 // If it's a standard protocol error, return it as is, otherwise rethrow the exception

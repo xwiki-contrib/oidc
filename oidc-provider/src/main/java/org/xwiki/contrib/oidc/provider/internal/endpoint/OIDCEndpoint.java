@@ -42,4 +42,16 @@ public interface OIDCEndpoint
      * @throws Exception when failing to handle the request
      */
     Response handle(HTTPRequest httpRequest, OIDCResourceReference reference) throws Exception;
+
+    /**
+     * Indicate if the endpoint can be called directly by JavaScript clients from other origins (Cross Origin Resource
+     * Sharing).
+     * 
+     * @return {@code true} if the endpoint supports CORS, {@code false} otherwise
+     * @since 2.29.0
+     */
+    default boolean isCORSAllowed()
+    {
+        return false;
+    }
 }

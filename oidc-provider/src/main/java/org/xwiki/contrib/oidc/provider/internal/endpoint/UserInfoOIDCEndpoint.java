@@ -92,6 +92,13 @@ public class UserInfoOIDCEndpoint implements OIDCEndpoint
     private Logger logger;
 
     @Override
+    public boolean isCORSAllowed()
+    {
+        // The OpenID Connect specification recommends to support CORS on the userinfo endpoint
+        return true;
+    }
+
+    @Override
     public Response handle(HTTPRequest httpRequest, OIDCResourceReference reference) throws Exception
     {
         this.logger.debug("OIDC provider: Entering [userinfo] endpoint");

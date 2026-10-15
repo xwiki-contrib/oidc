@@ -53,6 +53,13 @@ public class JWKOIDCEndpoint implements OIDCEndpoint
     private OIDCManager manager;
 
     @Override
+    public boolean isCORSAllowed()
+    {
+        // JavaScript clients need the public keys to validate the tokens
+        return true;
+    }
+
+    @Override
     public Response handle(HTTPRequest httpRequest, OIDCResourceReference reference) throws Exception
     {
         JWKSet jwk = this.manager.getPublicJWKSet();

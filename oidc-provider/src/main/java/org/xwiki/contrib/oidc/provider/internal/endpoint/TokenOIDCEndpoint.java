@@ -79,6 +79,13 @@ public class TokenOIDCEndpoint implements OIDCEndpoint
     private Logger logger;
 
     @Override
+    public boolean isCORSAllowed()
+    {
+        // JavaScript clients (public clients using PKCE) need to call the token endpoint directly
+        return true;
+    }
+
+    @Override
     public Response handle(HTTPRequest httpRequest, OIDCResourceReference reference) throws Exception
     {
         this.logger.debug("OIDC: Entering [token] endpoint");
