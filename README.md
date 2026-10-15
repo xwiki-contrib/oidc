@@ -1,17 +1,17 @@
-# OpenID Connect
+# OAuth2 and OpenID Connect
 
-Various tools to manipulate OpenID Connect protocol in XWiki.
+Various tools to manipulate OAuth2 and OpenID Connect protocols in XWiki: make XWiki an OpenID Connect provider, authenticate XWiki users with an external OpenID Connect provider, etc.
 
-* Project Lead: [Thomas Mortagne](http://www.xwiki.org/xwiki/bin/view/XWiki/ThomasMortagne)
-* [Documentation & Downloads](http://extensions.xwiki.org/xwiki/bin/view/Extension/OpenID%20Connect/)
-* [Issue Tracker](http://jira.xwiki.org/browse/OIDC)
-* Communication: [Mailing List](http://dev.xwiki.org/xwiki/bin/view/Community/MailingLists), [IRC](http://dev.xwiki.org/xwiki/bin/view/Community/IRC)
-* [Development Practices](http://dev.xwiki.org)
+* Project Lead: [Thomas Mortagne](https://www.xwiki.org/xwiki/bin/view/XWiki/ThomasMortagne)
+* Documentation & Downloads: [Documentation & Download](https://extensions.xwiki.org/xwiki/bin/view/Extension/OpenID%20Connect/)
+* [Issue Tracker](https://jira.xwiki.org/browse/OIDC)
+* Communication: [Forum](https://forum.xwiki.org/), [Chat](https://dev.xwiki.org/xwiki/bin/view/Community/Chat)
+* [Development Practices](https://dev.xwiki.org)
 * Minimal XWiki version supported: XWiki 14.10.2
 * License: LGPL 2.1
-* Translations: N/A
+* Translations: [OpenID Connect Provider](https://l10n.xwiki.org/projects/xwiki-contrib/oidc-provider/), [OpenID Connect Authenticator](https://l10n.xwiki.org/projects/xwiki-contrib/oidc-authenticator/), [OpenID Connect Token Authenticator](https://l10n.xwiki.org/projects/xwiki-contrib/openid-connect-token-authenticator/), [OpenID Connect Consent](https://l10n.xwiki.org/projects/xwiki-contrib/openid-connect-consent/)
 * Sonar Dashboard: N/A
-* Continuous Integration Status: [![Build Status](https://ci.xwiki.org/buildStatus/icon?job=XWiki+Contrib%2Foidc%2Fmaster)](https://ci.xwiki.org/job/XWiki%20Contrib/job/oidc/job/master/)
+* Continuous Integration Status: [![Build Status](https://ci.xwiki.org/job/XWiki%20Contrib/job/oidc/job/master/badge/icon)](https://ci.xwiki.org/job/XWiki%20Contrib/job/oidc/job/master/)
 
 # Release
 
@@ -22,4 +22,4 @@ mvn release:prepare -Pintegration-tests
 mvn release:perform -Pintegration-tests
 ```
 
-* Update http://extensions.xwiki.org/xwiki/bin/view/Extension/OpenID+Connect/#HReleaseNotes
+* Update https://extensions.xwiki.org/xwiki/bin/view/Extension/OpenID%20Connect/#HVersions
