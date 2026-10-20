@@ -119,6 +119,13 @@
             <arguments>-Pintegration-tests -DskipTests=true</arguments>
           </configuration>
         </plugin>
+        <!-- TODO: Remove when moving to a parent which have Sonar Plugin 5.x -->
+        <plugin>
+          <groupId>org.sonarsource.scanner.maven</groupId>
+          <artifactId>sonar-maven-plugin</artifactId>
+          <!-- Use a scanner version supported by the SonarQube server, more recent than the one inherited -->
+          <version>5.7.0.6970</version>
+        </plugin>
       </plugins>
     </pluginManagement>
     <plugins>
