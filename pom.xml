@@ -25,6 +25,8 @@
   <parent>
     <groupId>org.xwiki.contrib</groupId>
     <artifactId>parent-platform</artifactId>
+    <!-- 14.10.2 is needed for the code macro "source" parameter (XWIKI-20462), used in
+      oidc-consent/src/main/resources/templates/oidc/consent/userapplications.vm to display the created access token -->
     <version>14.10.2</version>
   </parent>
 
