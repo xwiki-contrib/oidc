@@ -21,26 +21,56 @@ package org.xwiki.contrib.oidc.auth.internal;
 
 import java.io.IOException;
 
-import javax.inject.Singleton;
+import javax.servlet.FilterConfig;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import org.securityfilter.config.SecurityConfig;
 import org.securityfilter.filter.SecurityRequestWrapper;
-import org.xwiki.component.annotation.Component;
+import org.securityfilter.filter.URLPatternMatcher;
 
 import com.xpn.xwiki.XWikiContext;
-import com.xpn.xwiki.user.impl.xwiki.MyFormAuthenticator;
+import com.xpn.xwiki.user.impl.xwiki.XWikiAuthenticator;
 
 /**
- * Extend {@link MyFormAuthenticator} to add OIDC support.
+ * Wrap the standard authenticator to disable any standard authentication (form, cookies, basic auth) while keeping
+ * everything else (login page, logout handling, etc.).
  * 
  * @version $Id$
  * @since 2.24.0
  */
-@Component(roles = OIDCAuthenticator.class)
-@Singleton
-public class OIDCAuthenticator extends MyFormAuthenticator
+public class OIDCAuthenticator implements XWikiAuthenticator
 {
+    private final XWikiAuthenticator standard;
+
+    /**
+     * @param standard the standard authenticator, initialized by XWiki with the login, logout and error pages
+     *     configuration
+     * @since 2.29.1
+     */
+    public OIDCAuthenticator(XWikiAuthenticator standard)
+    {
+        this.standard = standard;
+    }
+
+    @Override
+    public void init(FilterConfig filterConfig, SecurityConfig securityConfig) throws Exception
+    {
+        this.standard.init(filterConfig, securityConfig);
+    }
+
+    @Override
+    public String getAuthMethod()
+    {
+        return this.standard.getAuthMethod();
+    }
+
+    @Override
+    public void showLogin(HttpServletRequest request, HttpServletResponse response) throws IOException
+    {
+        this.standard.showLogin(request, response);
+    }
+
     @Override
     public void showLogin(HttpServletRequest request, HttpServletResponse response, XWikiContext context)
         throws IOException
@@ -62,5 +92,28 @@ public class OIDCAuthenticator extends MyFormAuthenticator
         // TODO: non interactive OIDC authentication if we have enough information for it but remember in the session
         // that it failed to not try again
         return false;
+    }
+
+    @Override
+    public boolean processLogin(String username, String password, String rememberme, SecurityRequestWrapper request,
+        HttpServletResponse response, XWikiContext context) throws Exception
+    {
+        return this.standard.processLogin(username, password, rememberme, request, response, context);
+    }
+
+    @Override
+    public boolean processLogout(SecurityRequestWrapper request, HttpServletResponse response,
+        URLPatternMatcher patternMatcher) throws Exception
+    {
+        // Rely on the standard authenticator to detect the logout, which is then propagated to the OIDC provider by
+        // OIDCAuthServiceImpl
+        return this.standard.processLogout(request, response, patternMatcher);
+    }
+
+    @Override
+    public boolean bypassSecurityForThisRequest(SecurityRequestWrapper request, URLPatternMatcher patternMatcher)
+        throws Exception
+    {
+        return this.standard.bypassSecurityForThisRequest(request, patternMatcher);
     }
 }

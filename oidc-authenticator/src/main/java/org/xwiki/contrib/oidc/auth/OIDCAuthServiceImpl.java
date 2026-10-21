@@ -27,7 +27,9 @@ import java.net.URISyntaxException;
 import java.net.URLEncoder;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.Lock;
 
 import javax.script.ScriptContext;
@@ -91,18 +93,21 @@ public class OIDCAuthServiceImpl extends XWikiAuthServiceImpl
 
     private ScriptContextManager scriptContextManager = Utils.getComponent(ScriptContextManager.class);
 
-    private OIDCAuthenticator authenticator = Utils.getComponent(OIDCAuthenticator.class);
+    private final Map<XWikiAuthenticator, OIDCAuthenticator> oidcAuthenticators = new ConcurrentHashMap<>();
 
     @Override
     protected XWikiAuthenticator getAuthenticator(XWikiContext context) throws XWikiException
     {
+        XWikiAuthenticator standard = super.getAuthenticator(context);
+
         if (this.configuration.isTryLocalEnabled()) {
-            return super.getAuthenticator(context);
+            return standard;
         }
 
         // If local authentication is disabled, return an authenticator without any support for standard cookies or
-        // basic auth
-        return this.authenticator;
+        // basic auth, but which still rely on the standard authenticator (initialized for the current wiki) for the
+        // rest (logout detection, login page, etc.)
+        return this.oidcAuthenticators.computeIfAbsent(standard, OIDCAuthenticator::new);
     }
 
     private Set<String> getLoginActions()

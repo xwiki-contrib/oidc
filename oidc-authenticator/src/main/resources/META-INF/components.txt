@@ -1,4 +1,3 @@
-org.xwiki.contrib.oidc.auth.internal.OIDCAuthenticator
 org.xwiki.contrib.oidc.auth.internal.OIDCAuthService
 org.xwiki.contrib.oidc.auth.internal.OIDCClientConfiguration
 org.xwiki.contrib.oidc.auth.internal.OIDCUserManager

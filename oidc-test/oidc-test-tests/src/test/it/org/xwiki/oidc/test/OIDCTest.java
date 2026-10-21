@@ -127,6 +127,26 @@ public class OIDCTest extends AbstractTest
             .gotoPage(getUtil().getBaseBinURL() + "login/XWiki/XWikiLogin?xredirect=%2Fxwiki%2Fbin%2Fview%2FMain%2F");
     }
 
+    private void loginClient()
+    {
+        gotToLogin(0);
+
+        // Choose the provider
+        OIDCClientProviderPage providerPage = new OIDCClientProviderPage();
+        providerPage.setProvider(getURL(1, "/oidc"));
+        providerPage.clickAuthenticate();
+
+        // It gets redirected to the provider login page, login
+        LoginPage loginPage = new LoginPage();
+        loginPage.loginAs("provideruser", "providerpassword");
+
+        // It gets redirected back to the client authenticated with the remote user
+        assertEquals(getHomeURL(0), getUtil().getDriver().getCurrentUrl());
+
+        // A new user is logged in, the CSRF token changed
+        getUtil().recacheSecretToken();
+    }
+
     private String getBaseURL(int index)
     {
         return "http://" + HOSTS[index] + "/xwiki";
@@ -338,6 +358,44 @@ public class OIDCTest extends AbstractTest
         connection.connect();
 
         assertEquals("xwiki:XWiki.provideruser", connection.getHeaderField("XWiki-User"));
+
+        /////////////////////////////////////////////////////////////
+        // Standard authenticator disabled
+
+        // Log out of the client
+        switchExecutor(0);
+        logout();
+
+        // Disable the standard authenticator on the client. Since superadmin won't be able to login anymore, allow the
+        // OIDC user to administrate the wiki to be able to restore the configuration.
+        getUtil().loginAsSuperAdmin();
+        getUtil().setGlobalRights(null, "XWiki.127001-provideruser", "admin", true);
+        getUtil().setPropertyInXWikiPreferences("oidc.tryLocal", "String", "false");
+        logout();
+
+        // Login on the client
+        loginClient();
+
+        // Make sure the we are authenticated and we get the expected id on client side
+        assertEquals("xwiki:XWiki.127001-provideruser", getCurrentUserReference());
+
+        // Log out on the client
+        logout();
+
+        // We are logged out of the provider and come back on the client
+        assertEquals(getHomeURL(0), getUtil().getDriver().getCurrentUrl());
+
+        // Make sure we are logged out of the client
+        assertNull(getCurrentUserReference());
+
+        // Make sure we are logged out of the provider too
+        gotoHome(1);
+        assertNull(getCurrentUserReference());
+
+        // Restore the standard authenticator
+        loginClient();
+        getUtil().setPropertyInXWikiPreferences("oidc.tryLocal", "String", "true");
+        logout();
 
         // TODO: Add support on provider side to automatically catch standard logout and send a backchannel logout to
         // all registered clients
