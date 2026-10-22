@@ -1915,7 +1915,7 @@ public class OIDCClientConfiguration extends OIDCConfiguration
      * @return true if a user account should be created automatically when authenticating via OIDC for the first time
      * @since 2.30.0
      */
-    public boolean getCreateUser()
+    public boolean isCreateUser()
     {
         return getProperty(PROP_CREATE_USER, true);
     }
@@ -2117,7 +2117,7 @@ public class OIDCClientConfiguration extends OIDCConfiguration
                 returnValue = clientConfiguration.getEnableUser();
                 break;
             case PROP_CREATE_USER:
-                returnValue = clientConfiguration.getCreateUser();
+                returnValue = clientConfiguration.isCreateUser();
                 break;
             case PROP_SKIP_LOGOUT_ID_TOKEN:
                 returnValue = clientConfiguration.isIdTokenSkippedFromLogout();

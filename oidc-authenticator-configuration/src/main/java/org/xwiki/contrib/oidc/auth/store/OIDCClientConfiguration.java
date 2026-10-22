@@ -1024,7 +1024,7 @@ public class OIDCClientConfiguration
      * @return true if a user account should be created automatically when authenticating via OIDC for the first time
      * @since 2.30.0
      */
-    public boolean getCreateUser()
+    public boolean isCreateUser()
     {
         return (this.xobject.getIntValue(FIELD_CREATE_USER, 1) == 1);
     }

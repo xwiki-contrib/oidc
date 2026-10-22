@@ -839,18 +839,18 @@ class OIDCClientConfigurationTest
     }
 
     @Test
-    void getCreateUser()
+    void isCreateUser()
     {
         // Default is to create users
-        assertTrue(this.configuration.getCreateUser());
+        assertTrue(this.configuration.isCreateUser());
 
         this.sourceConfiguration.setProperty(OIDCClientConfiguration.PROP_CREATE_USER, false);
 
-        assertFalse(this.configuration.getCreateUser());
+        assertFalse(this.configuration.isCreateUser());
 
         this.sourceConfiguration.setProperty(OIDCClientConfiguration.PROP_CREATE_USER, true);
 
-        assertTrue(this.configuration.getCreateUser());
+        assertTrue(this.configuration.isCreateUser());
     }
 
     @Test
