@@ -863,6 +863,52 @@ class OIDCUserManagerTest
     }
 
     @Test
+    void updateUserInfoWithCreateUserDisabled()
+    {
+        this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_CREATE_USER, false);
+
+        Subject subject = new Subject("subject");
+        UserInfo userInfo = new UserInfo(subject);
+
+        OIDCProviderException exception =
+            assertThrows(OIDCProviderException.class, () -> this.manager.updateUser(userInfo));
+        assertEquals(
+            "The user is not allowed to authenticate because it does not have an existing account"
+                + " and automatic user creation is disabled",
+            exception.getMessage());
+    }
+
+    @Test
+    void updateUserInfoWithCreateUserDisabledExistingUser() throws Exception
+    {
+        Subject subject = new Subject("subject");
+        UserInfo userInfo = new UserInfo(subject);
+
+        // Create the user while automatic creation is still enabled
+        Principal principal = this.manager.updateUser(userInfo);
+        assertEquals("xwiki:XWiki.issuer-subject", principal.getName());
+
+        Query query = mock(Query.class);
+        when(this.queryManager.createQuery(Mockito.anyString(), Mockito.anyString())).thenReturn(query);
+        when(query.bindValue(Mockito.anyString(), Mockito.any())).thenReturn(query);
+        when(query.execute()).thenReturn(Arrays.asList("XWiki.issuer-subject"));
+
+        // Disable automatic creation: existing users should still be allowed to authenticate and be updated
+        this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_CREATE_USER, false);
+
+        userInfo.setGivenName("updatedGivenName");
+        Principal updatedPrincipal = this.manager.updateUser(userInfo);
+        assertEquals("xwiki:XWiki.issuer-subject", updatedPrincipal.getName());
+
+        XWikiDocument userDocument = this.oldcore.getSpyXWiki().getDocument(
+            new DocumentReference(this.oldcore.getXWikiContext().getWikiId(), "XWiki", "issuer-subject"),
+            this.oldcore.getXWikiContext());
+        BaseObject userObject = userDocument
+            .getXObject(new DocumentReference(this.oldcore.getXWikiContext().getWikiId(), "XWiki", "XWikiUsers"));
+        assertEquals("updatedGivenName", userObject.getStringValue("first_name"));
+    }
+
+    @Test
     void updateUserInfoWithNotAllowedGroup()
     {
         this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_GROUPS_ALLOWED,

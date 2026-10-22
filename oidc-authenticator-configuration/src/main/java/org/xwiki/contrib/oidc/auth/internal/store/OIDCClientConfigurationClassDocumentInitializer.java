@@ -108,6 +108,8 @@ public class OIDCClientConfigurationClassDocumentInitializer extends AbstractMan
         xclass.addBooleanField(OIDCClientConfiguration.FIELD_USER_INFO_SKIP, "Is user info skipped ?", SELECT);
         xclass.addBooleanField(OIDCClientConfiguration.FIELD_ENABLE_USER,
             "Should user profiles be enabled on first login ?", SELECT, true);
+        xclass.addBooleanField(OIDCClientConfiguration.FIELD_CREATE_USER,
+            "Should users be created automatically on first login ?", SELECT, true);
         xclass.addTextField(OIDCClientConfiguration.FIELD_AFTER_LOGOUT_URL, "URL after Logout", 255);
         xclass.addStaticListField(OIDCClientConfiguration.FIELD_TOKEN_STORAGE_SCOPE, "Store tokens",
             String.join(PIPE,

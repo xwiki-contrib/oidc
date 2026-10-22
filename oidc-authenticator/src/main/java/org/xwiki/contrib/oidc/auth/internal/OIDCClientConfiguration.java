@@ -458,6 +458,14 @@ public class OIDCClientConfiguration extends OIDCConfiguration
     public static final String PROP_ENABLE_USER = OIDCConfiguration.PREFIX_PROP + "enableUser";
 
     /**
+     * The name of the property which defines if users should be created automatically when they successfully
+     * authenticate via OIDC but do not already have an account.
+     *
+     * @since 2.30.0
+     */
+    public static final String PROP_CREATE_USER = OIDCConfiguration.PREFIX_PROP + "createUser";
+
+    /**
      * The name of the session property which defines if the current configuration can be used for authentication.
      *
      * @since 2.15.0
@@ -1904,6 +1912,15 @@ public class OIDCClientConfiguration extends OIDCConfiguration
     }
 
     /**
+     * @return true if a user account should be created automatically when authenticating via OIDC for the first time
+     * @since 2.30.0
+     */
+    public boolean getCreateUser()
+    {
+        return getProperty(PROP_CREATE_USER, true);
+    }
+
+    /**
      * @return true if the current configuration is to be used for authentication
      */
     public boolean isAuthenticationConfiguration()
@@ -2098,6 +2115,9 @@ public class OIDCClientConfiguration extends OIDCConfiguration
                 break;
             case PROP_ENABLE_USER:
                 returnValue = clientConfiguration.getEnableUser();
+                break;
+            case PROP_CREATE_USER:
+                returnValue = clientConfiguration.getCreateUser();
                 break;
             case PROP_SKIP_LOGOUT_ID_TOKEN:
                 returnValue = clientConfiguration.isIdTokenSkippedFromLogout();
