@@ -276,6 +276,14 @@ public class OIDCClientConfiguration
     public static final String FIELD_ENABLE_USER = "enableUser";
 
     /**
+     * The name of the property defining if users should be created automatically when they successfully authenticate
+     * via OIDC but do not already have an account.
+     *
+     * @since 2.30.0
+     */
+    public static final String FIELD_CREATE_USER = "createUser";
+
+    /**
      * The name of the property defining a dedicated URL to go to after logout. If set, after logout the browser will be
      * redirected to that URL instead of the previous XWiki page.
      *
@@ -1010,6 +1018,25 @@ public class OIDCClientConfiguration
     public void setEnableUser(boolean enableUser)
     {
         this.xobject.setIntValue(FIELD_ENABLE_USER, enableUser ? 1 : 0);
+    }
+
+    /**
+     * @return true if a user account should be created automatically when authenticating via OIDC for the first time
+     * @since 2.30.0
+     */
+    public boolean isCreateUser()
+    {
+        return (this.xobject.getIntValue(FIELD_CREATE_USER, 1) == 1);
+    }
+
+    /**
+     * @param createUser true if a user account should be created automatically when authenticating via OIDC for the
+     *            first time
+     * @since 2.30.0
+     */
+    public void setCreateUser(boolean createUser)
+    {
+        this.xobject.setIntValue(FIELD_CREATE_USER, createUser ? 1 : 0);
     }
 
     /**

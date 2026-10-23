@@ -449,6 +449,12 @@ public class OIDCUserManager
 
         XWikiDocument modifiableDocument;
         if (userDocument == null) {
+            if (!this.configuration.isCreateUser()) {
+                throw new OIDCProviderException(
+                    "The user is not allowed to authenticate because it does not have an existing account"
+                        + " and automatic user creation is disabled");
+            }
+
             userDocument = getNewUserDocument(userFormatter);
 
             modifiableDocument = userDocument;

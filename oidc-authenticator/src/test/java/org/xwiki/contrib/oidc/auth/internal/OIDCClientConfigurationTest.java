@@ -839,6 +839,21 @@ class OIDCClientConfigurationTest
     }
 
     @Test
+    void isCreateUser()
+    {
+        // Default is to create users
+        assertTrue(this.configuration.isCreateUser());
+
+        this.sourceConfiguration.setProperty(OIDCClientConfiguration.PROP_CREATE_USER, false);
+
+        assertFalse(this.configuration.isCreateUser());
+
+        this.sourceConfiguration.setProperty(OIDCClientConfiguration.PROP_CREATE_USER, true);
+
+        assertTrue(this.configuration.isCreateUser());
+    }
+
+    @Test
     void getPropertyFromRequest() throws Exception
     {
         XWikiServletRequestStub requestStub = new XWikiServletRequestStub(new URL("http://url"), null);

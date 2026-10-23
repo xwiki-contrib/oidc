@@ -168,4 +168,21 @@ class OIDCClientConfigurationTest
         assertEquals("http://provider/custom/discovery",
             this.xobject.getStringValue(OIDCClientConfiguration.FIELD_ENDPOINT_DISCOVERY));
     }
+
+    @Test
+    void isCreateUser()
+    {
+        // Default is to create users
+        assertTrue(this.configuration.isCreateUser());
+
+        this.configuration.setCreateUser(false);
+
+        assertFalse(this.configuration.isCreateUser());
+        assertEquals(0, this.xobject.getIntValue(OIDCClientConfiguration.FIELD_CREATE_USER));
+
+        this.configuration.setCreateUser(true);
+
+        assertTrue(this.configuration.isCreateUser());
+        assertEquals(1, this.xobject.getIntValue(OIDCClientConfiguration.FIELD_CREATE_USER));
+    }
 }
