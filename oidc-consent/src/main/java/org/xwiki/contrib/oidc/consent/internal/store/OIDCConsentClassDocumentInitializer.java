@@ -19,13 +19,21 @@
  */
 package org.xwiki.contrib.oidc.consent.internal.store;
 
+import javax.inject.Inject;
 import javax.inject.Named;
+import javax.inject.Provider;
 import javax.inject.Singleton;
 
+import org.slf4j.Logger;
 import org.xwiki.component.annotation.Component;
+import org.xwiki.contrib.oidc.OIDCException;
 
 import com.xpn.xwiki.doc.AbstractMandatoryClassInitializer;
+import com.xpn.xwiki.doc.XWikiDocument;
+import com.xpn.xwiki.objects.PropertyInterface;
 import com.xpn.xwiki.objects.classes.BaseClass;
+import com.xpn.xwiki.objects.classes.PasswordClass;
+import com.xpn.xwiki.objects.meta.PasswordMetaClass;
 
 /**
  * Initialize OIDC consent class.
@@ -37,12 +45,47 @@ import com.xpn.xwiki.objects.classes.BaseClass;
 @Singleton
 public class OIDCConsentClassDocumentInitializer extends AbstractMandatoryClassInitializer
 {
+    @Inject
+    private Provider<OIDCConsentAccessTokenUpdater> updaterProvider;
+
+    @Inject
+    private Logger logger;
+
     /**
      * Default constructor.
      */
     public OIDCConsentClassDocumentInitializer()
     {
         super(BaseObjectOIDCConsent.REFERENCE, "XWiki OIDC Consent Class");
+    }
+
+    @Override
+    public boolean updateDocument(XWikiDocument document)
+    {
+        // Remember the access token storage type in use before the class is updated
+        boolean hashedAccessToken = isAccessTokenHashed(document.getXClass());
+
+        boolean needsUpdate = super.updateDocument(document);
+
+        // Values stored with a different storage type cannot be validated anymore
+        if (!hashedAccessToken) {
+            try {
+                this.updaterProvider.get().resetNotHashedAccessTokens();
+            } catch (OIDCException e) {
+                this.logger.error("Failed to reset the OIDC access tokens stored with a previous configuration", e);
+            }
+        }
+
+        return needsUpdate;
+    }
+
+    private boolean isAccessTokenHashed(BaseClass xclass)
+    {
+        PropertyInterface field = xclass.getField(BaseObjectOIDCConsent.FIELD_ACCESSTOKEN);
+
+        // A missing property is created with the expected configuration
+        return field == null || (field instanceof PasswordClass
+            && PasswordMetaClass.HASH.equals(((PasswordClass) field).getStorageType()));
     }
 
     @Override
@@ -58,7 +101,8 @@ public class OIDCConsentClassDocumentInitializer extends AbstractMandatoryClassI
         xclass.addBooleanField(BaseObjectOIDCConsent.FIELD_ENABLED, "Allow/Deny", "checkbox", true);
 
         // Token
-        xclass.addPasswordField(BaseObjectOIDCConsent.FIELD_ACCESSTOKEN, "Access Token", 30);
+        // Explicitly indicate the storage type so that it's also applied to an existing class
+        xclass.addPasswordField(BaseObjectOIDCConsent.FIELD_ACCESSTOKEN, "Access Token", 30, PasswordMetaClass.HASH);
         xclass.addDateField(BaseObjectOIDCConsent.FIELD_ACCESSTOKEN_EXPIRE, "Access Token Expiration");
         // TODO: add a scope, when the concept is supported by the REST API
     }
