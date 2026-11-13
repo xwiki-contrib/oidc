@@ -42,6 +42,7 @@ import com.xpn.xwiki.doc.XWikiDocument;
 import com.xpn.xwiki.internal.filter.XWikiDocumentFilterUtils;
 import com.xpn.xwiki.objects.BaseObject;
 import com.xpn.xwiki.objects.classes.PasswordClass;
+import com.xpn.xwiki.objects.meta.PasswordMetaClass;
 import com.xpn.xwiki.test.MockitoOldcore;
 import com.xpn.xwiki.test.junit5.mockito.InjectMockitoOldcore;
 import com.xpn.xwiki.test.junit5.mockito.OldcoreTest;
@@ -395,6 +396,26 @@ class BaseObjectOIDCConsentTest
             this.userDocument.getKey() + ":" + accessToken.getTokenValue()));
         // The token value alone is not enough to produce the stored value
         assertNotEquals(stored, new PasswordClass().getEquivalentPassword(stored, accessToken.getTokenValue()));
+    }
+
+    @Test
+    void isTokenValidWithNonDefaultAccessTokenStorage() throws Exception
+    {
+        // Configure the access token property of the consent class with a non default storage type
+        XWikiContext xcontext = this.oldcore.getXWikiContext();
+        XWikiDocument classDocument = this.oldcore.getSpyXWiki()
+            .getDocument(new DocumentReference(BaseObjectOIDCConsent.REFERENCE, xcontext.getWikiReference()), xcontext);
+        ((PasswordClass) classDocument.getXClass().getField(BaseObjectOIDCConsent.FIELD_ACCESSTOKEN))
+            .setStorageType(PasswordMetaClass.CLEAR);
+        this.oldcore.getSpyXWiki().saveDocument(classDocument, xcontext);
+
+        XWikiBearerAccessToken accessToken = createAccessToken();
+
+        this.consent.setAccessToken(accessToken);
+
+        // The token is validated according to the configuration of the property
+        assertTrue(this.consent.isTokenValid(accessToken));
+        assertFalse(this.consent.isTokenValid(createAccessToken()));
     }
 
     @Test
