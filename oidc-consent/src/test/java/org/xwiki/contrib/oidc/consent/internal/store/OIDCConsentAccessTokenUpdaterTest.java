@@ -26,17 +26,21 @@ import javax.inject.Named;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 import org.xwiki.contrib.oidc.OIDCException;
 import org.xwiki.model.reference.DocumentReference;
 import org.xwiki.query.Query;
 import org.xwiki.query.QueryException;
 import org.xwiki.query.QueryManager;
 import org.xwiki.sheet.SheetBinder;
+import org.xwiki.test.LogLevel;
+import org.xwiki.test.junit5.LogCaptureExtension;
 import org.xwiki.test.junit5.mockito.InjectMockComponents;
 import org.xwiki.test.junit5.mockito.MockComponent;
 import org.xwiki.wiki.descriptor.WikiDescriptorManager;
 
 import com.xpn.xwiki.XWikiContext;
+import com.xpn.xwiki.XWikiException;
 import com.xpn.xwiki.doc.XWikiDocument;
 import com.xpn.xwiki.internal.filter.XWikiDocumentFilterUtils;
 import com.xpn.xwiki.objects.BaseObject;
@@ -52,6 +56,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -66,6 +71,9 @@ import static org.mockito.Mockito.when;
 class OIDCConsentAccessTokenUpdaterTest
 {
     private static final DocumentReference USER_REFERENCE = new DocumentReference("xwiki", "XWiki", "User");
+
+    @RegisterExtension
+    private LogCaptureExtension logCapture = new LogCaptureExtension(LogLevel.INFO);
 
     @InjectMockitoOldcore
     private MockitoOldcore oldcore;
@@ -118,12 +126,12 @@ class OIDCConsentAccessTokenUpdaterTest
         return getUserDocument().getXObject(BaseObjectOIDCConsent.REFERENCE, number);
     }
 
-    private Query mockQuery() throws Exception
+    private Query mockQuery(String... documents) throws Exception
     {
         Query query = mock(Query.class);
         when(this.queryManager.<String>createQuery(anyString(), eq(Query.HQL))).thenReturn(query);
         when(query.bindValue(anyString(), any())).thenReturn(query);
-        when(query.<String>execute()).thenReturn(List.of("XWiki.User"));
+        when(query.<String>execute()).thenReturn(List.of(documents));
 
         return query;
     }
@@ -144,7 +152,7 @@ class OIDCConsentAccessTokenUpdaterTest
         this.oldcore.getSpyXWiki().saveDocument(userDocument, xcontext);
         String hashedValue = getConsentObject(0).getStringValue(BaseObjectOIDCConsent.FIELD_ACCESSTOKEN);
 
-        Query query = mockQuery();
+        Query query = mockQuery("XWiki.User");
 
         this.updater.resetNotHashedAccessTokens();
 
@@ -155,6 +163,12 @@ class OIDCConsentAccessTokenUpdaterTest
         assertNotNull(getConsentObject(1));
         assertEquals("", getConsentObject(1).getStringValue(BaseObjectOIDCConsent.FIELD_ACCESSTOKEN));
         assertNull(getConsentObject(1).getDateValue(BaseObjectOIDCConsent.FIELD_ACCESSTOKEN_EXPIRE));
+
+        assertEquals("Checking the OIDC access tokens stored in [1] documents of wiki [xwiki]",
+            this.logCapture.getMessage(0));
+        assertEquals("[1/1] documents checked", this.logCapture.getMessage(1));
+        assertEquals("[1] OIDC access tokens have been reset in [1] documents of wiki [xwiki] ([0] failures)",
+            this.logCapture.getMessage(2));
     }
 
     @Test
@@ -168,12 +182,48 @@ class OIDCConsentAccessTokenUpdaterTest
         this.oldcore.getSpyXWiki().saveDocument(userDocument, xcontext);
         String version = getUserDocument().getVersion();
 
-        mockQuery();
+        mockQuery("XWiki.User");
 
         this.updater.resetNotHashedAccessTokens();
 
         // Nothing to reset, so nothing saved
         assertEquals(version, getUserDocument().getVersion());
+
+        assertEquals("Checking the OIDC access tokens stored in [1] documents of wiki [xwiki]",
+            this.logCapture.getMessage(0));
+        assertEquals("[1/1] documents checked", this.logCapture.getMessage(1));
+        assertEquals("[0] OIDC access tokens have been reset in [0] documents of wiki [xwiki] ([0] failures)",
+            this.logCapture.getMessage(2));
+    }
+
+    @Test
+    void resetNotHashedAccessTokensWhenADocumentFails() throws Exception
+    {
+        XWikiContext xcontext = this.oldcore.getXWikiContext();
+
+        XWikiDocument userDocument = getUserDocument().clone();
+        userDocument.getXObject(BaseObjectOIDCConsent.REFERENCE, 0)
+            .setStringValue(BaseObjectOIDCConsent.FIELD_ACCESSTOKEN, "notahash");
+        this.oldcore.getSpyXWiki().saveDocument(userDocument, xcontext);
+
+        DocumentReference brokenReference = new DocumentReference("xwiki", "XWiki", "Broken");
+        doThrow(new XWikiException()).when(this.oldcore.getSpyXWiki()).getDocument(eq(brokenReference),
+            any(XWikiContext.class));
+
+        mockQuery("XWiki.Broken", "XWiki.User");
+
+        this.updater.resetNotHashedAccessTokens();
+
+        // The failure on the first document does not prevent handling the next one
+        assertEquals("", getConsentObject(0).getStringValue(BaseObjectOIDCConsent.FIELD_ACCESSTOKEN));
+
+        assertEquals("Checking the OIDC access tokens stored in [2] documents of wiki [xwiki]",
+            this.logCapture.getMessage(0));
+        assertEquals("Failed to reset the OIDC access tokens in document [xwiki:XWiki.Broken]",
+            this.logCapture.getMessage(1));
+        assertEquals("[2/2] documents checked", this.logCapture.getMessage(2));
+        assertEquals("[1] OIDC access tokens have been reset in [1] documents of wiki [xwiki] ([1] failures)",
+            this.logCapture.getMessage(3));
     }
 
     @Test

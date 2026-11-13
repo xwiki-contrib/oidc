@@ -58,6 +58,11 @@ public class OIDCConsentAccessTokenUpdater
      */
     private static final Pattern HASHED_VALUE = Pattern.compile("^(hash:|\\{[\\w-]+\\})");
 
+    /**
+     * The number of checked documents between two progress logs.
+     */
+    private static final int PROGRESS_STEP = 100;
+
     @Inject
     private Provider<XWikiContext> xcontextProvider;
 
@@ -76,8 +81,10 @@ public class OIDCConsentAccessTokenUpdater
 
     /**
      * Reset the access tokens which are not stored as a hash in the consents of the current wiki.
+     * <p>
+     * A failure to update a document is logged and does not stop the process.
      *
-     * @throws OIDCException when failing to search or update the consents
+     * @throws OIDCException when failing to search the documents containing consents
      */
     public void resetNotHashedAccessTokens() throws OIDCException
     {
@@ -91,39 +98,69 @@ public class OIDCConsentAccessTokenUpdater
             throw new OIDCException("Failed to search the documents containing consents", e);
         }
 
+        String wiki = this.xcontextProvider.get().getWikiId();
+
+        this.logger.info("Checking the OIDC access tokens stored in [{}] documents of wiki [{}]", documents.size(),
+            wiki);
+
+        int resetTokens = 0;
+        int modifiedDocuments = 0;
+        int failedDocuments = 0;
+        int checkedDocuments = 0;
         for (String document : documents) {
-            resetNotHashedAccessTokens(this.resolver.resolve(document));
+            DocumentReference documentReference = this.resolver.resolve(document);
+
+            try {
+                int documentResetTokens = resetNotHashedAccessTokens(documentReference);
+                if (documentResetTokens > 0) {
+                    resetTokens += documentResetTokens;
+                    ++modifiedDocuments;
+                }
+            } catch (XWikiException e) {
+                // Don't stop the whole process because of a single document
+                this.logger.error("Failed to reset the OIDC access tokens in document [{}]", documentReference, e);
+                ++failedDocuments;
+            }
+
+            ++checkedDocuments;
+            if (checkedDocuments % PROGRESS_STEP == 0 || checkedDocuments == documents.size()) {
+                this.logger.info("[{}/{}] documents checked", checkedDocuments, documents.size());
+            }
         }
+
+        this.logger.info("[{}] OIDC access tokens have been reset in [{}] documents of wiki [{}] ([{}] failures)",
+            resetTokens, modifiedDocuments, wiki, failedDocuments);
     }
 
-    private void resetNotHashedAccessTokens(DocumentReference documentReference) throws OIDCException
+    /**
+     * @return the number of reset access tokens
+     */
+    private int resetNotHashedAccessTokens(DocumentReference documentReference) throws XWikiException
     {
         XWikiContext xcontext = this.xcontextProvider.get();
 
-        try {
-            // Make sure to avoid modifying the cached document
-            XWikiDocument document = xcontext.getWiki().getDocument(documentReference, xcontext).clone();
+        // Make sure to avoid modifying the cached document
+        XWikiDocument document = xcontext.getWiki().getDocument(documentReference, xcontext).clone();
 
-            boolean modified = false;
-            for (BaseObject consentObject : document.getXObjects(BaseObjectOIDCConsent.REFERENCE)) {
-                if (consentObject != null) {
-                    String stored = consentObject.getStringValue(BaseObjectOIDCConsent.FIELD_ACCESSTOKEN);
-                    if (StringUtils.isNotEmpty(stored) && !HASHED_VALUE.matcher(stored).find()) {
-                        new BaseObjectOIDCConsent(this.serializer.serialize(consentObject.getReference()),
-                            consentObject, xcontext).setAccessToken(null);
-                        modified = true;
-                    }
+        int resetTokens = 0;
+        for (BaseObject consentObject : document.getXObjects(BaseObjectOIDCConsent.REFERENCE)) {
+            if (consentObject != null) {
+                String stored = consentObject.getStringValue(BaseObjectOIDCConsent.FIELD_ACCESSTOKEN);
+                if (StringUtils.isNotEmpty(stored) && !HASHED_VALUE.matcher(stored).find()) {
+                    new BaseObjectOIDCConsent(this.serializer.serialize(consentObject.getReference()), consentObject,
+                        xcontext).setAccessToken(null);
+                    ++resetTokens;
                 }
             }
-
-            if (modified) {
-                xcontext.getWiki().saveDocument(document, "Reset OIDC access tokens", true, xcontext);
-
-                this.logger.info("OIDC access tokens have been reset in document [{}]", documentReference);
-            }
-        } catch (XWikiException e) {
-            throw new OIDCException("Failed to reset the OIDC access tokens in document [" + documentReference + "]",
-                e);
         }
+
+        if (resetTokens > 0) {
+            xcontext.getWiki().saveDocument(document, "Reset OIDC access tokens", true, xcontext);
+
+            this.logger.debug("[{}] OIDC access tokens have been reset in document [{}]", resetTokens,
+                documentReference);
+        }
+
+        return resetTokens;
     }
 }
