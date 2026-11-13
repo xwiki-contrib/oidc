@@ -123,9 +123,10 @@
       <version>${platform.version}</version>
       <scope>test</scope>
     </dependency>
-    <!-- Bring back commons-lang (needed by the json-lib library used by the Velocity $jsontool) which is excluded from
-         the transitive dependencies of xwiki-commons-velocity in the parent pom, to be able to execute templates in page
-         tests -->
+    <!-- json-lib (used by the Velocity $jsontool) needs commons-lang, which the parent pom excludes from the transitive
+         dependencies of xwiki-commons-velocity (json-lib included). Declaring json-lib directly brings commons-lang
+         back, so that templates can be executed in page tests (the enforcer forbids a direct commons-lang
+         dependency). -->
     <dependency>
       <groupId>net.sf.json-lib</groupId>
       <artifactId>json-lib</artifactId>
