@@ -58,6 +58,15 @@ public class SafeOIDCConsent implements OIDCConsent
         return this.consent.getVersion();
     }
 
+    /**
+     * @return true if the access token is stored in clear in the consent
+     * @since 2.30.1
+     */
+    public boolean isAccessTokenStoredInClear()
+    {
+        return this.consent.isAccessTokenStoredInClear();
+    }
+
     @Override
     public String getClientID()
     {

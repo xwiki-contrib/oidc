@@ -59,6 +59,14 @@ class SafeOIDCConsentTest
     }
 
     @Test
+    void isAccessTokenStoredInClear()
+    {
+        when(this.consent.isAccessTokenStoredInClear()).thenReturn(true);
+
+        assertTrue(this.safeConsent.isAccessTokenStoredInClear());
+    }
+
+    @Test
     void getClientID()
     {
         when(this.consent.getClientID()).thenReturn("clientid");

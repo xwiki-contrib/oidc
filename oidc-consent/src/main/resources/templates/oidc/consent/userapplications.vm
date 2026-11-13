@@ -145,8 +145,19 @@
             $escapetool.xml($services.localization.render('oidc.template.userapplications.expiration_date.display.none', [$!{xwiki.formatDate($consent.accessTokenExpiration)}]))
           #end
           </span>
+          ## Tokens stored in clear are rejected unless explicitly allowed in the configuration
+          #if ($consent.accessTokenStoredInClear)
+            #if ($services.oidc.consent.isClearAccessTokenAllowed())
+              <div class="box warningmessage">
+                $escapetool.xml($services.localization.render('oidc.template.userapplications.clearToken.allowed'))
+              </div>
+            #else
+              <div class="box errormessage">
+                $escapetool.xml($services.localization.render('oidc.template.userapplications.clearToken.rejected'))
+              </div>
+            #end
           ## Tokens created before the version 2 are stored in a less secure way
-          #if ($consent.version < 2)
+          #elseif ($consent.version < 2)
             <div class="box warningmessage">
               $escapetool.xml($services.localization.render('oidc.template.userapplications.deprecatedVersion'))
             </div>
