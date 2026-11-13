@@ -274,7 +274,19 @@ public class BaseObjectOIDCConsent implements OIDCConsent
         // The input value to validate
         String input = getVersion() == 2 ? getSaltedTokenValue(accessToken) : accessToken.getTokenValue();
 
-        return new PasswordClass().getEquivalentPassword(stored, input).equals(stored);
+        return getAccessTokenPasswordClass().getEquivalentPassword(stored, input).equals(stored);
+    }
+
+    /**
+     * @return the definition of the property holding the access token in the consent class, so that the stored value
+     *         is validated according to the configuration used to store it
+     */
+    private PasswordClass getAccessTokenPasswordClass()
+    {
+        Object field = this.xobject.getXClass(this.xcontext).getField(FIELD_ACCESSTOKEN);
+
+        // Fallback on the default configuration if the class does not define the property as expected
+        return field instanceof PasswordClass ? (PasswordClass) field : new PasswordClass();
     }
 
     /**
