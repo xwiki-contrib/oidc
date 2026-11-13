@@ -21,7 +21,7 @@
   // The settings the XWiki repositories share. See https://github.com/xwiki/.github
   "extends": ["github>xwiki/.github//renovate/default.json5"],
 
-  // Added to the rules of the preset, which already disables the commons, rendering and platform dependencies.
+  // Added to the rules of the preset, which already disables the commons, rendering, platform and XWiki Enterprise dependencies.
   "packageRules": [
     // Add the URL to the XWiki Nexus public proxy for non-Central Maven dependencies
     {
@@ -29,9 +29,9 @@
       "registryUrls": ["https://repo1.maven.org/maven2/", "https://nexus.xwiki.org/nexus/content/repositories/public/"]
     },
 
-    // There is always a more recent version of contrib parent or of the old XWiki Enterprise and we don't want to upgrade just for that
+    // There is always a more recent version of contrib parent and we don't want to upgrade just for that
     {
-      "matchPackagePrefixes": ["org.xwiki.enterprise:", "org.xwiki.contrib:parent-"],
+      "matchPackagePrefixes": ["org.xwiki.contrib:parent-"],
       "enabled": false
     }
   ]
