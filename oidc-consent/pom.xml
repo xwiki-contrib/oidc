@@ -34,7 +34,7 @@
   <description>Base package for use cases manipulating OIDC compatible consents and associated bearer tokens</description>
 
   <properties>
-    <xwiki.jacoco.instructionRatio>0.68</xwiki.jacoco.instructionRatio>
+    <xwiki.jacoco.instructionRatio>0.70</xwiki.jacoco.instructionRatio>
 
     <!-- This extension needs to be installed at the farm level (ie in the root namespace) to work fine.
          This is because it contributes a new URL Resource Handler and those need to be installed in the
@@ -109,6 +109,27 @@
       <artifactId>xwiki-platform-test-oldcore</artifactId>
       <version>${platform.version}</version>
       <type>pom</type>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.xwiki.platform</groupId>
+      <artifactId>xwiki-platform-test-page</artifactId>
+      <version>${platform.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.xwiki.platform</groupId>
+      <artifactId>xwiki-platform-icon-script</artifactId>
+      <version>${platform.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <!-- Bring back commons-lang (needed by the json-lib library used by the Velocity $jsontool) which is excluded from
+         the transitive dependencies of xwiki-commons-velocity in the parent pom, to be able to execute templates in page
+         tests -->
+    <dependency>
+      <groupId>net.sf.json-lib</groupId>
+      <artifactId>json-lib</artifactId>
+      <classifier>jdk15</classifier>
       <scope>test</scope>
     </dependency>
   </dependencies>
