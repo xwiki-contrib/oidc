@@ -39,7 +39,6 @@ import com.xpn.xwiki.doc.XWikiDocument;
 import com.xpn.xwiki.internal.event.UserCreatingDocumentEvent;
 import com.xpn.xwiki.internal.event.UserUpdatingDocumentEvent;
 import com.xpn.xwiki.internal.filter.XWikiDocumentFilterUtils;
-import com.xpn.xwiki.objects.BaseObject;
 import com.xpn.xwiki.test.MockitoOldcore;
 import com.xpn.xwiki.test.junit5.mockito.InjectMockitoOldcore;
 import com.xpn.xwiki.test.junit5.mockito.OldcoreTest;
