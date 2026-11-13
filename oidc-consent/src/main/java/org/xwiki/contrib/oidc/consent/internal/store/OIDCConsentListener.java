@@ -100,7 +100,7 @@ public class OIDCConsentListener extends AbstractEventListener
 
     private void logNotAllowed(BaseObjectReference consentReference)
     {
-        this.logger.warn("A not allwoed modification was requested on OIDC consent object [{}] and was reverted.",
+        this.logger.warn("A not allowed modification was requested on OIDC consent object [{}] and was reverted.",
             consentReference);
     }
 

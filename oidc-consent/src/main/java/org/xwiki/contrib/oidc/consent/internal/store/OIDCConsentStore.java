@@ -34,7 +34,6 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.math.NumberUtils;
 import org.slf4j.Logger;
 import org.xwiki.component.annotation.Component;
-import org.xwiki.context.Execution;
 import org.xwiki.contrib.oidc.OIDCException;
 import org.xwiki.model.EntityType;
 import org.xwiki.model.reference.DocumentReference;
@@ -62,8 +61,6 @@ import com.xpn.xwiki.objects.BaseObject;
 @Singleton
 public class OIDCConsentStore
 {
-    private static final String ALLOWED_MODIFICATION = "OIDCConsentStore.allowedmodification";
-
     @Inject
     private Provider<XWikiContext> xcontextProvider;
 
@@ -83,9 +80,6 @@ public class OIDCConsentStore
     @Inject
     @Named("document")
     private UserReferenceSerializer<DocumentReference> userReferenceSerializer;
-
-    @Inject
-    private Execution execution;
 
     @Inject
     private Logger logger;
@@ -370,15 +364,9 @@ public class OIDCConsentStore
         XWikiContext xcontext = this.xcontextProvider.get();
 
         try {
-            // Allow modifying consents
-            setConsentModificationAllowed();
-
             xcontext.getWiki().saveDocument(userDocument, comment, xcontext);
         } catch (XWikiException e) {
             throw new OIDCException("Failed to save consent", e);
-        } finally {
-            // Don't all modifying consents anymore
-            unsetConsentModificationAllowed();
         }
 
         return consent;
@@ -426,16 +414,6 @@ public class OIDCConsentStore
         }
 
         return Collections.emptyList();
-    }
-
-    private void setConsentModificationAllowed()
-    {
-        this.execution.getContext().setProperty(ALLOWED_MODIFICATION, Boolean.TRUE);
-    }
-
-    private void unsetConsentModificationAllowed()
-    {
-        this.execution.getContext().removeProperty(ALLOWED_MODIFICATION);
     }
 
     /**
