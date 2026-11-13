@@ -19,5 +19,8 @@
  */
 {
   // The settings the xwiki-contrib repositories share. See https://github.com/xwiki-contrib/.github
-  "extends": ["github>xwiki-contrib/.github//renovate/default.json5"]
+  "extends": ["github>xwiki-contrib/.github//renovate/default.json5"],
+
+  // Assign all upgrade pull requests by default to the one in charge of dispatching them
+  "assignees": ["tmortagne"]
 }
