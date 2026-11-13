@@ -19,6 +19,9 @@
 ## ---------------------------------------------------------------------------
 ##!source.syntax=xwiki/2.1
 {{velocity output="false"}}
+#macro(consentMessage $type $icon $key)
+  <div class="small text-$type">$services.icon.renderHTML($icon) $escapetool.xml($services.localization.render($key))</div>
+#end
 #macro(expirationOptionDays $days $expiration)
   <option value="$days"#if($expiration == $days) selected#end>$escapetool.xml($services.localization.render('oidc.template.userapplications.expiration.days', [$days]))</option>
 #end
@@ -148,19 +151,13 @@
           ## Tokens stored in clear are rejected unless explicitly allowed in the configuration
           #if ($consent.accessTokenStoredInClear)
             #if ($services.oidc.consent.isClearAccessTokenAllowed())
-              <div class="box warningmessage">
-                $escapetool.xml($services.localization.render('oidc.template.userapplications.clearToken.allowed'))
-              </div>
+              #consentMessage('warning', 'warning', 'oidc.template.userapplications.clearToken.allowed')
             #else
-              <div class="box errormessage">
-                $escapetool.xml($services.localization.render('oidc.template.userapplications.clearToken.rejected'))
-              </div>
+              #consentMessage('danger', 'error', 'oidc.template.userapplications.clearToken.rejected')
             #end
           ## Tokens created before the version 2 are stored in a less secure way
           #elseif ($consent.version < 2)
-            <div class="box warningmessage">
-              $escapetool.xml($services.localization.render('oidc.template.userapplications.deprecatedVersion'))
-            </div>
+            #consentMessage('warning', 'warning', 'oidc.template.userapplications.deprecatedVersion')
           #end
         </div>
 
