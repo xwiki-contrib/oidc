@@ -486,4 +486,24 @@ class BaseObjectOIDCConsentTest
         assertFalse(this.consent.isTokenValid(accessToken));
     }
 
+    @Test
+    void isAccessTokenStoredInClear()
+    {
+        // No stored token
+        assertFalse(this.consent.isAccessTokenStoredInClear());
+
+        // A token stored as a hash
+        this.consent.setAccessToken(createAccessToken());
+        assertFalse(this.consent.isAccessTokenStoredInClear());
+
+        // A token stored when the property was configured with the Clear storage type
+        this.xobject.setStringValue(BaseObjectOIDCConsent.FIELD_ACCESSTOKEN, createAccessToken().getTokenValue());
+        assertTrue(this.consent.isAccessTokenStoredInClear());
+
+        // The other formats produced by PasswordClass
+        this.xobject.setStringValue(BaseObjectOIDCConsent.FIELD_ACCESSTOKEN, "{SHA-512}value");
+        assertFalse(this.consent.isAccessTokenStoredInClear());
+        this.xobject.setStringValue(BaseObjectOIDCConsent.FIELD_ACCESSTOKEN, "crypt:value");
+        assertFalse(this.consent.isAccessTokenStoredInClear());
+    }
 }

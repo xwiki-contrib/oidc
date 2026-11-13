@@ -22,12 +22,8 @@ package org.xwiki.contrib.oidc.consent.internal.store;
 import javax.inject.Named;
 
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.RegisterExtension;
-import org.xwiki.contrib.oidc.OIDCException;
 import org.xwiki.model.reference.DocumentReference;
 import org.xwiki.sheet.SheetBinder;
-import org.xwiki.test.LogLevel;
-import org.xwiki.test.junit5.LogCaptureExtension;
 import org.xwiki.test.junit5.mockito.InjectMockComponents;
 import org.xwiki.test.junit5.mockito.MockComponent;
 import org.xwiki.wiki.descriptor.WikiDescriptorManager;
@@ -43,9 +39,6 @@ import com.xpn.xwiki.test.reference.ReferenceComponentList;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
 
 /**
  * Validate {@link OIDCConsentClassDocumentInitializer}.
@@ -56,9 +49,6 @@ import static org.mockito.Mockito.verify;
 @ReferenceComponentList
 class OIDCConsentClassDocumentInitializerTest
 {
-    @RegisterExtension
-    private LogCaptureExtension logCapture = new LogCaptureExtension(LogLevel.WARN);
-
     @InjectMockitoOldcore
     private MockitoOldcore oldcore;
 
@@ -68,9 +58,6 @@ class OIDCConsentClassDocumentInitializerTest
 
     @MockComponent
     private WikiDescriptorManager wikiDescriptorManager;
-
-    @MockComponent
-    private OIDCConsentAccessTokenUpdater updater;
 
     @InjectMockComponents
     private OIDCConsentClassDocumentInitializer initializer;
@@ -106,7 +93,6 @@ class OIDCConsentClassDocumentInitializerTest
         assertTrue(this.initializer.updateDocument(classDocument));
 
         assertEquals(PasswordMetaClass.HASH, getAccessTokenClass(classDocument).getStorageType());
-        verify(this.updater, never()).resetNotHashedAccessTokens();
     }
 
     @Test
@@ -117,7 +103,6 @@ class OIDCConsentClassDocumentInitializerTest
         this.initializer.updateDocument(classDocument);
 
         assertEquals(PasswordMetaClass.HASH, getAccessTokenClass(classDocument).getStorageType());
-        verify(this.updater, never()).resetNotHashedAccessTokens();
     }
 
     @Test
@@ -129,20 +114,5 @@ class OIDCConsentClassDocumentInitializerTest
 
         // The storage type explicitly indicated in the class definition is applied to the existing property
         assertEquals(PasswordMetaClass.HASH, getAccessTokenClass(classDocument).getStorageType());
-        // The values stored with the previous storage type are reset
-        verify(this.updater).resetNotHashedAccessTokens();
-    }
-
-    @Test
-    void updateDocumentWhenResetFails() throws Exception
-    {
-        XWikiDocument classDocument = getClassDocumentWithAccessTokenStorage(PasswordMetaClass.CLEAR);
-        doThrow(new OIDCException("error")).when(this.updater).resetNotHashedAccessTokens();
-
-        assertTrue(this.initializer.updateDocument(classDocument));
-
-        assertEquals(PasswordMetaClass.HASH, getAccessTokenClass(classDocument).getStorageType());
-        assertEquals("Failed to reset the OIDC access tokens stored with a previous configuration",
-            this.logCapture.getMessage(0));
     }
 }
