@@ -40,6 +40,18 @@
 
     <xwiki.instance.directory>${project.build.directory}/xwiki</xwiki.instance.directory>
   </properties>
+  <dependencyManagement>
+    <dependencies>
+      <!-- The XWiki instances generated for the tests need commons-lang, which is limited to the test scope in the
+           parent pom -->
+      <dependency>
+        <groupId>commons-lang</groupId>
+        <artifactId>commons-lang</artifactId>
+        <version>2.6</version>
+        <scope>runtime</scope>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
   <dependencies>
     <dependency>
       <groupId>org.xwiki.contrib.oidc</groupId>
