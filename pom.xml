@@ -63,17 +63,13 @@
         <artifactId>nimbus-jose-jwt</artifactId>
         <version>10.10</version>
       </dependency>
+      <!-- Make sure commons-lang is not used in the extension code: the test scope keeps it available for the tests
+           (e.g. it's needed to execute Velocity templates in page tests) -->
       <dependency>
-        <groupId>org.xwiki.commons</groupId>
-        <artifactId>xwiki-commons-velocity</artifactId>
-        <version>${commons.version}</version>
-        <exclusions>
-          <!-- Exclude commons-lang from the transitive dependencies to make sure we don't use it in the extension code -->
-          <exclusion>
-            <groupId>commons-lang</groupId>
-            <artifactId>commons-lang</artifactId>
-          </exclusion>
-        </exclusions>
+        <groupId>commons-lang</groupId>
+        <artifactId>commons-lang</artifactId>
+        <version>2.6</version>
+        <scope>test</scope>
       </dependency>
       <dependency>
         <groupId>org.xwiki.contrib.user-common</groupId>

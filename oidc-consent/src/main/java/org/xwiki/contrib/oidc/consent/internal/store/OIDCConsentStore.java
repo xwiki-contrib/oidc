@@ -35,6 +35,7 @@ import org.apache.commons.lang3.math.NumberUtils;
 import org.slf4j.Logger;
 import org.xwiki.component.annotation.Component;
 import org.xwiki.contrib.oidc.OIDCException;
+import org.xwiki.contrib.oidc.consent.internal.OIDCConsentConfiguration;
 import org.xwiki.model.EntityType;
 import org.xwiki.model.reference.DocumentReference;
 import org.xwiki.model.reference.DocumentReferenceResolver;
@@ -80,6 +81,9 @@ public class OIDCConsentStore
     @Inject
     @Named("document")
     private UserReferenceSerializer<DocumentReference> userReferenceSerializer;
+
+    @Inject
+    private OIDCConsentConfiguration configuration;
 
     @Inject
     private Logger logger;
@@ -149,17 +153,31 @@ public class OIDCConsentStore
                 // Validate token:
                 // * must be enabled
                 // * must not be expired
+                // * must not be stored in clear (unless explicitly allowed)
                 // * must match the stored token value
                 if (consent.isEnabled()
                     && (consent.getAccessTokenExpiration() == null
                         || consent.getAccessTokenExpiration().after(new Date()))
-                    && consent.isTokenValid(xwikiAccessToken)) {
+                    && isTokenValid(consent, xwikiAccessToken)) {
                     return consent;
                 }
             }
         }
 
         return null;
+    }
+
+    private boolean isTokenValid(BaseObjectOIDCConsent consent, XWikiBearerAccessToken xwikiAccessToken)
+    {
+        if (consent.isAccessTokenStoredInClear() && !this.configuration.isClearAccessTokenAllowed()) {
+            this.logger.warn("Rejecting the access token of consent [{}] because it's stored in clear: a new token"
+                + " needs to be requested (or [{}] set to true in xwiki.properties)", consent.getId(),
+                OIDCConsentConfiguration.PROP_CLEAR_ACCESS_TOKEN_ALLOWED);
+
+            return false;
+        }
+
+        return consent.isTokenValid(xwikiAccessToken);
     }
 
     /**

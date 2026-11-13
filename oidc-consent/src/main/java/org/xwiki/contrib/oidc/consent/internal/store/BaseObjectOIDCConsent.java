@@ -24,6 +24,7 @@ import java.net.URISyntaxException;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.Date;
+import java.util.regex.Pattern;
 
 import org.apache.commons.lang3.StringUtils;
 import org.xwiki.contrib.oidc.OIDCConsent;
@@ -95,6 +96,13 @@ public class BaseObjectOIDCConsent implements OIDCConsent
      * The field indicating of the consent is enabled or not.
      */
     public static final String FIELD_ENABLED = "enabled";
+
+    /**
+     * The prefixes of a value produced by {@link PasswordClass} with a storage type other than Clear:
+     * {@code hash:<algorithm>:<salt>:<hash>}, {@code crypt:<value>} or (since XWiki 17.10.14)
+     * {@code {<algorithm>}<hash>}.
+     */
+    private static final Pattern NOT_CLEAR_VALUE = Pattern.compile("^(hash:|crypt:|\\{[\\w-]+\\})");
 
     private ClaimsSetRequest claims;
 
@@ -275,6 +283,20 @@ public class BaseObjectOIDCConsent implements OIDCConsent
         String input = getVersion() == 2 ? getSaltedTokenValue(accessToken) : accessToken.getTokenValue();
 
         return getAccessTokenPasswordClass().getEquivalentPassword(stored, input).equals(stored);
+    }
+
+    /**
+     * Indicate if the access token is stored in clear in the consent, which is the case of the tokens stored when the
+     * {@code accessToken} property of the consent class was configured with the Clear storage type.
+     *
+     * @return true if an access token is stored in clear in the consent
+     * @since 2.30.1
+     */
+    public boolean isAccessTokenStoredInClear()
+    {
+        String stored = this.xobject.getStringValue(FIELD_ACCESSTOKEN);
+
+        return StringUtils.isNotEmpty(stored) && !NOT_CLEAR_VALUE.matcher(stored).find();
     }
 
     /**

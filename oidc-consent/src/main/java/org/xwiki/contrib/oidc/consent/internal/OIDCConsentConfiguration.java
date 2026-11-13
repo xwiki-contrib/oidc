@@ -45,11 +45,30 @@ public class OIDCConsentConfiguration extends OIDCConfiguration
     public static final String PROP_CREATE_CONSENT_ENABLED = PREFIX_PROP + "createConsentEnabled";
 
     /**
+     * The name of the property indicating if an access token stored in clear in a consent can be used.
+     *
+     * @since 2.30.1
+     */
+    public static final String PROP_CLEAR_ACCESS_TOKEN_ALLOWED = PREFIX_PROP + "clearAccessTokenAllowed";
+
+    /**
      * @return true if it's allowed to create consents from the UI, false if not, null if the property is not set
      * @since 2.25.3
      */
     public Boolean isCreateConsentEnabled()
     {
         return getProperty(PROP_CREATE_CONSENT_ENABLED, Boolean.class);
+    }
+
+    /**
+     * An access token stored in clear is rejected by default since anyone able to read the database (or a backup of
+     * it) can use it.
+     *
+     * @return true if an access token stored in clear in a consent can be used
+     * @since 2.30.1
+     */
+    public boolean isClearAccessTokenAllowed()
+    {
+        return getProperty(PROP_CLEAR_ACCESS_TOKEN_ALLOWED, false);
     }
 }

@@ -147,4 +147,13 @@ public class OIDCConsentScriptService implements ScriptService
     {
         return this.configuration.isCreateConsentEnabled();
     }
+
+    /**
+     * @return true if an access token stored in clear in a consent can be used
+     * @since 2.30.1
+     */
+    public boolean isClearAccessTokenAllowed()
+    {
+        return this.configuration.isClearAccessTokenAllowed();
+    }
 }

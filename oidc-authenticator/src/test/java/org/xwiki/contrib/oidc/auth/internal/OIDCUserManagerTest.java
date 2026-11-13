@@ -64,6 +64,7 @@ import org.xwiki.contrib.oidc.auth.internal.store.OIDCUserClassDocumentInitializ
 import org.xwiki.contrib.oidc.auth.store.OIDCClientConfigurationStore;
 import org.xwiki.contrib.oidc.auth.store.OIDCClientsConfigurationStore;
 import org.xwiki.contrib.oidc.auth.store.OIDCUser;
+import org.xwiki.contrib.oidc.consent.internal.OIDCConsentConfiguration;
 import org.xwiki.contrib.oidc.consent.internal.store.OIDCConsentStore;
 import org.xwiki.contrib.oidc.provider.internal.OIDCManager;
 import org.xwiki.contrib.oidc.provider.internal.OIDCProviderConfiguration;
@@ -134,8 +135,8 @@ import static org.mockito.Mockito.when;
  */
 @OldcoreTest
 @ComponentList({ OIDCManager.class, OIDCClientConfiguration.class, DefaultOIDCUserStore.class,
-    OIDCProviderConfiguration.class, OIDCProviderStore.class, OIDCConsentStore.class, ProviderOIDCSessions.class,
-    OIDCClients.class, ClientProviders.class, DefaultUserFormatterFactory.class })
+    OIDCProviderConfiguration.class, OIDCProviderStore.class, OIDCConsentConfiguration.class, OIDCConsentStore.class,
+    ProviderOIDCSessions.class, OIDCClients.class, ClientProviders.class, DefaultUserFormatterFactory.class })
 @ReferenceComponentList
 class OIDCUserManagerTest
 {

@@ -26,6 +26,7 @@ import org.xwiki.component.annotation.Component;
 
 import com.xpn.xwiki.doc.AbstractMandatoryClassInitializer;
 import com.xpn.xwiki.objects.classes.BaseClass;
+import com.xpn.xwiki.objects.meta.PasswordMetaClass;
 
 /**
  * Initialize OIDC consent class.
@@ -58,7 +59,8 @@ public class OIDCConsentClassDocumentInitializer extends AbstractMandatoryClassI
         xclass.addBooleanField(BaseObjectOIDCConsent.FIELD_ENABLED, "Allow/Deny", "checkbox", true);
 
         // Token
-        xclass.addPasswordField(BaseObjectOIDCConsent.FIELD_ACCESSTOKEN, "Access Token", 30);
+        // Explicitly indicate the storage type so that it's also applied to an existing class
+        xclass.addPasswordField(BaseObjectOIDCConsent.FIELD_ACCESSTOKEN, "Access Token", 30, PasswordMetaClass.HASH);
         xclass.addDateField(BaseObjectOIDCConsent.FIELD_ACCESSTOKEN_EXPIRE, "Access Token Expiration");
         // TODO: add a scope, when the concept is supported by the REST API
     }

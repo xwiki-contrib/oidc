@@ -25,11 +25,15 @@ import javax.inject.Named;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 import org.xwiki.contrib.oidc.OIDCException;
+import org.xwiki.contrib.oidc.consent.internal.OIDCConsentConfiguration;
 import org.xwiki.model.reference.DocumentReference;
 import org.xwiki.model.reference.LocalDocumentReference;
 import org.xwiki.security.authorization.AuthorizationManager;
 import org.xwiki.sheet.SheetBinder;
+import org.xwiki.test.LogLevel;
+import org.xwiki.test.junit5.LogCaptureExtension;
 import org.xwiki.test.junit5.mockito.InjectMockComponents;
 import org.xwiki.test.junit5.mockito.MockComponent;
 import org.xwiki.user.UserReference;
@@ -72,8 +76,14 @@ class OIDCConsentStoreTest
 
     private static final String SUPERADMIN_NAME = AuthorizationManager.SUPERADMIN_USER;
 
+    @RegisterExtension
+    private LogCaptureExtension logCapture = new LogCaptureExtension(LogLevel.WARN);
+
     @InjectMockitoOldcore
     private MockitoOldcore oldcore;
+
+    @MockComponent
+    private OIDCConsentConfiguration configuration;
 
     @MockComponent
     @Named("document")
@@ -318,6 +328,43 @@ class OIDCConsentStoreTest
 
         assertNotNull(consent);
         assertEquals("xwiki:XWiki.User^XWiki.OIDC.ConsentClass[1]", consent.getId());
+    }
+
+    /**
+     * Store the passed token the way it's stored when the property is configured with the Clear storage type.
+     */
+    private void saveAccessTokenInClear(XWikiBearerAccessToken accessToken) throws Exception
+    {
+        XWikiDocument userDocument = getUserDocument().clone();
+        BaseObject consentObject = userDocument.getXObject(BaseObjectOIDCConsent.REFERENCE, 1);
+        consentObject.setIntValue(BaseObjectOIDCConsent.FIELD_VERSION, 2);
+        consentObject.setStringValue(BaseObjectOIDCConsent.FIELD_ACCESSTOKEN,
+            userDocument.getKey() + ":" + accessToken.getTokenValue());
+        saveUserDocument(userDocument);
+    }
+
+    @Test
+    void getConsentFromAccessTokenStoredInClear() throws Exception
+    {
+        XWikiBearerAccessToken accessToken = XWikiBearerAccessToken.create("xwiki:XWiki.User/1");
+        saveAccessTokenInClear(accessToken);
+
+        assertNull(this.store.getConsent(accessToken));
+
+        assertEquals("Rejecting the access token of consent [xwiki:XWiki.User^XWiki.OIDC.ConsentClass[1]] because"
+            + " it's stored in clear: a new token needs to be requested (or [oidc.consent.clearAccessTokenAllowed] set"
+            + " to true in xwiki.properties)", this.logCapture.getMessage(0));
+    }
+
+    @Test
+    void getConsentFromAccessTokenStoredInClearWhenAllowed() throws Exception
+    {
+        when(this.configuration.isClearAccessTokenAllowed()).thenReturn(true);
+
+        XWikiBearerAccessToken accessToken = XWikiBearerAccessToken.create("xwiki:XWiki.User/1");
+        saveAccessTokenInClear(accessToken);
+
+        assertNotNull(this.store.getConsent(accessToken));
     }
 
     @Test
