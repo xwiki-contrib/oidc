@@ -106,7 +106,7 @@ public class OIDCAuthenticator implements XWikiAuthenticator
         URLPatternMatcher patternMatcher) throws Exception
     {
         // Rely on the standard authenticator to detect the logout, which is then propagated to the OIDC provider by
-        // OIDCAuthServiceImpl
+        // OIDCAuthService
         return this.standard.processLogout(request, response, patternMatcher);
     }
 

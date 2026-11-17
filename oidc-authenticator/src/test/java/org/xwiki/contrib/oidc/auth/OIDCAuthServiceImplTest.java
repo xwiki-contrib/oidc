@@ -19,37 +19,20 @@
  */
 package org.xwiki.contrib.oidc.auth;
 
-import javax.inject.Provider;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
+import java.security.Principal;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.securityfilter.authenticator.persistent.PersistentLoginManagerInterface;
-import org.securityfilter.filter.SecurityRequestWrapper;
-import org.securityfilter.filter.URLPatternMatcher;
-import org.xwiki.component.util.DefaultParameterizedType;
-import org.xwiki.contrib.oidc.auth.internal.OIDCAuthenticator;
-import org.xwiki.contrib.oidc.auth.internal.OIDCClientConfiguration;
-import org.xwiki.contrib.oidc.auth.internal.OIDCUserManager;
-import org.xwiki.contrib.oidc.provider.internal.OIDCManager;
-import org.xwiki.properties.ConverterManager;
-import org.xwiki.script.ScriptContextManager;
-import org.xwiki.test.junit5.mockito.MockComponent;
+import org.xwiki.contrib.oidc.auth.internal.OIDCAuthService;
+import org.xwiki.security.authservice.XWikiAuthServiceComponent;
 
+import com.xpn.xwiki.XWikiContext;
 import com.xpn.xwiki.test.MockitoOldcore;
 import com.xpn.xwiki.test.junit5.mockito.InjectMockitoOldcore;
 import com.xpn.xwiki.test.junit5.mockito.OldcoreTest;
-import com.xpn.xwiki.test.reference.ReferenceComponentList;
-import com.xpn.xwiki.user.impl.xwiki.MyFormAuthenticator;
-import com.xpn.xwiki.user.impl.xwiki.XWikiAuthenticator;
+import com.xpn.xwiki.user.api.XWikiUser;
 
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertInstanceOf;
-import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertSame;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -60,107 +43,73 @@ import static org.mockito.Mockito.when;
  * @version $Id$
  */
 @OldcoreTest
-@ReferenceComponentList
 class OIDCAuthServiceImplTest
 {
-    @MockComponent
-    private OIDCManager manager;
-
-    @MockComponent
-    private OIDCClientConfiguration configuration;
-
-    @MockComponent
-    private OIDCUserManager users;
-
-    @MockComponent
-    private ConverterManager converter;
-
-    @MockComponent
-    private ScriptContextManager scriptContextManager;
-
     @InjectMockitoOldcore
     private MockitoOldcore oldcore;
 
-    private PersistentLoginManagerInterface persistentLoginManager;
+    private XWikiContext xcontext;
 
     private OIDCAuthServiceImpl authService;
 
     @BeforeEach
-    void beforeEach() throws Exception
+    void beforeEach()
     {
-        this.persistentLoginManager = mock(PersistentLoginManagerInterface.class);
-        Provider<PersistentLoginManagerInterface> persistentLoginManagerProvider = () -> this.persistentLoginManager;
-        this.oldcore.getMocker().registerComponent(
-            new DefaultParameterizedType(null, Provider.class, PersistentLoginManagerInterface.class),
-            persistentLoginManagerProvider);
-
-        doReturn("/bin/view/Main/WebHome").when(this.oldcore.getSpyXWiki())
-            .Param("xwiki.authentication.defaultpage");
-        doReturn("/bin/login/XWiki/XWikiLogin").when(this.oldcore.getSpyXWiki())
-            .Param("xwiki.authentication.loginpage");
-        doReturn("/bin/logout/XWiki/XWikiLogout").when(this.oldcore.getSpyXWiki())
-            .Param("xwiki.authentication.logoutpage");
-        doReturn("/bin/loginerror/XWiki/XWikiLogin").when(this.oldcore.getSpyXWiki())
-            .Param("xwiki.authentication.errorpage");
+        this.xcontext = this.oldcore.getXWikiContext();
 
         this.authService = new OIDCAuthServiceImpl();
     }
 
-    private SecurityRequestWrapper request(String path)
+    private XWikiAuthServiceComponent registerOIDCAuthService() throws Exception
     {
-        HttpServletRequest request = mock(HttpServletRequest.class);
-        when(request.getContextPath()).thenReturn("/xwiki");
-        when(request.getRequestURI()).thenReturn("/xwiki" + path);
-        when(request.getServletPath()).thenReturn("/bin");
-        when(request.getPathInfo()).thenReturn(path.substring("/bin".length()));
-
-        return new SecurityRequestWrapper(request, null, null, "FORM");
+        return this.oldcore.getMocker().registerMockComponent(XWikiAuthServiceComponent.class, OIDCAuthService.ID);
     }
 
     @Test
-    void getAuthenticatorWithTryLocal() throws Exception
+    void checkAuthWithReloadedComponent() throws Exception
     {
-        when(this.configuration.isTryLocalEnabled()).thenReturn(true);
+        XWikiAuthServiceComponent component = registerOIDCAuthService();
+        XWikiUser user = mock(XWikiUser.class);
+        when(component.checkAuth(this.xcontext)).thenReturn(user);
 
-        XWikiAuthenticator authenticator = this.authService.getAuthenticator(this.oldcore.getXWikiContext());
+        assertSame(user, this.authService.checkAuth(this.xcontext));
 
-        assertInstanceOf(MyFormAuthenticator.class, authenticator);
-        assertSame(authenticator, this.authService.getAuthenticator(this.oldcore.getXWikiContext()));
+        // The component is registered again (for example when the extension is reloaded): the same authenticator
+        // instance must use the new component
+        XWikiAuthServiceComponent newComponent = registerOIDCAuthService();
+        XWikiUser newUser = mock(XWikiUser.class);
+        when(newComponent.checkAuth(this.xcontext)).thenReturn(newUser);
+
+        assertSame(newUser, this.authService.checkAuth(this.xcontext));
     }
 
     @Test
-    void getAuthenticatorWithoutTryLocal() throws Exception
+    void checkAuthWithCredentials() throws Exception
     {
-        when(this.configuration.isTryLocalEnabled()).thenReturn(false);
+        XWikiAuthServiceComponent component = registerOIDCAuthService();
+        XWikiUser user = mock(XWikiUser.class);
+        when(component.checkAuth("user", "password", "rememberme", this.xcontext)).thenReturn(user);
 
-        XWikiAuthenticator authenticator = this.authService.getAuthenticator(this.oldcore.getXWikiContext());
-
-        assertInstanceOf(OIDCAuthenticator.class, authenticator);
-        assertSame(authenticator, this.authService.getAuthenticator(this.oldcore.getXWikiContext()));
-
-        HttpServletResponse response = mock(HttpServletResponse.class);
-
-        // The standard authentication is disabled
-        assertFalse(authenticator.processLogin(request("/bin/view/Main/WebHome"), response,
-            this.oldcore.getXWikiContext()));
-
-        // The logout is detected
-        assertFalse(authenticator.processLogout(request("/bin/view/Main/WebHome"), response,
-            new URLPatternMatcher()));
-        SecurityRequestWrapper logoutRequest = request("/bin/logout/XWiki/XWikiLogout");
-        assertTrue(authenticator.processLogout(logoutRequest, response, new URLPatternMatcher()));
-        verify(this.persistentLoginManager).forgetLogin(logoutRequest, response);
+        assertSame(user, this.authService.checkAuth("user", "password", "rememberme", this.xcontext));
     }
 
     @Test
-    void getAuthenticatorPerWiki() throws Exception
+    void authenticate() throws Exception
     {
-        when(this.configuration.isTryLocalEnabled()).thenReturn(false);
+        XWikiAuthServiceComponent component = registerOIDCAuthService();
+        Principal principal = mock(Principal.class);
+        when(component.authenticate("user", "password", this.xcontext)).thenReturn(principal);
 
-        XWikiAuthenticator authenticator = this.authService.getAuthenticator(this.oldcore.getXWikiContext());
+        assertSame(principal, this.authService.authenticate("user", "password", this.xcontext));
+    }
 
-        this.oldcore.getXWikiContext().setWikiId("otherwiki");
+    @Test
+    void showLogin() throws Exception
+    {
+        XWikiAuthServiceComponent component = registerOIDCAuthService();
 
-        assertNotSame(authenticator, this.authService.getAuthenticator(this.oldcore.getXWikiContext()));
+        this.authService.showLogin(this.xcontext);
+
+        verify(component).showLogin(this.xcontext);
     }
 }

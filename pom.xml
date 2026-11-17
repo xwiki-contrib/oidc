@@ -174,24 +174,21 @@
             </revapi.differences>
             -->
             <revapi.differences>
-              <justification>Refer to an option which never existed</justification>
+              <justification>OIDCAuthServiceImpl is only meant to be set in xwiki.cfg and now forwards the calls to the
+                authenticator component, so it does not need to extend XWikiAuthServiceImpl anymore</justification>
               <criticality>highlight</criticality>
               <differences>
                 <item>
-                   <ignore>true</ignore>
-                   <code>java.field.removedWithConstant</code>
-                   <old>field org.xwiki.contrib.oidc.auth.store.OIDCClientConfiguration.FIELD_LOGOUT_MECHANISM</old>
-                 </item>
-                 <item>
-                   <ignore>true</ignore>
-                   <code>java.method.removed</code>
-                   <old>method java.lang.String org.xwiki.contrib.oidc.auth.store.OIDCClientConfiguration::getLogoutMechanism()</old>
-                 </item>
-                 <item>
-                   <ignore>true</ignore>
-                   <code>java.method.removed</code>
-                   <old>method void org.xwiki.contrib.oidc.auth.store.OIDCClientConfiguration::setLogoutMechanism(java.lang.String)</old>
-                 </item>
+                  <ignore>true</ignore>
+                  <code>java.class.noLongerInheritsFromClass</code>
+                  <old>class org.xwiki.contrib.oidc.auth.OIDCAuthServiceImpl</old>
+                </item>
+                <item>
+                  <ignore>true</ignore>
+                  <regex>true</regex>
+                  <code>java\.(field|method)\.removed</code>
+                  <old>.*org\.xwiki\.contrib\.oidc\.auth\.OIDCAuthServiceImpl.*</old>
+                </item>
               </differences>
             </revapi.differences>
           </analysisConfiguration>
