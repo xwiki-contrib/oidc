@@ -43,6 +43,7 @@ import org.xwiki.container.servlet.ServletRequest;
 import org.xwiki.context.Execution;
 import org.xwiki.context.ExecutionContext;
 import org.xwiki.contrib.oidc.OAuth2TokenStore;
+import org.xwiki.contrib.oidc.auth.internal.OIDCClientConfiguration.LogoutMethod;
 import org.xwiki.contrib.oidc.auth.internal.endpoint.BackChannelLogoutOIDCEndpoint;
 import org.xwiki.contrib.oidc.auth.internal.endpoint.CallbackOIDCEndpoint;
 import org.xwiki.contrib.oidc.auth.internal.session.ClientProviders;
@@ -323,12 +324,17 @@ class OIDCClientConfigurationTest
     @Test
     void getLogoutEndPointMethod()
     {
-        assertEquals(HTTPRequest.Method.GET, this.configuration.getLogoutEndPointMethod());
+        assertEquals(LogoutMethod.GET, this.configuration.getLogoutEndPointMethod());
 
         this.sourceConfiguration.setProperty(OIDCClientConfiguration.PROP_ENDPOINT_LOGOUT_METHOD,
-            HTTPRequest.Method.POST);
+            LogoutMethod.POST);
 
-        assertEquals(HTTPRequest.Method.POST, this.configuration.getLogoutEndPointMethod());
+        assertEquals(LogoutMethod.POST, this.configuration.getLogoutEndPointMethod());
+
+        this.sourceConfiguration.setProperty(OIDCClientConfiguration.PROP_ENDPOINT_LOGOUT_METHOD,
+            LogoutMethod.SERVER);
+
+        assertEquals(LogoutMethod.SERVER, this.configuration.getLogoutEndPointMethod());
     }
 
     @Test
@@ -339,12 +345,17 @@ class OIDCClientConfigurationTest
         // An empty configuration does not count as a set method
         when(wikiConfiguration.getLogoutEndpointMethod()).thenReturn("");
 
-        assertEquals(HTTPRequest.Method.GET, this.configuration.getLogoutEndPointMethod());
+        assertEquals(LogoutMethod.GET, this.configuration.getLogoutEndPointMethod());
 
         when(wikiConfiguration.getLogoutEndpointMethod()).thenReturn("POST");
-        when(this.converterManager.convert(HTTPRequest.Method.class, "POST")).thenReturn(HTTPRequest.Method.POST);
+        when(this.converterManager.convert(LogoutMethod.class, "POST")).thenReturn(LogoutMethod.POST);
 
-        assertEquals(HTTPRequest.Method.POST, this.configuration.getLogoutEndPointMethod());
+        assertEquals(LogoutMethod.POST, this.configuration.getLogoutEndPointMethod());
+
+        when(wikiConfiguration.getLogoutEndpointMethod()).thenReturn("SERVER");
+        when(this.converterManager.convert(LogoutMethod.class, "SERVER")).thenReturn(LogoutMethod.SERVER);
+
+        assertEquals(LogoutMethod.SERVER, this.configuration.getLogoutEndPointMethod());
     }
 
     @Test
