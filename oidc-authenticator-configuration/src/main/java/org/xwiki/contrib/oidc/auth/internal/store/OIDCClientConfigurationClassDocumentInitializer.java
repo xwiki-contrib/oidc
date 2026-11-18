@@ -92,7 +92,7 @@ public class OIDCClientConfigurationClassDocumentInitializer extends AbstractMan
         xclass.addTextAreaField(OIDCClientConfiguration.FIELD_ENDPOINT_USERINFO_HEADERS, "User info endpoint headers",
             50, 10, TextAreaClass.EditorType.PURE_TEXT, TextAreaClass.ContentType.PURE_TEXT);
         xclass.addStaticListField(OIDCClientConfiguration.FIELD_ENDPOINT_LOGOUT_METHOD, "Logout endpoint method",
-            String.join(PIPE, "GET", "POST"), "GET");
+            String.join(PIPE, "GET", "POST", "SERVER"), "GET");
         xclass.addBooleanField(OIDCClientConfiguration.FIELD_SKIPPED, "Is authentication skipped ?", SELECT, false);
         xclass.addBooleanField(OIDCClientConfiguration.FIELD_TRY_LOCAL, "Is standard authenticator allowed?", SELECT, true);
         xclass.addTextField(OIDCClientConfiguration.FIELD_SCOPE, "Scope", 255);

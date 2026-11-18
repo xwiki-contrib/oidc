@@ -100,6 +100,7 @@ import com.nimbusds.oauth2.sdk.GeneralException;
 import com.nimbusds.oauth2.sdk.ParseException;
 import com.nimbusds.oauth2.sdk.ResponseType;
 import com.nimbusds.oauth2.sdk.Scope;
+import com.nimbusds.oauth2.sdk.auth.ClientAuthentication;
 import com.nimbusds.oauth2.sdk.auth.ClientAuthenticationMethod;
 import com.nimbusds.oauth2.sdk.auth.Secret;
 import com.nimbusds.oauth2.sdk.http.HTTPRequest;
@@ -137,6 +138,35 @@ import net.minidev.json.JSONObject;
 @Singleton
 public class OIDCClientConfiguration extends OIDCConfiguration
 {
+    /**
+     * The ways to send the RP-initiated logout request to the provider.
+     *
+     * @version $Id$
+     * @since 2.31.0
+     */
+    public enum LogoutMethod
+    {
+        /**
+         * The browser is redirected to the provider logout endpoint.
+         */
+        GET,
+
+        /**
+         * The browser submits a form to the provider logout endpoint.
+         */
+        POST,
+
+        /**
+         * XWiki sends a POST request to the provider logout endpoint, without involving the browser.
+         * <p>
+         * This is <strong>not</strong> part of the OpenID Connect RP-Initiated Logout specification: the provider
+         * usually identifies the session to end through the cookies the browser sends, which a request coming from
+         * XWiki does not have. It only works with providers which end the session indicated by the ID token passed as
+         * {@code id_token_hint}.
+         */
+        SERVER
+    }
+
     public class GroupMapping
     {
         private final Map<String, Set<String>> xwikiMapping;
@@ -1255,6 +1285,22 @@ public class OIDCClientConfiguration extends OIDCConfiguration
     }
 
     /**
+     * Gets the authentication of XWiki as a client of the provider, to use when XWiki itself calls a provider endpoint.
+     *
+     * @return the client authentication based on the configured secret and on the token endpoint authentication method
+     *     ({@code client_secret_basic} by default), or {@code null} when no secret is configured
+     * @throws GeneralException when failing to get the client ID from the provider
+     * @throws IOException when failing to get the client ID from the provider
+     * @throws URISyntaxException when failing to get the client ID from the provider
+     * @since 2.31.0
+     */
+    public ClientAuthentication getClientAuthentication() throws GeneralException, IOException, URISyntaxException
+    {
+        return OIDCTokenRequestHelper.getClientAuthentication(getTokenEndPointAuthMethod(), getClientID(),
+            getSecret());
+    }
+
+    /**
      * @param authMethod the authentication method to parse
      * @return the corresponding clieent authentication method
      * @since 2.16.0
@@ -1277,12 +1323,12 @@ public class OIDCClientConfiguration extends OIDCConfiguration
     }
 
     /**
-     * @return the HTTP method to use to send the RP-initiated logout request to the provider
-     * @since 2.27.0
+     * @return the way to send the RP-initiated logout request to the provider
+     * @since 2.31.0
      */
-    public HTTPRequest.Method getLogoutEndPointMethod()
+    public LogoutMethod getLogoutEndPointMethod()
     {
-        return getProperty(PROP_ENDPOINT_LOGOUT_METHOD, HTTPRequest.Method.GET);
+        return getProperty(PROP_ENDPOINT_LOGOUT_METHOD, LogoutMethod.GET);
     }
 
     public String getSessionState()

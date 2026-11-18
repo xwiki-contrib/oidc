@@ -425,9 +425,7 @@ public class CallbackOIDCEndpoint implements OIDCEndpoint
         AuthenticationSuccessResponse authenticationSuccessResponse) throws Exception
     {
         this.logger.debug("Getting the access token from the token endpoint");
-        ClientAuthentication authentication =
-            OIDCTokenRequestHelper.getClientAuthentication(this.configuration.getTokenEndPointAuthMethod(),
-                this.configuration.getClientID(), this.configuration.getSecret());
+        ClientAuthentication authentication = this.configuration.getClientAuthentication();
 
         // Generate callback URL
         URI callback = this.oidc.createEndPointURI(CallbackOIDCEndpoint.HINT);

@@ -25,12 +25,14 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.net.HttpURLConnection;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.security.Principal;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.Collections;
@@ -52,12 +54,14 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 import org.mockito.Spy;
 import org.xwiki.container.Container;
 import org.xwiki.container.servlet.ServletSession;
 import org.xwiki.contrib.oidc.OAuth2TokenStore;
+import org.xwiki.contrib.oidc.auth.internal.OIDCClientConfiguration.LogoutMethod;
 import org.xwiki.contrib.oidc.auth.internal.session.ClientProviders;
 import org.xwiki.contrib.oidc.auth.internal.store.DefaultOIDCUserStore;
 import org.xwiki.contrib.oidc.auth.internal.store.OIDCUserClassDocumentInitializer;
@@ -84,13 +88,14 @@ import org.xwiki.query.QueryManager;
 import org.xwiki.script.ScriptContextManager;
 import org.xwiki.security.authorization.AuthorExecutor;
 import org.xwiki.template.TemplateManager;
+import org.xwiki.test.LogLevel;
 import org.xwiki.test.annotation.ComponentList;
+import org.xwiki.test.junit5.LogCaptureExtension;
 import org.xwiki.test.junit5.mockito.InjectMockComponents;
 import org.xwiki.test.junit5.mockito.MockComponent;
 
 import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.PlainJWT;
-import com.nimbusds.oauth2.sdk.http.HTTPRequest;
 import com.nimbusds.oauth2.sdk.id.Audience;
 import com.nimbusds.oauth2.sdk.id.Issuer;
 import com.nimbusds.oauth2.sdk.id.Subject;
@@ -142,6 +147,8 @@ class OIDCUserManagerTest
 {
     private static final String CLIENT_ID = "clientid";
 
+    private static final String CLIENT_SECRET = "clientsecret";
+
     private static final String PROVIDER = "http://provider";
 
     private static final String LOGOUT_ENDPOINT = "http://provider/logout";
@@ -151,6 +158,9 @@ class OIDCUserManagerTest
     private static final String LOGOUT_TEMPLATE = "oidc/client/logout.vm";
 
     private static final String LOGOUT_FORM = "<form/>";
+
+    @RegisterExtension
+    private LogCaptureExtension logCapture = new LogCaptureExtension(LogLevel.WARN);
 
     @MockComponent
     QueryManager queryManager;
@@ -705,6 +715,9 @@ class OIDCUserManagerTest
         assertTrue(groupContains(this.group1Reference, userDocument.getFullName()));
         assertTrue(groupContains(this.group2Reference, userDocument.getFullName()));
         assertFalse(groupContains(this.existinggroupReference, userDocument.getFullName()));
+
+        assertEquals("User [XWiki.issuer-subject] already exist in group [xwiki:XWiki.group1]",
+            this.logCapture.getMessage(0));
     }
 
     @Test
@@ -757,6 +770,9 @@ class OIDCUserManagerTest
         assertTrue(groupContains(this.group1Reference, userDocument.getFullName()));
         assertTrue(groupContains(this.group2Reference, userDocument.getFullName()));
         assertFalse(groupContains(this.existinggroupReference, userDocument.getFullName()));
+
+        assertEquals("User [XWiki.issuer-subject] already exist in group [xwiki:XWiki.group1]",
+            this.logCapture.getMessage(0));
     }
 
     @Test
@@ -1078,7 +1094,7 @@ class OIDCUserManagerTest
     @Test
     void logoutWithGetEndpointMethod() throws Exception
     {
-        XWikiResponse response = prepareLogout(HTTPRequest.Method.GET);
+        XWikiResponse response = prepareLogout(LogoutMethod.GET);
 
         this.manager.logout();
 
@@ -1096,7 +1112,7 @@ class OIDCUserManagerTest
     void logoutWithPostEndpointMethod() throws Exception
     {
         this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_PROVIDER, PROVIDER);
-        XWikiResponse response = prepareLogout(HTTPRequest.Method.POST);
+        XWikiResponse response = prepareLogout(LogoutMethod.POST);
         StringWriter content = new StringWriter();
         when(response.getWriter()).thenReturn(new PrintWriter(content));
         when(this.templateManager.render(LOGOUT_TEMPLATE)).thenReturn(LOGOUT_FORM);
@@ -1117,7 +1133,7 @@ class OIDCUserManagerTest
     @Test
     void logoutWithPostEndpointMethodWithoutProvider() throws Exception
     {
-        XWikiResponse response = prepareLogout(HTTPRequest.Method.POST);
+        XWikiResponse response = prepareLogout(LogoutMethod.POST);
         when(response.getWriter()).thenReturn(new PrintWriter(new StringWriter()));
         ScriptContext scriptContext = prepareScriptContext();
 
@@ -1128,6 +1144,189 @@ class OIDCUserManagerTest
 
         // There is no issuer to display when no provider is configured
         assertNull(scriptContext.getAttribute("logoutIssuer"));
+    }
+
+    @Test
+    void logoutWithServerEndpointMethod() throws Exception
+    {
+        XWikiResponse response = prepareLogout(LogoutMethod.SERVER);
+        List<LogoutServerRequest> requests = new ArrayList<>();
+        HttpServer server = startLogoutServer(HttpURLConnection.HTTP_OK, requests);
+        try {
+            this.manager.logout();
+        } finally {
+            server.stop(0);
+        }
+
+        // The logout request is sent by XWiki, without post logout redirect since the browser is not involved, and
+        // without client authentication since no secret is configured
+        assertEquals(1, requests.size());
+        assertEquals("POST", requests.get(0).method);
+        assertNull(requests.get(0).authorization);
+        assertEquals(Map.of("id_token_hint", List.of(this.idToken.serialize()), "client_id", List.of(CLIENT_ID)),
+            requests.get(0).parameters);
+
+        // XWiki redirects the browser itself
+        verify(response).sendRedirect(AFTER_LOGOUT_URL);
+        verify(this.templateManager, never()).render(LOGOUT_TEMPLATE);
+    }
+
+    @Test
+    void logoutWithServerEndpointMethodAndClientSecretBasic() throws Exception
+    {
+        XWikiResponse response = prepareLogout(LogoutMethod.SERVER);
+        this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_SECRET, CLIENT_SECRET);
+        List<LogoutServerRequest> requests = new ArrayList<>();
+        HttpServer server = startLogoutServer(HttpURLConnection.HTTP_OK, requests);
+        try {
+            this.manager.logout();
+        } finally {
+            server.stop(0);
+        }
+
+        // The client is authenticated as for the token endpoint, which already indicates the client
+        assertEquals(1, requests.size());
+        assertEquals(
+            "Basic " + Base64.getEncoder().encodeToString((CLIENT_ID + ':' + CLIENT_SECRET).getBytes(
+                StandardCharsets.UTF_8)), requests.get(0).authorization);
+        assertEquals(Map.of("id_token_hint", List.of(this.idToken.serialize())), requests.get(0).parameters);
+
+        verify(response).sendRedirect(AFTER_LOGOUT_URL);
+    }
+
+    @Test
+    void logoutWithServerEndpointMethodAndClientSecretPost() throws Exception
+    {
+        XWikiResponse response = prepareLogout(LogoutMethod.SERVER);
+        this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_SECRET, CLIENT_SECRET);
+        this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_ENDPOINT_TOKEN_AUTH_METHOD,
+            "client_secret_post");
+        List<LogoutServerRequest> requests = new ArrayList<>();
+        HttpServer server = startLogoutServer(HttpURLConnection.HTTP_OK, requests);
+        try {
+            this.manager.logout();
+        } finally {
+            server.stop(0);
+        }
+
+        assertEquals(1, requests.size());
+        assertNull(requests.get(0).authorization);
+        assertEquals(Map.of("id_token_hint", List.of(this.idToken.serialize()), "client_id", List.of(CLIENT_ID),
+            "client_secret", List.of(CLIENT_SECRET)), requests.get(0).parameters);
+
+        verify(response).sendRedirect(AFTER_LOGOUT_URL);
+    }
+
+    @Test
+    void logoutWithServerEndpointMethodWithoutIdTokenHint() throws Exception
+    {
+        XWikiResponse response = prepareLogout(LogoutMethod.SERVER);
+        this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_SKIP_LOGOUT_ID_TOKEN, true);
+        List<LogoutServerRequest> requests = new ArrayList<>();
+        HttpServer server = startLogoutServer(HttpURLConnection.HTTP_OK, requests);
+        try {
+            this.manager.logout();
+        } finally {
+            server.stop(0);
+        }
+
+        // Without ID token the provider cannot know which session to end
+        assertEquals(List.of(), requests);
+        assertEquals(1, this.logCapture.size());
+        assertEquals("Skipped the server side logout from the OpenID Connect provider because there is no ID token to "
+            + "indicate the session to end (it is either missing or excluded by the configuration).",
+            this.logCapture.getMessage(0));
+
+        verify(response).sendRedirect(AFTER_LOGOUT_URL);
+    }
+
+    @Test
+    void logoutWithServerEndpointMethodWhenProviderFails() throws Exception
+    {
+        XWikiResponse response = prepareLogout(LogoutMethod.SERVER);
+        List<LogoutServerRequest> requests = new ArrayList<>();
+        HttpServer server = startLogoutServer(HttpURLConnection.HTTP_INTERNAL_ERROR, requests);
+        try {
+            this.manager.logout();
+        } finally {
+            server.stop(0);
+        }
+
+        assertEquals(1, requests.size());
+        assertEquals(1, this.logCapture.size());
+        assertEquals("The OpenID Connect provider logout endpoint [" + serverLogoutEndpoint(server)
+            + "] answered with status [500]: the user might still be logged in on the provider side",
+            this.logCapture.getMessage(0));
+
+        // The user is still logged out from XWiki
+        verify(response).sendRedirect(AFTER_LOGOUT_URL);
+    }
+
+    @Test
+    void logoutWithServerEndpointMethodWhenProviderIsUnreachable() throws Exception
+    {
+        XWikiResponse response = prepareLogout(LogoutMethod.SERVER);
+        // Get a free port and release it so that nothing answers there
+        HttpServer server = startLogoutServer(HttpURLConnection.HTTP_OK, new ArrayList<>());
+        server.stop(0);
+
+        this.manager.logout();
+
+        assertEquals(1, this.logCapture.size());
+        assertTrue(this.logCapture.getMessage(0).startsWith(
+            "Failed to send the logout request to the OpenID Connect provider logout endpoint ["
+                + serverLogoutEndpoint(server) + "], the user might still be logged in on the provider side: "),
+            () -> "Unexpected log: " + this.logCapture.getMessage(0));
+
+        verify(response).sendRedirect(AFTER_LOGOUT_URL);
+    }
+
+    /**
+     * A request received by the provider logout endpoint.
+     */
+    private static final class LogoutServerRequest
+    {
+        private final String method;
+
+        private final String authorization;
+
+        private final Map<String, List<String>> parameters;
+
+        LogoutServerRequest(HttpExchange exchange) throws IOException
+        {
+            this.method = exchange.getRequestMethod();
+            this.authorization = exchange.getRequestHeaders().getFirst("Authorization");
+            this.parameters = URLUtils.parseParameters(
+                new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
+        }
+    }
+
+    /**
+     * Start a provider logout endpoint and configure it as the logout endpoint to use.
+     *
+     * @param status the status to answer with
+     * @param requests the requests received by the endpoint
+     * @return the started server
+     */
+    private HttpServer startLogoutServer(int status, List<LogoutServerRequest> requests) throws IOException
+    {
+        HttpServer httpServer = HttpServer.create(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), 0);
+        httpServer.createContext("/logout", exchange -> {
+            requests.add(new LogoutServerRequest(exchange));
+            exchange.sendResponseHeaders(status, -1);
+            exchange.close();
+        });
+        httpServer.start();
+
+        this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_ENDPOINT_LOGOUT,
+            serverLogoutEndpoint(httpServer));
+
+        return httpServer;
+    }
+
+    private String serverLogoutEndpoint(HttpServer server)
+    {
+        return "http://" + server.getAddress().getHostString() + ':' + server.getAddress().getPort() + "/logout";
     }
 
     /**
@@ -1143,10 +1342,10 @@ class OIDCUserManagerTest
     }
 
     /**
-     * @param method the HTTP method to use to send the logout request to the provider
+     * @param method the way to send the logout request to the provider
      * @return the response in which the logout request is expected
      */
-    private XWikiResponse prepareLogout(HTTPRequest.Method method)
+    private XWikiResponse prepareLogout(LogoutMethod method)
     {
         this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_CLIENTID, CLIENT_ID);
         this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_ENDPOINT_LOGOUT,

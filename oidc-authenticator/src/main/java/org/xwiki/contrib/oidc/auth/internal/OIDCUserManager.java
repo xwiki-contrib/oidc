@@ -77,6 +77,7 @@ import org.xwiki.component.manager.ComponentManager;
 import org.xwiki.context.concurrent.ExecutionContextRunnable;
 import org.xwiki.contrib.oidc.OIDCUserInfo;
 import org.xwiki.contrib.oidc.auth.internal.OIDCClientConfiguration.GroupMapping;
+import org.xwiki.contrib.oidc.auth.internal.OIDCClientConfiguration.LogoutMethod;
 import org.xwiki.contrib.oidc.auth.internal.session.ClientHttpSessions;
 import org.xwiki.contrib.oidc.auth.internal.session.ClientProviders.ClientProvider;
 import org.xwiki.contrib.oidc.auth.store.OIDCUserStore;
@@ -92,6 +93,7 @@ import org.xwiki.query.QueryException;
 import org.xwiki.script.ScriptContextManager;
 import org.xwiki.user.SuperAdminUserReference;
 
+import com.nimbusds.common.contenttype.ContentType;
 import com.nimbusds.jose.JOSEException;
 import com.nimbusds.jose.proc.BadJOSEException;
 import com.nimbusds.jwt.JWT;
@@ -101,6 +103,7 @@ import com.nimbusds.oauth2.sdk.http.HTTPResponse;
 import com.nimbusds.oauth2.sdk.id.ClientID;
 import com.nimbusds.oauth2.sdk.id.Issuer;
 import com.nimbusds.oauth2.sdk.token.AccessToken;
+import com.nimbusds.oauth2.sdk.util.URLUtils;
 import com.nimbusds.openid.connect.sdk.LogoutRequest;
 import com.nimbusds.openid.connect.sdk.UserInfoErrorResponse;
 import com.nimbusds.openid.connect.sdk.UserInfoRequest;
@@ -1068,15 +1071,116 @@ public class OIDCUserManager
             redirectURI = new URI(context.getWiki().getURL(context.getWikiReference(), "view", context));
         }
 
-        LogoutRequest logoutRequest = new LogoutRequest(logoutEndpoint.getURI(),
-            !this.configuration.skipIdTokenFromLogout() ? idToken : null, null, clientID, redirectURI, null, null);
+        JWT idTokenHint = this.configuration.skipIdTokenFromLogout() ? null : idToken;
 
-        if (this.configuration.getLogoutEndPointMethod() == HTTPRequest.Method.POST) {
+        LogoutMethod logoutMethod = this.configuration.getLogoutEndPointMethod();
+
+        this.logger.debug("Logging out from the OpenID Connect provider with method [{}] (logout endpoint [{}], "
+            + "redirect URI [{}], ID token hint included: [{}])", logoutMethod, logoutEndpoint.getURI(), redirectURI,
+            idTokenHint != null);
+
+        if (logoutMethod == LogoutMethod.SERVER) {
+            logoutProviderFromServer(logoutEndpoint, clientID, idTokenHint, redirectURI);
+        } else {
+            logoutProviderFromBrowser(logoutMethod, logoutEndpoint, clientID, idTokenHint, redirectURI, context);
+        }
+    }
+
+    /**
+     * Make the browser send the logout request to the provider, as expected by the OpenID Connect RP-Initiated Logout
+     * specification. The provider then redirects the browser to the passed redirect URI.
+     */
+    private void logoutProviderFromBrowser(LogoutMethod logoutMethod, Endpoint logoutEndpoint, ClientID clientID,
+        JWT idTokenHint, URI redirectURI, XWikiContext context) throws Exception
+    {
+        LogoutRequest logoutRequest =
+            new LogoutRequest(logoutEndpoint.getURI(), idTokenHint, null, clientID, redirectURI, null, null);
+
+        if (logoutMethod == LogoutMethod.POST) {
             submitLogoutRequest(logoutRequest, context);
         } else {
             // Redirect to the provider
             this.manager.redirect(logoutRequest.toURI().toString(), true);
         }
+    }
+
+    /**
+     * Send the logout request to the provider directly from XWiki.
+     * <p>
+     * This is not part of the OpenID Connect RP-Initiated Logout specification, which expects the browser to send the
+     * request: the provider usually identifies the session to end through the browser cookies. Without them, the ID
+     * token passed as {@code id_token_hint} is the only thing the provider can use, so the request is not sent when
+     * there is none. A provider which does not end the session it indicates still answers with a success, so a
+     * success does not guarantee that the user is logged out from the provider.
+     * <p>
+     * When a secret is configured, the client is authenticated with the same method as for the token endpoint.
+     * <p>
+     * A failure only produces a warning: the user must still be logged out from XWiki. Since the provider is not
+     * involved in the navigation, XWiki then redirects the browser to the passed redirect URI itself.
+     */
+    private void logoutProviderFromServer(Endpoint logoutEndpoint, ClientID clientID, JWT idTokenHint,
+        URI redirectURI) throws GeneralException, IOException, URISyntaxException
+    {
+        if (idTokenHint == null) {
+            this.logger.warn("Skipped the server side logout from the OpenID Connect provider because there is no ID "
+                + "token to indicate the session to end (it is either missing or excluded by the configuration).");
+        } else {
+            HTTPRequest httpRequest = createServerLogoutHTTPRequest(logoutEndpoint, clientID, idTokenHint);
+
+            try {
+                HTTPResponse httpResponse = httpRequest.send();
+
+                int status = httpResponse.getStatusCode();
+                if (status >= 200 && status < 400) {
+                    // A redirect can indicate that the provider expects some interaction from the user (for example
+                    // a logout confirmation page), so its location helps understand what the provider did
+                    this.logger.debug("The OpenID Connect provider logout endpoint [{}] answered with status [{}] "
+                        + "(location [{}])", logoutEndpoint.getURI(), status, httpResponse.getLocation());
+                } else {
+                    this.logger.warn("The OpenID Connect provider logout endpoint [{}] answered with status [{}]: the "
+                        + "user might still be logged in on the provider side", logoutEndpoint.getURI(), status);
+                }
+            } catch (IOException e) {
+                this.logger.warn("Failed to send the logout request to the OpenID Connect provider logout endpoint "
+                    + "[{}], the user might still be logged in on the provider side: {}", logoutEndpoint.getURI(),
+                    ExceptionUtils.getRootCauseMessage(e));
+            }
+        }
+
+        this.logger.debug("Redirecting the browser to [{}] after the server side logout", redirectURI);
+
+        this.manager.redirect(redirectURI.toString(), true);
+    }
+
+    private HTTPRequest createServerLogoutHTTPRequest(Endpoint logoutEndpoint, ClientID clientID, JWT idTokenHint)
+        throws GeneralException, IOException, URISyntaxException
+    {
+        // Authenticate the client the same way as for the token endpoint, since the request does not come from the
+        // browser of the user anymore
+        ClientAuthentication clientAuthentication = this.configuration.getClientAuthentication();
+
+        // There is no post_logout_redirect_uri since the provider does not redirect anything, and the client
+        // authentication already indicates the client when there is one
+        LogoutRequest logoutRequest = new LogoutRequest(logoutEndpoint.getURI(), idTokenHint, null,
+            clientAuthentication == null ? clientID : null, null, null, null);
+
+        HTTPRequest httpRequest = new HTTPRequest(HTTPRequest.Method.POST, logoutEndpoint.getURI());
+        httpRequest.setEntityContentType(ContentType.APPLICATION_URLENCODED);
+        httpRequest.setBody(URLUtils.serializeParameters(logoutRequest.toParameters()));
+        if (clientAuthentication != null) {
+            clientAuthentication.applyTo(httpRequest);
+        }
+        logoutEndpoint.prepare(httpRequest);
+        // A redirect would be meant for a browser
+        httpRequest.setFollowRedirects(false);
+
+        // Only the parameter names are logged since the ID token and the client secret should not end up in the logs
+        this.logger.debug("Sending the logout request to the OpenID Connect provider logout endpoint [{}] with the "
+            + "parameters {} and the client authentication method [{}]", logoutEndpoint.getURI(),
+            logoutRequest.toParameters().keySet(),
+            clientAuthentication != null ? clientAuthentication.getMethod().getValue() : "none");
+
+        return httpRequest;
     }
 
     /**
