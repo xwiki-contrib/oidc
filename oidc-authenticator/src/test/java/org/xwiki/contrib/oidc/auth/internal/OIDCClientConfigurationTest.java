@@ -30,7 +30,12 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
+
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpSession;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -40,6 +45,7 @@ import org.xwiki.configuration.internal.MemoryConfigurationSource;
 import org.xwiki.container.Container;
 import org.xwiki.container.Request;
 import org.xwiki.container.servlet.ServletRequest;
+import org.xwiki.container.servlet.ServletSession;
 import org.xwiki.context.Execution;
 import org.xwiki.context.ExecutionContext;
 import org.xwiki.contrib.oidc.OAuth2TokenStore;
@@ -87,6 +93,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -654,7 +661,7 @@ class OIDCClientConfigurationTest
     void pendingAuthorizations()
     {
         when(this.execution.getContext()).thenReturn(new ExecutionContext());
-        this.configuration.setContextOIDCSession(new HashMap<>());
+        initializeHTTPSession();
 
         for (int i = 0; i <= 10; ++i) {
             this.configuration.resetOIDCSession();
@@ -676,6 +683,54 @@ class OIDCClientConfigurationTest
         assertNull(this.configuration.removePendingAuthorization("state1"));
         // The other authorizations are still pending
         assertNotNull(this.configuration.removePendingAuthorization("state10"));
+    }
+
+    @Test
+    void pendingAuthorizationsFromContextOIDCSession()
+    {
+        when(this.execution.getContext()).thenReturn(new ExecutionContext());
+        Map<String, Object> httpOIDCSession = initializeHTTPSession();
+        httpOIDCSession.put(OIDCClientConfiguration.PROP_STATE, "httpstate");
+
+        // Describe an authorization in an OIDC session of its own
+        Map<String, Object> contextOIDCSession = new HashMap<>();
+        this.configuration.setContextOIDCSession(contextOIDCSession);
+        assertSame(contextOIDCSession, this.configuration.getContextOIDCSession());
+        this.configuration.setSessionState("contextstate");
+        this.configuration.savePendingAuthorization("contextstate");
+
+        // The session lock is the one of the HTTP session, whatever the OIDC session used
+        assertSame(httpOIDCSession.get(OIDCClientConfiguration.PROP_SESSION_LOCK),
+            this.configuration.getSessionLock());
+        assertNull(contextOIDCSession.get(OIDCClientConfiguration.PROP_SESSION_LOCK));
+
+        // Go back to the HTTP session, which was not modified
+        this.configuration.setContextOIDCSession(null);
+        assertNull(this.configuration.getContextOIDCSession());
+        assertSame(httpOIDCSession, this.configuration.getOIDCSession(false));
+        assertEquals("httpstate", this.configuration.getSessionState());
+
+        // The pending authorization was saved in the HTTP session, for the callback request
+        Map<String, Object> authorization = this.configuration.removePendingAuthorization("contextstate");
+        assertEquals("contextstate", authorization.get(OIDCClientConfiguration.PROP_STATE));
+    }
+
+    /**
+     * @return the OIDC session stored in the HTTP session
+     */
+    private Map<String, Object> initializeHTTPSession()
+    {
+        HttpServletRequest httpServletRequest = mock(HttpServletRequest.class);
+        HttpSession httpSession = mock(HttpSession.class);
+        Map<String, Object> oidcSession = new ConcurrentHashMap<>();
+        oidcSession.put(OIDCClientConfiguration.PROP_SESSION_LOCK, new ReentrantLock());
+        when(httpSession.getAttribute(OIDCClientConfiguration.SESSION)).thenReturn(oidcSession);
+        when(httpServletRequest.getSession()).thenReturn(httpSession);
+        when(httpServletRequest.getSession(anyBoolean())).thenReturn(httpSession);
+        ServletSession servletSession = new ServletSession(httpServletRequest);
+        when(this.container.getSession()).thenReturn(servletSession);
+
+        return oidcSession;
     }
 
     @Test

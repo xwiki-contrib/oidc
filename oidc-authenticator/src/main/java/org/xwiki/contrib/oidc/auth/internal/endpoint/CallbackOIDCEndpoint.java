@@ -27,6 +27,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.Lock;
 
 import javax.inject.Inject;
@@ -41,6 +42,7 @@ import org.xwiki.component.annotation.Component;
 import org.xwiki.container.Container;
 import org.xwiki.container.servlet.ServletSession;
 import org.xwiki.contrib.oidc.auth.internal.Endpoint;
+import org.xwiki.contrib.oidc.auth.internal.InvalidAccessTokenException;
 import org.xwiki.contrib.oidc.auth.internal.OIDCClientConfiguration;
 import org.xwiki.contrib.oidc.auth.internal.OIDCIdTokenValidator;
 import org.xwiki.contrib.oidc.auth.internal.OIDCTokenRequestHelper;
@@ -53,6 +55,7 @@ import org.xwiki.contrib.oidc.provider.internal.endpoint.OIDCEndpoint;
 import org.xwiki.contrib.oidc.provider.internal.util.ErrorResponse;
 import org.xwiki.contrib.oidc.provider.internal.util.RedirectResponse;
 import org.xwiki.observation.ObservationManager;
+import org.xwiki.query.QueryException;
 import org.xwiki.security.authentication.UserAuthenticatedEvent;
 import org.xwiki.user.UserReferenceResolver;
 
@@ -87,6 +90,7 @@ import com.nimbusds.openid.connect.sdk.claims.ClaimsSetRequest;
 import com.nimbusds.openid.connect.sdk.claims.ClaimsSetRequest.Entry;
 import com.nimbusds.openid.connect.sdk.claims.IDTokenClaimsSet;
 import com.nimbusds.openid.connect.sdk.claims.UserInfo;
+import com.xpn.xwiki.XWikiException;
 
 /**
  * Callback endpoint for OpenID Connect.
@@ -174,47 +178,37 @@ public class CallbackOIDCEndpoint implements OIDCEndpoint
                 return new RedirectResponse((URI) authorization.get(OIDCClientConfiguration.PROP_INITIAL_REQUEST));
             }
 
+            if (!isAuthentication(authorization)) {
+                // The OIDC session stored in the HTTP session holds the information of the OpenID Connect
+                // authentication of the current user, which must stay untouched by the OAuth2 authorization of
+                // another client configuration, so this one is handled with an OIDC session of its own
+                Map<String, Object> contextOIDCSession = this.configuration.getContextOIDCSession();
+                this.configuration.setContextOIDCSession(new ConcurrentHashMap<>(authorization));
+                try {
+                    return handleAuthorization(httpRequest, authorizationResponse);
+                } finally {
+                    this.configuration.setContextOIDCSession(contextOIDCSession);
+                }
+            }
+
             this.configuration.restorePendingAuthorization(authorization);
         }
 
-        // Validate state
-        String sessionState = this.configuration.removeSessionState();
-        if (sessionState == null) {
-            return new ErrorResponse(HTTPResponse.SC_BAD_REQUEST,
-                "No state could be found in the current OpenID Connection session"
-                    + " which suggest it was lost or that this callback endpoint was called directly");
-        } else {
-            State providerState = authorizationResponse.getState();
-            if (providerState == null) {
-                return new ErrorResponse(HTTPResponse.SC_BAD_REQUEST,
-                    "Invalid state: was expecting [" + sessionState + "] and got nothing");
-            } else if (!Objects.equals(providerState.getValue(), sessionState)) {
-                this.logger.debug("OIDC callback: Invalid state (was expecting [{}] and got [{}])", sessionState,
-                    providerState);
+        return handleAuthorization(httpRequest, authorizationResponse);
+    }
 
-                return new ErrorResponse(HTTPResponse.SC_BAD_REQUEST,
-                    "Invalid state: was expecting [" + sessionState + "] and got [" + providerState + "]");
-            }
+    private Response handleAuthorization(HTTPRequest httpRequest, AuthorizationResponse authorizationResponse)
+        throws Exception
+    {
+        // Validate state
+        Response stateError = validateState(authorizationResponse);
+        if (stateError != null) {
+            return stateError;
         }
 
         // Deal with errors
         if (!authorizationResponse.indicatesSuccess()) {
-            // Cast to error response
-            AuthorizationErrorResponse errorResponse = (AuthorizationErrorResponse) authorizationResponse;
-
-            // If impossible to authenticate without prompt, just ignore and redirect
-            if (OIDCError.INTERACTION_REQUIRED.getCode().equals(errorResponse.getErrorObject().getCode())
-                || OIDCError.LOGIN_REQUIRED.getCode().equals(errorResponse.getErrorObject().getCode())) {
-                this.logger.debug("Impossible to authenticate, redirect to ([{}])",
-                    authorizationResponse.getState().getValue());
-
-                // Redirect to original request
-                return new RedirectResponse(new URI(authorizationResponse.getState().getValue()));
-            }
-
-            // Unknown error
-            return new ErrorResponse(HTTPResponse.SC_SERVER_ERROR, "Unexpected error ["
-                + errorResponse.getErrorObject().getCode() + "] : " + errorResponse.getErrorObject().getDescription());
+            return handleError((AuthorizationErrorResponse) authorizationResponse);
         }
 
         // Get the authentication response
@@ -237,14 +231,7 @@ public class CallbackOIDCEndpoint implements OIDCEndpoint
         this.logger.debug("Auth response: the provider sent back the response type [{}]", responseType);
 
         // Validate the id token, if provided
-        IDTokenClaimsSet idToken = null;
-        if (authenticationResponse.getIDToken() != null) {
-            // Nonce is mandatory when the id token is directly provided (implicit and hybrid flows)
-            Nonce nonce = this.configuration.removeSessionNonce();
-            if (nonce != null) {
-                idToken = parseImplicitIdToken(nonce, authenticationResponse.getIDToken());
-            }
-        }
+        IDTokenClaimsSet idToken = parseImplicitIdToken(authenticationResponse);
         this.logger.debug("Auth response: the provider sent back the id token [{}]", idToken);
 
         // Get the access token
@@ -278,37 +265,7 @@ public class CallbackOIDCEndpoint implements OIDCEndpoint
                 return new ErrorResponse(HTTPResponse.SC_BAD_REQUEST, "No id token could be found");
             }
 
-            UserInfo userInfo;
-            if (accessToken != null && responseType.contains(Value.CODE) && !this.configuration.isUserInfoSkipped()) {
-                this.logger.debug("Requesting the userinfo from a dedicated endpoint");
-
-                // Request the user info from a dedicated endpoint if it's a code (or hybrid) flow
-                userInfo = this.users.getUserInfo();
-            } else {
-                this.logger.debug("Using the id token as userinfo");
-
-                // Simulate a UserInfo based on the id token
-                userInfo = new UserInfo(idToken.toJSONObject());
-            }
-
-            // Update/Create XWiki user
-            SimplePrincipal principal = this.users.updateUser(userInfo);
-
-            // Remember user in the session
-            HttpSession session = ((ServletSession) this.container.getSession()).getHttpSession();
-            session.setAttribute(SecurityRequestWrapper.PRINCIPAL_SESSION_KEY, principal);
-
-            // Indicate that the user is now authenticated
-            this.observationManager.notify(new UserAuthenticatedEvent(this.userResolver.resolve(principal.getName())),
-                null);
-            // Remember the session of that OIDC user (to be able to do back channel logout)
-            this.sessions.onLogin(session, idToken.getSubject());
-
-            // TODO: put enough information in the cookie to automatically authenticate when coming back after the
-            // session
-            // is lost
-
-            this.logger.debug("OIDC callback: principal=[{}]", principal);
+            authenticate(idToken, accessToken, responseType);
         }
 
         // If the configuration indicates to store tokens, store them
@@ -318,6 +275,83 @@ public class CallbackOIDCEndpoint implements OIDCEndpoint
 
         // Redirect to original request
         return new RedirectResponse(this.configuration.getSuccessRedirectURI());
+    }
+
+    private Response validateState(AuthorizationResponse authorizationResponse)
+    {
+        String sessionState = this.configuration.removeSessionState();
+        if (sessionState == null) {
+            return new ErrorResponse(HTTPResponse.SC_BAD_REQUEST,
+                "No state could be found in the current OpenID Connection session"
+                    + " which suggest it was lost or that this callback endpoint was called directly");
+        }
+
+        State providerState = authorizationResponse.getState();
+        if (providerState == null) {
+            return new ErrorResponse(HTTPResponse.SC_BAD_REQUEST,
+                "Invalid state: was expecting [" + sessionState + "] and got nothing");
+        } else if (!Objects.equals(providerState.getValue(), sessionState)) {
+            this.logger.debug("OIDC callback: Invalid state (was expecting [{}] and got [{}])", sessionState,
+                providerState);
+
+            return new ErrorResponse(HTTPResponse.SC_BAD_REQUEST,
+                "Invalid state: was expecting [" + sessionState + "] and got [" + providerState + "]");
+        }
+
+        return null;
+    }
+
+    private Response handleError(AuthorizationErrorResponse errorResponse) throws URISyntaxException
+    {
+        // If impossible to authenticate without prompt, just ignore and redirect
+        if (OIDCError.INTERACTION_REQUIRED.getCode().equals(errorResponse.getErrorObject().getCode())
+            || OIDCError.LOGIN_REQUIRED.getCode().equals(errorResponse.getErrorObject().getCode())) {
+            this.logger.debug("Impossible to authenticate, redirect to ([{}])", errorResponse.getState().getValue());
+
+            // Redirect to original request
+            return new RedirectResponse(new URI(errorResponse.getState().getValue()));
+        }
+
+        // Unknown error
+        return new ErrorResponse(HTTPResponse.SC_SERVER_ERROR, "Unexpected error ["
+            + errorResponse.getErrorObject().getCode() + "] : " + errorResponse.getErrorObject().getDescription());
+    }
+
+    private void authenticate(IDTokenClaimsSet idToken, AccessToken accessToken, ResponseType responseType)
+        throws OIDCProviderException, IOException, URISyntaxException, GeneralException, JOSEException,
+        BadJOSEException, ParseException, InvalidAccessTokenException, XWikiException, QueryException
+    {
+        UserInfo userInfo;
+        if (accessToken != null && responseType.contains(Value.CODE) && !this.configuration.isUserInfoSkipped()) {
+            this.logger.debug("Requesting the userinfo from a dedicated endpoint");
+
+            // Request the user info from a dedicated endpoint if it's a code (or hybrid) flow
+            userInfo = this.users.getUserInfo();
+        } else {
+            this.logger.debug("Using the id token as userinfo");
+
+            // Simulate a UserInfo based on the id token
+            userInfo = new UserInfo(idToken.toJSONObject());
+        }
+
+        // Update/Create XWiki user
+        SimplePrincipal principal = this.users.updateUser(userInfo);
+
+        // Remember user in the session
+        HttpSession session = ((ServletSession) this.container.getSession()).getHttpSession();
+        session.setAttribute(SecurityRequestWrapper.PRINCIPAL_SESSION_KEY, principal);
+
+        // Indicate that the user is now authenticated
+        this.observationManager.notify(new UserAuthenticatedEvent(this.userResolver.resolve(principal.getName())),
+            null);
+        // Remember the session of that OIDC user (to be able to do back channel logout)
+        this.sessions.onLogin(session, idToken.getSubject());
+
+        // TODO: put enough information in the cookie to automatically authenticate when coming back after the
+        // session
+        // is lost
+
+        this.logger.debug("OIDC callback: principal=[{}]", principal);
     }
 
     private boolean isAuthenticated()
@@ -331,6 +365,20 @@ public class CallbackOIDCEndpoint implements OIDCEndpoint
     {
         // Authorizations which are not explicitly flagged are authentications
         return !Boolean.FALSE.equals(authorization.get(OIDCClientConfiguration.PROP_IS_USED_FOR_AUTHENTICATION));
+    }
+
+    private IDTokenClaimsSet parseImplicitIdToken(AuthenticationSuccessResponse authenticationResponse)
+        throws GeneralException, IOException, URISyntaxException, BadJOSEException, JOSEException, OIDCProviderException
+    {
+        if (authenticationResponse.getIDToken() != null) {
+            // Nonce is mandatory when the id token is directly provided (implicit and hybrid flows)
+            Nonce nonce = this.configuration.removeSessionNonce();
+            if (nonce != null) {
+                return parseImplicitIdToken(nonce, authenticationResponse.getIDToken());
+            }
+        }
+
+        return null;
     }
 
     private IDTokenClaimsSet parseImplicitIdToken(Nonce nonce, JWT token)

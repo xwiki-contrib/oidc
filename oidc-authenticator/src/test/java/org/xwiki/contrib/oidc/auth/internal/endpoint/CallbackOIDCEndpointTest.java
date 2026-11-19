@@ -22,6 +22,8 @@ package org.xwiki.contrib.oidc.auth.internal.endpoint;
 import java.net.SocketTimeoutException;
 import java.net.URI;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -93,6 +95,8 @@ import static com.github.tomakehurst.wiremock.client.WireMock.postRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
 import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.options;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -134,6 +138,16 @@ class CallbackOIDCEndpointTest
     private static final URI SUCCESS_URI = URI.create("http://xwiki/initialrequest");
 
     private static final URI OTHER_SUCCESS_URI = URI.create("http://xwiki/otherinitialrequest");
+
+    private static final String AUTHENTICATION_CONFIGURATION = "authentication";
+
+    private static final String OAUTH2_CONFIGURATION = "oauth2";
+
+    private static final String AUTHENTICATION_ACCESS_TOKEN = "authenticationaccesstoken";
+
+    private static final String AUTHENTICATION_REFRESH_TOKEN = "authenticationrefreshtoken";
+
+    private static final String AUTHENTICATION_ID_TOKEN = "authenticationidtoken";
 
     @MockComponent
     private Container container;
@@ -706,5 +720,68 @@ class CallbackOIDCEndpointTest
         assertTrue(response.indicatesSuccess());
         assertEquals(SUCCESS_URI, response.toHTTPResponse().getLocation());
         verify(this.httpSession).setAttribute(eq(SecurityRequestWrapper.PRINCIPAL_SESSION_KEY), any());
+    }
+
+    /**
+     * The OAuth2 authorization of a client configuration can be done by a user authenticated through OpenID Connect,
+     * and must not lose the information of that authentication, stored in the same session.
+     */
+    @Test
+    void callbackWithOAuth2AuthorizationWhenAuthenticated() throws Exception
+    {
+        Map<String, Object> oidcSession = authenticatedOIDCSession();
+
+        // Simulate an OAuth2 authorization of another client configuration started from the same session
+        Map<String, Object> authorization = new HashMap<>();
+        authorization.put(OIDCClientConfiguration.PROP_STATE, STATE);
+        authorization.put(OIDCClientConfiguration.DEFAULT_CLIENT_CONFIGURATION_PROPERTY, OAUTH2_CONFIGURATION);
+        authorization.put(OIDCClientConfiguration.PROP_IS_USED_FOR_AUTHENTICATION, false);
+        authorization.put(OIDCClientConfiguration.PROP_INITIAL_REQUEST, OTHER_SUCCESS_URI);
+        Map<String, Map<String, Object>> pendingAuthorizations = new LinkedHashMap<>();
+        pendingAuthorizations.put(STATE, authorization);
+        oidcSession.put(OIDCClientConfiguration.PROP_SESSION_PENDING_AUTHORIZATIONS, pendingAuthorizations);
+
+        stubTokenEndpoint(signedIDToken(claims().build()));
+
+        Response response = callback("code=mycode&state=" + STATE);
+
+        // The OAuth2 authorization went through
+        assertTrue(response.indicatesSuccess());
+        assertEquals(OTHER_SUCCESS_URI, response.toHTTPResponse().getLocation());
+        this.provider.verify(postRequestedFor(urlEqualTo("/token")));
+
+        // The authentication information is still in the session
+        assertAuthenticatedOIDCSession(oidcSession);
+        // The OAuth2 authorization did not authenticate anyone
+        assertNotAuthenticated();
+    }
+
+    /**
+     * @return the OpenID Connect session of a user authenticated through OpenID Connect
+     */
+    private Map<String, Object> authenticatedOIDCSession()
+    {
+        Map<String, Object> oidcSession = this.configuration.getOIDCSession(true);
+        oidcSession.put(OIDCClientConfiguration.DEFAULT_CLIENT_CONFIGURATION_PROPERTY, AUTHENTICATION_CONFIGURATION);
+        oidcSession.put(OIDCClientConfiguration.PROP_SESSION_ACCESSTOKEN, AUTHENTICATION_ACCESS_TOKEN);
+        oidcSession.put(OIDCClientConfiguration.PROP_SESSION_REFRESHTOKEN, AUTHENTICATION_REFRESH_TOKEN);
+        oidcSession.put(OIDCClientConfiguration.PROP_SESSION_IDTOKEN_JWT, AUTHENTICATION_ID_TOKEN);
+
+        return oidcSession;
+    }
+
+    private void assertAuthenticatedOIDCSession(Map<String, Object> oidcSession)
+    {
+        // The session used by the following requests is the HTTP one
+        assertSame(oidcSession, this.configuration.getOIDCSession(false));
+
+        assertEquals(AUTHENTICATION_CONFIGURATION,
+            oidcSession.get(OIDCClientConfiguration.DEFAULT_CLIENT_CONFIGURATION_PROPERTY));
+        assertEquals(AUTHENTICATION_ACCESS_TOKEN, oidcSession.get(OIDCClientConfiguration.PROP_SESSION_ACCESSTOKEN));
+        assertEquals(AUTHENTICATION_REFRESH_TOKEN,
+            oidcSession.get(OIDCClientConfiguration.PROP_SESSION_REFRESHTOKEN));
+        assertEquals(AUTHENTICATION_ID_TOKEN, oidcSession.get(OIDCClientConfiguration.PROP_SESSION_IDTOKEN_JWT));
+        assertNull(oidcSession.get(OIDCClientConfiguration.PROP_IS_USED_FOR_AUTHENTICATION));
+        assertTrue(this.configuration.isAuthenticationConfiguration());
     }
 }
