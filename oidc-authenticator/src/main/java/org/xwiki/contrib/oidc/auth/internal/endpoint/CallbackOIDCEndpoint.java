@@ -42,10 +42,10 @@ import org.xwiki.container.Container;
 import org.xwiki.container.servlet.ServletSession;
 import org.xwiki.contrib.oidc.auth.internal.Endpoint;
 import org.xwiki.contrib.oidc.auth.internal.OIDCClientConfiguration;
+import org.xwiki.contrib.oidc.auth.internal.OIDCIdTokenValidator;
 import org.xwiki.contrib.oidc.auth.internal.OIDCTokenRequestHelper;
 import org.xwiki.contrib.oidc.auth.internal.OIDCUserManager;
 import org.xwiki.contrib.oidc.auth.internal.session.ClientHttpSessions;
-import org.xwiki.contrib.oidc.auth.internal.session.ClientProviders.ClientProvider;
 import org.xwiki.contrib.oidc.provider.internal.OIDCManager;
 import org.xwiki.contrib.oidc.provider.internal.OIDCProviderException;
 import org.xwiki.contrib.oidc.provider.internal.OIDCResourceReference;
@@ -87,7 +87,6 @@ import com.nimbusds.openid.connect.sdk.claims.ClaimsSetRequest;
 import com.nimbusds.openid.connect.sdk.claims.ClaimsSetRequest.Entry;
 import com.nimbusds.openid.connect.sdk.claims.IDTokenClaimsSet;
 import com.nimbusds.openid.connect.sdk.claims.UserInfo;
-import com.nimbusds.openid.connect.sdk.validators.IDTokenValidator;
 
 /**
  * Callback endpoint for OpenID Connect.
@@ -115,6 +114,9 @@ public class CallbackOIDCEndpoint implements OIDCEndpoint
 
     @Inject
     private OIDCUserManager users;
+
+    @Inject
+    private OIDCIdTokenValidator idTokenValidator;
 
     @Inject
     private ObservationManager observationManager;
@@ -335,12 +337,9 @@ public class CallbackOIDCEndpoint implements OIDCEndpoint
         throws GeneralException, IOException, URISyntaxException, BadJOSEException, JOSEException, OIDCProviderException
     {
         // Parse and validate the id token
-        ClientProvider clientProvider = this.configuration.getClientProvider();
+        IDTokenClaimsSet idToken = this.idTokenValidator.validateAuthorizationResponseIdToken(token, nonce);
 
-        if (clientProvider != null) {
-            IDTokenClaimsSet idToken = IDTokenValidator.create(clientProvider.getMetadata(),
-                this.configuration.createClientInformation(token), this.oidc.getJWKSource()).validate(token, nonce);
-
+        if (idToken != null) {
             verifyACR(idToken);
 
             storeIdToken(token, idToken);
@@ -361,19 +360,7 @@ public class CallbackOIDCEndpoint implements OIDCEndpoint
         BadJOSEException, JOSEException, ParseException, OIDCProviderException
     {
         // Parse and validate the id token
-        ClientProvider clientProvider = this.configuration.getClientProvider();
-
-        IDTokenClaimsSet idToken;
-        if (clientProvider != null) {
-            idToken = IDTokenValidator.create(clientProvider.getMetadata(),
-                this.configuration.createClientInformation(token), this.oidc.getJWKSource()).validate(token, null);
-        } else {
-            this.logger.debug("No provider available in the configuration."
-                + " Skipping id token validation and assuming it's not encrypted,"
-                + " because it's not possible to access the provider metadata and keys to validate the id token.");
-
-            idToken = new IDTokenClaimsSet(token.getJWTClaimsSet());
-        }
+        IDTokenClaimsSet idToken = this.idTokenValidator.validateTokenEndpointIdToken(token);
 
         verifyACR(idToken);
 

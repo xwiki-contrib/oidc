@@ -44,6 +44,7 @@ import org.xwiki.container.Container;
 import org.xwiki.container.servlet.ServletSession;
 import org.xwiki.contrib.oidc.OAuth2TokenStore;
 import org.xwiki.contrib.oidc.auth.internal.OIDCClientConfiguration;
+import org.xwiki.contrib.oidc.auth.internal.OIDCIdTokenValidator;
 import org.xwiki.contrib.oidc.auth.internal.OIDCUserManager;
 import org.xwiki.contrib.oidc.auth.internal.session.ClientHttpSessions;
 import org.xwiki.contrib.oidc.auth.internal.session.ClientProviders;
@@ -108,7 +109,7 @@ import static org.mockito.Mockito.when;
  * @version $Id$
  */
 @OldcoreTest
-@ComponentList({ OIDCClientConfiguration.class, ClientProviders.class })
+@ComponentList({ OIDCClientConfiguration.class, OIDCIdTokenValidator.class, ClientProviders.class })
 @ReferenceComponentList
 class CallbackOIDCEndpointTest
 {

@@ -97,6 +97,7 @@ import com.nimbusds.common.contenttype.ContentType;
 import com.nimbusds.jose.JOSEException;
 import com.nimbusds.jose.proc.BadJOSEException;
 import com.nimbusds.jwt.JWT;
+import com.nimbusds.jwt.JWTParser;
 import com.nimbusds.oauth2.sdk.GeneralException;
 import com.nimbusds.oauth2.sdk.http.HTTPRequest;
 import com.nimbusds.oauth2.sdk.http.HTTPResponse;
@@ -136,6 +137,9 @@ public class OIDCUserManager
 
     @Inject
     private OIDCClientConfiguration configuration;
+
+    @Inject
+    private OIDCIdTokenValidator idTokenValidator;
 
     @Inject
     private OIDCUserStore store;
@@ -185,6 +189,8 @@ public class OIDCUserManager
     private static final String LOGOUT_TEMPLATE_PARAMETERS = "logoutParameters";
 
     private static final String LOGOUT_TEMPLATE_ISSUER = "logoutIssuer";
+
+    private static final String ID_TOKEN_PARAMETER = "id_token";
 
     public void updateUserInfoAsync()
     {
@@ -275,10 +281,46 @@ public class OIDCUserManager
             }
             this.configuration.setAccessToken(accessToken, refreshToken);
             logger.debug("Successfully refresh the access token");
+
+            updateIdToken(httpResponse);
         } else {
             logger.debug("Failed to refresh the access token, got status [{}]: [{}]", httpResponse.getStatusCode(),
                 httpResponse.getStatusMessage());
             throw new InvalidAccessTokenException();
+        }
+    }
+
+    /**
+     * Replace the ID token stored in the session with the one the provider may send along with a refreshed access
+     * token (see OpenID Connect Core 1.0 section 12.2).
+     * <p>
+     * The ID token is read directly from the response instead of parsing the whole response as an OpenID Connect
+     * token response, so that a broken ID token cannot make the refresh of the access token fail. Such an ID token, as
+     * well as one which does not describe the same authentication as the current one, is only ignored with a warning:
+     * the ID token received at authentication remains valid to identify the session.
+     */
+    private void updateIdToken(HTTPResponse httpResponse)
+    {
+        try {
+            Object idTokenValue = httpResponse.getBodyAsJSONObject().get(ID_TOKEN_PARAMETER);
+            if (idTokenValue == null) {
+                this.logger.debug("The provider did not send a new ID token with the refreshed access token");
+
+                return;
+            }
+
+            JWT idToken = JWTParser.parse(idTokenValue.toString());
+            IDTokenClaimsSet idTokenClaims = this.idTokenValidator.validateTokenEndpointIdToken(idToken);
+            this.idTokenValidator.validateRefreshedIdToken(idTokenClaims, this.configuration.getIdToken());
+
+            this.configuration.setIdTokenJWT(idToken);
+            this.configuration.setIdToken(idTokenClaims);
+
+            this.logger.debug("Updated the ID token with the one sent with the refreshed access token");
+        } catch (ParseException | GeneralException | IOException | URISyntaxException | BadJOSEException
+            | JOSEException e) {
+            this.logger.warn("Ignored the ID token sent by the OpenID Connect provider with the refreshed access "
+                + "token, the current one is kept: {}", ExceptionUtils.getRootCauseMessage(e));
         }
     }
 
