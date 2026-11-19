@@ -590,16 +590,36 @@ public class OIDCClientConfiguration extends OIDCConfiguration
     private OIDCClientsConfigurationStore clientsConfigurationStore;
 
     /**
-     * @param oidcSession the session to store in the execution context. This is useful when using the configuration
-     *     from a runnable called when the http session is already gone.
+     * Make the configuration use the passed OIDC session instead of the one stored in the HTTP session, for the rest of
+     * the current execution context. This is useful when using the configuration from a runnable called when the http
+     * session is already gone, or to work on an OIDC session which must not be visible to the following requests.
+     *
+     * @param oidcSession the session to store in the execution context, {@code null} to use the one stored in the HTTP
+     *     session again
      * @since 2.4.0
      */
     public void setContextOIDCSession(Map<String, Object> oidcSession)
     {
         ExecutionContext context = execution.getContext();
         if (context != null) {
-            context.setProperty(OIDCClientConfiguration.CONTEXTPROP_SESSION, oidcSession);
+            if (oidcSession != null) {
+                context.setProperty(OIDCClientConfiguration.CONTEXTPROP_SESSION, oidcSession);
+            } else {
+                context.removeProperty(OIDCClientConfiguration.CONTEXTPROP_SESSION);
+            }
         }
+    }
+
+    /**
+     * @return the OIDC session stored in the execution context, or {@code null} if the one stored in the HTTP session
+     *     is used
+     * @since 2.31.0
+     */
+    public Map<String, Object> getContextOIDCSession()
+    {
+        ExecutionContext context = this.execution.getContext();
+
+        return context == null ? null : (Map<String, Object>) context.getProperty(CONTEXTPROP_SESSION);
     }
 
     /**
@@ -607,12 +627,20 @@ public class OIDCClientConfiguration extends OIDCConfiguration
      */
     public Map<String, Object> getOIDCSession(boolean create)
     {
-        ExecutionContext context = this.execution.getContext();
-        Map<String, Object> s = context == null ? null : (Map<String, Object>) context.getProperty(CONTEXTPROP_SESSION);
+        Map<String, Object> s = getContextOIDCSession();
         if (s != null) {
             return s;
         }
 
+        return getHTTPOIDCSession(create);
+    }
+
+    /**
+     * @param create true if the OIDC session should be created when it does not exist yet
+     * @return the OIDC session stored in the HTTP session, whatever the OIDC session stored in the execution context
+     */
+    private Map<String, Object> getHTTPOIDCSession(boolean create)
+    {
         Session session = this.container.getSession();
         if (session instanceof ServletSession) {
             HttpSession httpSession = ((ServletSession) session).getHttpSession();
@@ -684,7 +712,8 @@ public class OIDCClientConfiguration extends OIDCConfiguration
      */
     public Lock getSessionLock()
     {
-        Map<String, Object> session = getOIDCSession(true);
+        // The lock protects the HTTP session, which is shared by all the requests of the session
+        Map<String, Object> session = getHTTPOIDCSession(true);
         if (session != null) {
             return (Lock) session.computeIfAbsent(PROP_SESSION_LOCK, k -> new ReentrantLock());
         }
@@ -718,11 +747,14 @@ public class OIDCClientConfiguration extends OIDCConfiguration
     public void savePendingAuthorization(String state)
     {
         Map<String, Object> session = getOIDCSession(true);
-        if (session != null) {
+        // The pending authorizations must be found by the callback request, so they are always stored in the HTTP
+        // session, even when the authorization is described by an OIDC session stored in the execution context
+        Map<String, Object> httpSession = getHTTPOIDCSession(true);
+        if (session != null && httpSession != null) {
             Map<String, Object> authorization = new HashMap<>(session);
             authorization.keySet().removeAll(SESSION_AUTHORIZATIONS_PROPERTIES);
 
-            Map<String, Map<String, Object>> authorizations = (Map<String, Map<String, Object>>) session
+            Map<String, Map<String, Object>> authorizations = (Map<String, Map<String, Object>>) httpSession
                 .computeIfAbsent(PROP_SESSION_PENDING_AUTHORIZATIONS, k -> new LinkedHashMap<>());
             synchronized (authorizations) {
                 authorizations.put(state, authorization);
@@ -744,7 +776,9 @@ public class OIDCClientConfiguration extends OIDCConfiguration
      */
     public Map<String, Object> removePendingAuthorization(String state)
     {
-        Map<String, Map<String, Object>> authorizations = getSessionAttribute(PROP_SESSION_PENDING_AUTHORIZATIONS);
+        Map<String, Object> httpSession = getHTTPOIDCSession(false);
+        Map<String, Map<String, Object>> authorizations = httpSession != null
+            ? (Map<String, Map<String, Object>>) httpSession.get(PROP_SESSION_PENDING_AUTHORIZATIONS) : null;
         if (authorizations != null) {
             synchronized (authorizations) {
                 return authorizations.remove(state);

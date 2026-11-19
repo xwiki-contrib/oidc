@@ -23,6 +23,8 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.Lock;
 
 import javax.inject.Inject;
@@ -91,9 +93,12 @@ public class DefaultOAuth2ClientManager implements OAuth2ClientManager
         // for example) while this authorization is started
         Lock lock = this.authConfig.getSessionLock();
         lock.lock();
+        Map<String, Object> contextOIDCSession = this.authConfig.getContextOIDCSession();
         try {
-            // Clear the OIDC session to remove any information that could be coming from previous authorizations.
-            this.authConfig.resetOIDCSession();
+            // Describe this authorization in an OIDC session of its own, which is only saved as a pending authorization
+            // for the callback. The OIDC session stored in the HTTP session holds the information of the OpenID Connect
+            // authentication of the current user, which must stay untouched.
+            this.authConfig.setContextOIDCSession(new ConcurrentHashMap<>());
 
             // Generate unique state, populate the session
             State state = new State();
@@ -128,6 +133,7 @@ public class DefaultOAuth2ClientManager implements OAuth2ClientManager
         } catch (URISyntaxException | IOException | GeneralException e) {
             throw new OAuth2Exception("Failed to perform authorization request", e);
         } finally {
+            this.authConfig.setContextOIDCSession(contextOIDCSession);
             lock.unlock();
         }
     }

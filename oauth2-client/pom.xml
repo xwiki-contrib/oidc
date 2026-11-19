@@ -32,12 +32,28 @@
   <properties>
     <xwiki.extension.name>OAuth2 Client</xwiki.extension.name>
     <xwiki.extension.description>Client for interacting with OAuth2 tokens</xwiki.extension.description>
+    <xwiki.jacoco.instructionRatio>0.17</xwiki.jacoco.instructionRatio>
   </properties>
   <dependencies>
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>oidc-authenticator</artifactId>
       <version>${project.version}</version>
+    </dependency>
+
+    <!-- Test dependencies -->
+    <dependency>
+      <groupId>org.xwiki.commons</groupId>
+      <artifactId>xwiki-commons-tool-test-component</artifactId>
+      <version>${commons.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.xwiki.platform</groupId>
+      <artifactId>xwiki-platform-test-oldcore</artifactId>
+      <version>${platform.version}</version>
+      <type>pom</type>
+      <scope>test</scope>
     </dependency>
   </dependencies>
   <build>
