@@ -30,12 +30,14 @@ import java.net.InetSocketAddress;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.security.Principal;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.Collections;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -94,8 +96,17 @@ import org.xwiki.test.junit5.LogCaptureExtension;
 import org.xwiki.test.junit5.mockito.InjectMockComponents;
 import org.xwiki.test.junit5.mockito.MockComponent;
 
+import com.nimbusds.jose.JOSEException;
+import com.nimbusds.jose.JWSAlgorithm;
+import com.nimbusds.jose.JWSHeader;
+import com.nimbusds.jose.crypto.RSASSASigner;
+import com.nimbusds.jose.jwk.JWKSet;
+import com.nimbusds.jose.jwk.RSAKey;
+import com.nimbusds.jose.jwk.gen.RSAKeyGenerator;
+import com.nimbusds.jwt.JWT;
 import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.PlainJWT;
+import com.nimbusds.jwt.SignedJWT;
 import com.nimbusds.oauth2.sdk.id.Audience;
 import com.nimbusds.oauth2.sdk.id.Issuer;
 import com.nimbusds.oauth2.sdk.id.Subject;
@@ -120,14 +131,18 @@ import com.xpn.xwiki.test.junit5.mockito.OldcoreTest;
 import com.xpn.xwiki.test.reference.ReferenceComponentList;
 import com.xpn.xwiki.web.XWikiResponse;
 import com.xpn.xwiki.web.XWikiServletRequestStub;
+import com.xpn.xwiki.web.XWikiURLFactory;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -139,9 +154,10 @@ import static org.mockito.Mockito.when;
  * @version $Id$
  */
 @OldcoreTest
-@ComponentList({ OIDCManager.class, OIDCClientConfiguration.class, DefaultOIDCUserStore.class,
-    OIDCProviderConfiguration.class, OIDCProviderStore.class, OIDCConsentConfiguration.class, OIDCConsentStore.class,
-    ProviderOIDCSessions.class, OIDCClients.class, ClientProviders.class, DefaultUserFormatterFactory.class })
+@ComponentList({ OIDCManager.class, OIDCClientConfiguration.class, OIDCIdTokenValidator.class,
+    DefaultOIDCUserStore.class, OIDCProviderConfiguration.class, OIDCProviderStore.class,
+    OIDCConsentConfiguration.class, OIDCConsentStore.class, ProviderOIDCSessions.class, OIDCClients.class,
+    ClientProviders.class, DefaultUserFormatterFactory.class })
 @ReferenceComponentList
 class OIDCUserManagerTest
 {
@@ -160,6 +176,13 @@ class OIDCUserManagerTest
     private static final String LOGOUT_FORM = "<form/>";
 
     private static final String NOT_ROTATED_REFRESH_TOKEN = "notrotatedrefreshtoken";
+
+    private static final String KEY_ID = "providerkey";
+
+    /**
+     * When the user authenticated on the fake provider, a few minutes ago.
+     */
+    private static final long AUTHENTICATION_TIME = System.currentTimeMillis() - 600000L;
 
     @RegisterExtension
     private LogCaptureExtension logCapture = new LogCaptureExtension(LogLevel.WARN);
@@ -228,6 +251,16 @@ class OIDCUserManagerTest
     OIDCClientConfiguration configuration;
 
     private final PlainJWT idToken = new PlainJWT(new JWTClaimsSet.Builder().subject("subject").build());
+
+    /**
+     * The key used by the fake provider to sign the ID tokens.
+     */
+    private RSAKey providerKey;
+
+    /**
+     * The ID token the fake provider token endpoint sends with the refreshed access token, if any.
+     */
+    private JWT refreshedIdToken;
 
     private DocumentReference xwikiallgroupReference;
 
@@ -1207,6 +1240,152 @@ class OIDCUserManagerTest
     }
 
     @Test
+    void getUserInfoRefreshUpdatesIdToken() throws Exception
+    {
+        JWT currentIdToken = prepareIdTokenRefresh();
+        this.refreshedIdToken = signedIdToken(refreshIdTokenClaims().build(), this.providerKey);
+
+        refreshAccessTokenThroughUserInfo();
+
+        // The ID token sent with the refreshed access token replaces the one received at authentication
+        assertEquals(this.refreshedIdToken.serialize(), this.configuration.getIdTokenJWT().serialize());
+        assertEquals(this.refreshedIdToken.getJWTClaimsSet().getIssueTime(),
+            this.configuration.getIdToken().getIssueTime());
+        assertNotEquals(currentIdToken.serialize(), this.configuration.getIdTokenJWT().serialize());
+    }
+
+    @Test
+    void getUserInfoRefreshKeepsIdTokenWithoutNewOne() throws Exception
+    {
+        JWT currentIdToken = prepareIdTokenRefresh();
+
+        refreshAccessTokenThroughUserInfo();
+
+        assertEquals(currentIdToken.serialize(), this.configuration.getIdTokenJWT().serialize());
+    }
+
+    @Test
+    void getUserInfoRefreshIgnoresIdTokenWithAnotherSubject() throws Exception
+    {
+        JWT currentIdToken = prepareIdTokenRefresh();
+        this.refreshedIdToken =
+            signedIdToken(refreshIdTokenClaims().subject("othersubject").build(), this.providerKey);
+
+        refreshAccessTokenThroughUserInfo();
+
+        // The new ID token does not describe the same authentication so it's ignored, but the access token is still
+        // refreshed
+        assertEquals(currentIdToken.serialize(), this.configuration.getIdTokenJWT().serialize());
+        assertEquals("subject", this.configuration.getIdToken().getSubject().getValue());
+        assertEquals(1, this.logCapture.size());
+        assertEquals("Ignored the ID token sent by the OpenID Connect provider with the refreshed access token, the "
+            + "current one is kept: BadJWTException: The [sub] claim is not the same as in the current ID token",
+            this.logCapture.getMessage(0));
+    }
+
+    @Test
+    void getUserInfoRefreshIgnoresIdTokenWithAnotherAuthenticationTime() throws Exception
+    {
+        JWT currentIdToken = prepareIdTokenRefresh();
+        this.refreshedIdToken = signedIdToken(
+            refreshIdTokenClaims().claim("auth_time", AUTHENTICATION_TIME / 1000 + 60).build(), this.providerKey);
+
+        refreshAccessTokenThroughUserInfo();
+
+        assertEquals(currentIdToken.serialize(), this.configuration.getIdTokenJWT().serialize());
+        assertEquals(1, this.logCapture.size());
+        assertEquals("Ignored the ID token sent by the OpenID Connect provider with the refreshed access token, the "
+            + "current one is kept: BadJWTException: The [auth_time] claim is not the same as in the current ID token",
+            this.logCapture.getMessage(0));
+    }
+
+    @Test
+    void getUserInfoRefreshIgnoresIdTokenWithInvalidSignature() throws Exception
+    {
+        JWT currentIdToken = prepareIdTokenRefresh();
+        // Signed with a key which is not the one of the provider
+        this.refreshedIdToken =
+            signedIdToken(refreshIdTokenClaims().build(), new RSAKeyGenerator(2048).keyID(KEY_ID).generate());
+
+        refreshAccessTokenThroughUserInfo();
+
+        assertEquals(currentIdToken.serialize(), this.configuration.getIdTokenJWT().serialize());
+        assertEquals(1, this.logCapture.size());
+        assertTrue(this.logCapture.getMessage(0).startsWith("Ignored the ID token sent by the OpenID Connect "
+            + "provider with the refreshed access token, the current one is kept: "),
+            () -> "Unexpected log: " + this.logCapture.getMessage(0));
+    }
+
+    /**
+     * Configure a client of the fake provider whose session contains an expired access token and an ID token.
+     *
+     * @return the ID token received at authentication
+     */
+    private JWT prepareIdTokenRefresh() throws Exception
+    {
+        this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_CLIENTID, "myclientid");
+        this.oldcore.getConfigurationSource()
+            .setProperty(OIDCClientConfiguration.PROP_PROVIDER, "http://localhost:8081/");
+        this.oldcore.getConfigurationSource()
+            .setProperty(OIDCClientConfiguration.PROP_ENDPOINT_USERINFO, "http://localhost:8081/userinfo");
+        this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_SECRET, "mysecret");
+
+        this.providerKey = new RSAKeyGenerator(2048).keyID(KEY_ID).generate();
+
+        // Validating the ID token requires the URLs of the endpoints of XWiki as a client of the provider
+        XWikiURLFactory urlFactory = mock(XWikiURLFactory.class);
+        when(urlFactory.getServerURL(any())).thenReturn(new URL("http://wiki/"));
+        this.oldcore.getXWikiContext().setURLFactory(urlFactory);
+        doReturn("xwiki/").when(this.oldcore.getSpyXWiki()).getWebAppPath(any());
+
+        // The user info endpoint rejects this access token, which makes it refreshed
+        this.configuration.setAccessToken(new BearerAccessToken("expiredaccesstoken", 0, this.configuration.getScope()),
+            new RefreshToken("validrefreshtoken"));
+
+        JWT currentIdToken = signedIdToken(idTokenClaims(AUTHENTICATION_TIME).build(), this.providerKey);
+        this.configuration.setIdTokenJWT(currentIdToken);
+        this.configuration.setIdToken(new IDTokenClaimsSet(currentIdToken.getJWTClaimsSet()));
+
+        return currentIdToken;
+    }
+
+    private void refreshAccessTokenThroughUserInfo() throws Exception
+    {
+        HttpServer server = startServer();
+        try {
+            this.manager.getUserInfo();
+        } finally {
+            server.stop(0);
+        }
+
+        assertEquals("refreshedaccesstoken", this.configuration.getAccessToken().getValue());
+    }
+
+    /**
+     * @return the claims of an ID token issued by the fake provider when refreshing the access token, describing the
+     *     same authentication as the current ID token
+     */
+    private JWTClaimsSet.Builder refreshIdTokenClaims()
+    {
+        return idTokenClaims(System.currentTimeMillis());
+    }
+
+    private JWTClaimsSet.Builder idTokenClaims(long issueTime)
+    {
+        return new JWTClaimsSet.Builder().issuer("http://localhost:8081/").subject("subject").audience("myclientid")
+            .issueTime(new Date(issueTime / 1000 * 1000)).expirationTime(new Date(issueTime + 3600000L))
+            .claim("auth_time", AUTHENTICATION_TIME / 1000);
+    }
+
+    private JWT signedIdToken(JWTClaimsSet claims, RSAKey key) throws JOSEException
+    {
+        SignedJWT jwt = new SignedJWT(new JWSHeader.Builder(JWSAlgorithm.RS256).keyID(KEY_ID).build(), claims);
+        jwt.sign(new RSASSASigner(key));
+
+        return jwt;
+    }
+
+    @Test
     void logoutWithGetEndpointMethod() throws Exception
     {
         XWikiResponse response = prepareLogout(LogoutMethod.GET);
@@ -1504,6 +1683,14 @@ class OIDCUserManagerTest
             sendResponse(exchange, r, HttpURLConnection.HTTP_OK);
         });
 
+        httpServer.createContext("/jwks", exchange -> {
+            byte[] response = new JWKSet(this.providerKey.toPublicJWK()).toString().getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().add("Content-Type", "application/json");
+            exchange.sendResponseHeaders(HttpURLConnection.HTTP_OK, response.length);
+            exchange.getResponseBody().write(response);
+            exchange.close();
+        });
+
         httpServer.createContext("/userinfo", exchange -> {
             String authorization = exchange.getRequestHeaders().getFirst("Authorization");
             String accessToken = "expiredaccesstoken";
@@ -1546,6 +1733,9 @@ class OIDCUserManagerTest
                 }
                 r.put("token_type", "Bearer");
                 r.put("expires_in", 3600);
+                if (this.refreshedIdToken != null) {
+                    r.put("id_token", this.refreshedIdToken.serialize());
+                }
             } else {
                 httpCode = handleInvalidToken(r);
             }
