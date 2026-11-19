@@ -212,6 +212,16 @@ public class OIDCUserManager
         }, this.componentManager));
     }
 
+    /**
+     * Asynchronously update the user from the provider user information endpoint when the configured refresh rate is
+     * reached.
+     * <p>
+     * This is also the only place where the access token stored in the session gets refreshed: it's renewed (using the
+     * refresh token) only when the user information endpoint needs it. The next update date is only set once the user
+     * information endpoint has been called, so when it's skipped (the user information then comes from the ID token)
+     * neither the user nor the access token are ever refreshed during the session. This is fine since the access token
+     * stored in the session is only used to call the user information endpoint and to download the user avatar.
+     */
     public void checkUpdateUserInfo()
     {
         Date date = this.configuration.removeUserInfoExpirationDate();
@@ -258,7 +268,11 @@ public class OIDCUserManager
             AccessTokenResponse successResponse = tokenResponse.toSuccessResponse();
             Tokens tokens = successResponse.getTokens();
             AccessToken accessToken = tokens.getAccessToken();
-            refreshToken = tokens.getRefreshToken();
+            // The provider is not required to issue a new refresh token, the current one remains valid in that case
+            // (see https://datatracker.ietf.org/doc/html/rfc6749#section-6)
+            if (tokens.getRefreshToken() != null) {
+                refreshToken = tokens.getRefreshToken();
+            }
             this.configuration.setAccessToken(accessToken, refreshToken);
             logger.debug("Successfully refresh the access token");
         } else {
