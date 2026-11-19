@@ -159,6 +159,8 @@ class OIDCUserManagerTest
 
     private static final String LOGOUT_FORM = "<form/>";
 
+    private static final String NOT_ROTATED_REFRESH_TOKEN = "notrotatedrefreshtoken";
+
     @RegisterExtension
     private LogCaptureExtension logCapture = new LogCaptureExtension(LogLevel.WARN);
 
@@ -1047,6 +1049,29 @@ class OIDCUserManagerTest
     }
 
     @Test
+    void getUserInfoRefreshesExpiredTokenWithoutNewRefreshToken() throws Exception
+    {
+        this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_CLIENTID, "myclientid");
+        this.oldcore.getConfigurationSource()
+            .setProperty(OIDCClientConfiguration.PROP_PROVIDER, "http://localhost:8081/");
+        this.oldcore.getConfigurationSource()
+            .setProperty(OIDCClientConfiguration.PROP_ENDPOINT_USERINFO, "http://localhost:8081/userinfo");
+        this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_SECRET, "mysecret");
+
+        this.configuration.setAccessToken(new BearerAccessToken("expiredaccesstoken", 0, this.configuration.getScope()),
+            new RefreshToken(NOT_ROTATED_REFRESH_TOKEN));
+        HttpServer server = startServer();
+        try {
+            this.manager.getUserInfo();
+            assertEquals("refreshedaccesstoken", this.configuration.getAccessToken().getValue());
+            // The current refresh token is kept to be able to refresh the access token again later
+            assertEquals(NOT_ROTATED_REFRESH_TOKEN, this.configuration.getRefreshToken().getValue());
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
     void getUserInfoDoesNotRefreshNonExpiredToken() throws Exception
     {
         this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_CLIENTID, "myclientid");
@@ -1417,9 +1442,11 @@ class OIDCUserManagerTest
             }
             if (authorized) {
                 Map<String, String> p = parseURLEncodedBody(exchange);
-                String refreshToken = "refreshed" + p.get("refresh_token");
                 r.put("access_token", "refreshedaccesstoken");
-                r.put("refresh_token", refreshToken);
+                // A provider is not required to issue a new refresh token
+                if (!NOT_ROTATED_REFRESH_TOKEN.equals(p.get("refresh_token"))) {
+                    r.put("refresh_token", "refreshed" + p.get("refresh_token"));
+                }
                 r.put("token_type", "Bearer");
                 r.put("expires_in", 3600);
             } else {
