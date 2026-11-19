@@ -164,6 +164,16 @@ class OIDCUserManagerTest
     @RegisterExtension
     private LogCaptureExtension logCapture = new LogCaptureExtension(LogLevel.WARN);
 
+    /**
+     * The Authorization headers received by the fake provider token endpoint ("null" when there is none).
+     */
+    private final List<String> tokenRequestAuthorizations = new ArrayList<>();
+
+    /**
+     * The parameters received in the body of the requests to the fake provider token endpoint.
+     */
+    private final List<Map<String, String>> tokenRequestParameters = new ArrayList<>();
+
     @MockComponent
     QueryManager queryManager;
 
@@ -1072,6 +1082,86 @@ class OIDCUserManagerTest
     }
 
     @Test
+    void getUserInfoRefreshesExpiredTokenWithClientSecretBasic() throws Exception
+    {
+        prepareExpiredAccessToken("mysecret");
+
+        HttpServer server = startServer();
+        try {
+            this.manager.getUserInfo();
+        } finally {
+            server.stop(0);
+        }
+
+        assertEquals("refreshedaccesstoken", this.configuration.getAccessToken().getValue());
+        // The client is authenticated with client_secret_basic by default
+        String basic = Base64.getEncoder().encodeToString("myclientid:mysecret".getBytes(StandardCharsets.UTF_8));
+        assertEquals(List.of("Basic " + basic), this.tokenRequestAuthorizations);
+        assertFalse(this.tokenRequestParameters.get(0).containsKey("client_secret"));
+    }
+
+    @Test
+    void getUserInfoRefreshesExpiredTokenWithClientSecretPost() throws Exception
+    {
+        prepareExpiredAccessToken("mysecret");
+        this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_ENDPOINT_TOKEN_AUTH_METHOD,
+            "client_secret_post");
+
+        HttpServer server = startServer();
+        try {
+            this.manager.getUserInfo();
+        } finally {
+            server.stop(0);
+        }
+
+        assertEquals("refreshedaccesstoken", this.configuration.getAccessToken().getValue());
+        // The client is authenticated with the configured method, the secret is sent in the body
+        assertEquals(List.of("null"), this.tokenRequestAuthorizations);
+        assertEquals("myclientid", this.tokenRequestParameters.get(0).get("client_id"));
+        assertEquals("mysecret", this.tokenRequestParameters.get(0).get("client_secret"));
+    }
+
+    @Test
+    void getUserInfoRefreshesExpiredTokenWithoutSecret() throws Exception
+    {
+        prepareExpiredAccessToken(null);
+
+        HttpServer server = startServer();
+        try {
+            this.manager.getUserInfo();
+        } finally {
+            server.stop(0);
+        }
+
+        assertEquals("refreshedaccesstoken", this.configuration.getAccessToken().getValue());
+        // A public client only indicates its identifier
+        assertEquals(List.of("null"), this.tokenRequestAuthorizations);
+        assertEquals("myclientid", this.tokenRequestParameters.get(0).get("client_id"));
+        assertFalse(this.tokenRequestParameters.get(0).containsKey("client_secret"));
+    }
+
+    /**
+     * Configure the client and put an expired access token in the session, so that getting the user information
+     * requires refreshing it.
+     *
+     * @param secret the secret of the client, {@code null} for a public client
+     */
+    private void prepareExpiredAccessToken(String secret)
+    {
+        this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_CLIENTID, "myclientid");
+        this.oldcore.getConfigurationSource()
+            .setProperty(OIDCClientConfiguration.PROP_PROVIDER, "http://localhost:8081/");
+        this.oldcore.getConfigurationSource()
+            .setProperty(OIDCClientConfiguration.PROP_ENDPOINT_USERINFO, "http://localhost:8081/userinfo");
+        if (secret != null) {
+            this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_SECRET, secret);
+        }
+
+        this.configuration.setAccessToken(new BearerAccessToken("expiredaccesstoken", 0, this.configuration.getScope()),
+            new RefreshToken("validrefreshtoken"));
+    }
+
+    @Test
     void getUserInfoDoesNotRefreshNonExpiredToken() throws Exception
     {
         this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_CLIENTID, "myclientid");
@@ -1434,14 +1524,21 @@ class OIDCUserManagerTest
         httpServer.createContext("/token", exchange -> {
             int httpCode = HttpURLConnection.HTTP_OK;
             JSONObject r = new JSONObject();
-            boolean authorized = false;
+            boolean authorized;
             String authorization = exchange.getRequestHeaders().getFirst("Authorization");
-            if (authorization.startsWith("Basic ")) {
+            Map<String, String> p = parseURLEncodedBody(exchange);
+            this.tokenRequestAuthorizations.add(String.valueOf(authorization));
+            this.tokenRequestParameters.add(p);
+            if (authorization != null && authorization.startsWith("Basic ")) {
+                // client_secret_basic
                 String[] decoded = new String(Base64.getDecoder().decode(authorization.substring(6))).split(":");
                 authorized = decoded[0].equals("myclientid") && decoded[1].equals("mysecret");
+            } else {
+                // client_secret_post, or a public client which only indicates its identifier
+                authorized = "myclientid".equals(p.get("client_id"))
+                    && (!p.containsKey("client_secret") || "mysecret".equals(p.get("client_secret")));
             }
             if (authorized) {
-                Map<String, String> p = parseURLEncodedBody(exchange);
                 r.put("access_token", "refreshedaccesstoken");
                 // A provider is not required to issue a new refresh token
                 if (!NOT_ROTATED_REFRESH_TOKEN.equals(p.get("refresh_token"))) {
