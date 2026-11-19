@@ -54,8 +54,6 @@ import com.nimbusds.oauth2.sdk.Scope;
 import com.nimbusds.oauth2.sdk.TokenRequest;
 import com.nimbusds.oauth2.sdk.TokenResponse;
 import com.nimbusds.oauth2.sdk.auth.ClientAuthentication;
-import com.nimbusds.oauth2.sdk.auth.ClientSecretBasic;
-import com.nimbusds.oauth2.sdk.auth.Secret;
 import com.nimbusds.oauth2.sdk.token.BearerTokenError;
 import com.nimbusds.oauth2.sdk.token.RefreshToken;
 import com.nimbusds.oauth2.sdk.token.Tokens;
@@ -255,12 +253,18 @@ public class OIDCUserManager
         }
 
         Endpoint tokenEndpoint = this.configuration.getTokenOIDCEndpoint();
-        ClientID clientID = this.configuration.getClientID();
-        Secret secret = this.configuration.getSecret();
-        ClientAuthentication clientAuth = new ClientSecretBasic(clientID, secret);
         Scope scope = this.configuration.getScope();
         URI uri = tokenEndpoint.getURI();
-        TokenRequest request = new TokenRequest(uri, clientAuth, new RefreshTokenGrant(refreshToken), scope);
+        RefreshTokenGrant grant = new RefreshTokenGrant(refreshToken);
+        // Authenticate the client the same way as when getting the tokens at login
+        ClientAuthentication clientAuth = this.configuration.getClientAuthentication();
+        TokenRequest request;
+        if (clientAuth != null) {
+            request = new TokenRequest(uri, clientAuth, grant, scope);
+        } else {
+            // A public client (without secret) only indicates its identifier
+            request = new TokenRequest(uri, this.configuration.getClientID(), grant, scope);
+        }
         HTTPRequest httpRequest = tokenEndpoint.prepare(request.toHTTPRequest());
         HTTPResponse httpResponse = httpRequest.send();
         if (httpResponse.indicatesSuccess()) {
