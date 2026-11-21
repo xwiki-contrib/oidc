@@ -207,8 +207,8 @@ public class OIDCAuthService extends XWikiAuthServiceImpl implements XWikiAuthSe
     }
 
     /**
-     * Restart the authentication of a user coming back after the session expired, asking the provider not to interact
-     * with the user: the provider sends the user right back, authenticated if its own session is still alive.
+     * Start an authentication asking the provider not to interact with the user: the provider sends the user right
+     * back, authenticated if its own session is alive.
      */
     private void startSilentAuthentication(XWikiContext context)
     {

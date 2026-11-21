@@ -326,6 +326,15 @@ public class OIDCClientConfiguration extends OIDCConfiguration
     public static final String PROP_SILENT_REAUTHENTICATION_COOKIE_MAXAGE = "oidc.silentReauthentication.cookieMaxAge";
 
     /**
+     * Whether to silently try to authenticate (without any user interaction) every visitor, and not only the ones who
+     * were authenticated before, so that the visitors already authenticated on the provider are authenticated right
+     * away.
+     *
+     * @since 2.31.0
+     */
+    public static final String PROP_SILENT_AUTHENTICATION = "oidc.silentAuthentication";
+
+    /**
      * @since 1.13
      */
     public static final String PROP_ENDPOINT_TOKEN_AUTH_METHOD =
@@ -1474,6 +1483,16 @@ public class OIDCClientConfiguration extends OIDCConfiguration
     {
         // 30 days
         return getProperty(PROP_SILENT_REAUTHENTICATION_COOKIE_MAXAGE, 2592000);
+    }
+
+    /**
+     * @return true if every visitor should be silently authenticated, and not only the ones who were authenticated
+     *     before
+     * @since 2.31.0
+     */
+    public boolean isSilentAuthenticationEnabled()
+    {
+        return getProperty(PROP_SILENT_AUTHENTICATION, false);
     }
 
     /**

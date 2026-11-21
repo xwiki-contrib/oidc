@@ -20,6 +20,7 @@
 package org.xwiki.contrib.oidc.auth.internal;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import javax.servlet.http.Cookie;
@@ -45,6 +46,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -100,12 +102,97 @@ class OIDCSilentReauthenticationTest
                 new Cookie(OIDCSilentReauthentication.COOKIE_NAME, "1") });
     }
 
+    private void withCookies(String... names)
+    {
+        Cookie[] cookies = new Cookie[names.length];
+        for (int i = 0; i < names.length; i++) {
+            cookies[i] = new Cookie(names[i], "1");
+        }
+        when(this.request.getCookies()).thenReturn(cookies);
+    }
+
     private Cookie addedCookie()
     {
         ArgumentCaptor<Cookie> captor = ArgumentCaptor.forClass(Cookie.class);
         verify(this.response).addCookie(captor.capture());
 
         return captor.getValue();
+    }
+
+    private List<Cookie> addedCookies(int count)
+    {
+        ArgumentCaptor<Cookie> captor = ArgumentCaptor.forClass(Cookie.class);
+        verify(this.response, times(count)).addCookie(captor.capture());
+
+        return captor.getAllValues();
+    }
+
+    @Test
+    void onLoginAfterLogout()
+    {
+        withCookies(OIDCSilentReauthentication.LOGGED_OUT_COOKIE_NAME);
+
+        this.silentReauthentication.onLogin();
+
+        List<Cookie> cookies = addedCookies(2);
+        assertEquals(OIDCSilentReauthentication.COOKIE_NAME, cookies.get(0).getName());
+        assertEquals(3600, cookies.get(0).getMaxAge());
+        assertEquals(OIDCSilentReauthentication.LOGGED_OUT_COOKIE_NAME, cookies.get(1).getName());
+        assertEquals(0, cookies.get(1).getMaxAge());
+    }
+
+    @Test
+    void onLogout()
+    {
+        withCookie();
+
+        this.silentReauthentication.onLogout();
+
+        List<Cookie> cookies = addedCookies(2);
+        assertEquals(OIDCSilentReauthentication.COOKIE_NAME, cookies.get(0).getName());
+        assertEquals(0, cookies.get(0).getMaxAge());
+        // Kept until the browser is closed
+        assertEquals(OIDCSilentReauthentication.LOGGED_OUT_COOKIE_NAME, cookies.get(1).getName());
+        assertEquals(-1, cookies.get(1).getMaxAge());
+    }
+
+    @Test
+    void startAttemptForAnyVisitor()
+    {
+        when(this.configuration.isSilentAuthenticationEnabled()).thenReturn(true);
+        when(this.request.getRequestedSessionId()).thenReturn("mysessionid");
+
+        assertTrue(this.silentReauthentication.startAttempt());
+        assertFalse(this.silentReauthentication.startAttempt());
+    }
+
+    @Test
+    void startAttemptForAnyVisitorWhenDisabled()
+    {
+        when(this.request.getRequestedSessionId()).thenReturn("mysessionid");
+
+        assertFalse(this.silentReauthentication.startAttempt());
+    }
+
+    /**
+     * A client which does not send back cookies (crawler) would start an authentication for each page.
+     */
+    @Test
+    void startAttemptForAnyVisitorWithoutSessionCookie()
+    {
+        when(this.configuration.isSilentAuthenticationEnabled()).thenReturn(true);
+
+        assertFalse(this.silentReauthentication.startAttempt());
+    }
+
+    @Test
+    void startAttemptAfterLogout()
+    {
+        withCookies(OIDCSilentReauthentication.COOKIE_NAME, OIDCSilentReauthentication.LOGGED_OUT_COOKIE_NAME);
+        when(this.configuration.isSilentAuthenticationEnabled()).thenReturn(true);
+        when(this.request.getRequestedSessionId()).thenReturn("mysessionid");
+
+        assertFalse(this.silentReauthentication.startAttempt());
     }
 
     @Test

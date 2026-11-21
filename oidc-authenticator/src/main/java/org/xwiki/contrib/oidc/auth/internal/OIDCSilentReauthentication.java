@@ -38,7 +38,8 @@ import org.xwiki.container.servlet.ServletResponse;
  * Remember in a cookie that the browser was authenticated through OpenID Connect, so that the authentication can be
  * silently restarted (without any user interaction, the provider answering right away as long as its own session is
  * still alive) when the user comes back after the HTTP session expired. The cookie holds no credential: it only tells
- * that a silent authentication is worth attempting.
+ * that a silent authentication is worth attempting. Optionally, a silent authentication is attempted for every visitor,
+ * so that the visitors already authenticated on the provider are authenticated right away.
  *
  * @version $Id$
  * @since 2.31.0
@@ -51,6 +52,12 @@ public class OIDCSilentReauthentication
      * The name of the cookie indicating that the browser was authenticated through OpenID Connect.
      */
     public static final String COOKIE_NAME = "oidcAuthenticated";
+
+    /**
+     * The name of the cookie indicating that the user explicitly logged out, in which case no silent authentication is
+     * attempted until the browser is closed or the user logs in again.
+     */
+    public static final String LOGGED_OUT_COOKIE_NAME = "oidcLoggedOut";
 
     /**
      * The HTTP session attribute indicating that a silent re-authentication was already attempted in the session.
@@ -69,19 +76,31 @@ public class OIDCSilentReauthentication
     public void onLogin()
     {
         if (this.configuration.isSilentReauthenticationEnabled()) {
-            setCookie("1", this.configuration.getSilentReauthenticationCookieMaxAge());
+            setCookie(COOKIE_NAME, "1", this.configuration.getSilentReauthenticationCookieMaxAge());
         }
+
+        removeCookie(LOGGED_OUT_COOKIE_NAME);
     }
 
     /**
-     * Forget that the browser was authenticated through OpenID Connect, after a logout or when the provider cannot
-     * authenticate the user without interaction anymore.
+     * Forget that the browser was authenticated through OpenID Connect, when the provider cannot authenticate the user
+     * without interaction anymore.
      */
     public void forget()
     {
-        if (hasCookie(getHttpServletRequest())) {
-            setCookie("", 0);
-        }
+        removeCookie(COOKIE_NAME);
+    }
+
+    /**
+     * Forget that the browser was authenticated through OpenID Connect, and don't silently authenticate the user again
+     * until the browser is closed or the user logs in again: the provider session might still be alive.
+     */
+    public void onLogout()
+    {
+        forget();
+
+        // A browser session cookie
+        setCookie(LOGGED_OUT_COOKIE_NAME, "1", -1);
     }
 
     /**
@@ -93,8 +112,7 @@ public class OIDCSilentReauthentication
     public boolean startAttempt()
     {
         HttpServletRequest request = getHttpServletRequest();
-        if (request == null || !this.configuration.isSilentReauthenticationEnabled() || !hasCookie(request)
-            || !isPageNavigation(request)) {
+        if (request == null || !isDue(request) || !isPageNavigation(request)) {
             return false;
         }
 
@@ -105,6 +123,21 @@ public class OIDCSilentReauthentication
         session.setAttribute(SESSION_ATTEMPTED, Boolean.TRUE);
 
         return true;
+    }
+
+    private boolean isDue(HttpServletRequest request)
+    {
+        if (hasCookie(request, LOGGED_OUT_COOKIE_NAME)) {
+            return false;
+        }
+
+        if (this.configuration.isSilentReauthenticationEnabled() && hasCookie(request, COOKIE_NAME)) {
+            return true;
+        }
+
+        // Any visitor, as long as the browser sends back cookies: otherwise the provider answer cannot be matched with
+        // the session which started the authentication, and the attempt would be repeated for each page (crawlers)
+        return this.configuration.isSilentAuthenticationEnabled() && request.getRequestedSessionId() != null;
     }
 
     /**
@@ -119,11 +152,11 @@ public class OIDCSilentReauthentication
             && !"XMLHttpRequest".equals(request.getHeader("X-Requested-With"));
     }
 
-    private boolean hasCookie(HttpServletRequest request)
+    private boolean hasCookie(HttpServletRequest request, String name)
     {
         if (request != null && request.getCookies() != null) {
             for (Cookie cookie : request.getCookies()) {
-                if (COOKIE_NAME.equals(cookie.getName())) {
+                if (name.equals(cookie.getName())) {
                     return true;
                 }
             }
@@ -132,12 +165,19 @@ public class OIDCSilentReauthentication
         return false;
     }
 
-    private void setCookie(String value, int maxAge)
+    private void removeCookie(String name)
+    {
+        if (hasCookie(getHttpServletRequest(), name)) {
+            setCookie(name, "", 0);
+        }
+    }
+
+    private void setCookie(String name, String value, int maxAge)
     {
         HttpServletRequest request = getHttpServletRequest();
         HttpServletResponse response = getHttpServletResponse();
         if (request != null && response != null) {
-            Cookie cookie = new Cookie(COOKIE_NAME, value);
+            Cookie cookie = new Cookie(name, value);
             cookie.setPath(StringUtils.defaultIfEmpty(request.getContextPath(), "/"));
             cookie.setMaxAge(maxAge);
             cookie.setHttpOnly(true);

@@ -1099,7 +1099,7 @@ public class OIDCUserManager
         JWT idToken = this.configuration.getIdTokenJWT();
 
         // Don't silently authenticate the user again when coming back
-        this.silentReauthentication.forget();
+        this.silentReauthentication.onLogout();
 
         // Logout the provider if configured, otherwise just logout locally
         try {
