@@ -152,6 +152,9 @@ public class OIDCUserManager
     private ClientHttpSessions sessions;
 
     @Inject
+    private OIDCSilentReauthentication silentReauthentication;
+
+    @Inject
     private OIDCManager manager;
 
     @Inject
@@ -1095,7 +1098,9 @@ public class OIDCUserManager
         ClientID clientID = this.configuration.getClientID();
         JWT idToken = this.configuration.getIdTokenJWT();
 
-        // TODO: remove cookies
+        // Don't silently authenticate the user again when coming back
+        this.silentReauthentication.forget();
+
         // Logout the provider if configured, otherwise just logout locally
         try {
             if (logoutEndpoint != null && clientID != null) {
