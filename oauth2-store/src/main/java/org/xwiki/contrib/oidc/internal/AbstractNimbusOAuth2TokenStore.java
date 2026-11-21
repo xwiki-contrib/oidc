@@ -235,6 +235,11 @@ public abstract class AbstractNimbusOAuth2TokenStore implements OAuth2TokenStore
 
             Set<OAuth2Token> tokens = new HashSet<>();
             for (BaseObject object : document.getXObjects(NimbusOAuth2Token.CLASS_REFERENCE)) {
+                // Removed xobjects leave a null entry in the list
+                if (object == null) {
+                    continue;
+                }
+
                 // Get the corresponding configuration
                 OIDCClientConfiguration configuration = oidcClientConfigurationStore.getOIDCClientConfiguration(
                     object.getStringValue(NimbusOAuth2Token.FIELD_CLIENT_CONFIGURATION_NAME));
