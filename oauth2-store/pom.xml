@@ -31,6 +31,10 @@
   <artifactId>oauth2-store</artifactId>
   <name>Storage module for oauth2 tokens</name>
 
+  <properties>
+    <xwiki.jacoco.instructionRatio>0.16</xwiki.jacoco.instructionRatio>
+  </properties>
+
   <dependencies>
     <dependency>
       <groupId>${project.groupId}</groupId>
