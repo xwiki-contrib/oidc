@@ -91,6 +91,7 @@ import org.xwiki.model.reference.SpaceReference;
 import org.xwiki.observation.ObservationManager;
 import org.xwiki.query.QueryException;
 import org.xwiki.script.ScriptContextManager;
+import org.xwiki.security.authorization.AuthorizationManager;
 import org.xwiki.user.SuperAdminUserReference;
 
 import com.nimbusds.common.contenttype.ContentType;
@@ -1049,10 +1050,11 @@ public class OIDCUserManager
                 + this.configuration.getXWikiUserNameFormater() + "] is empty");
         }
 
-        // Find not already existing document
+        // Find not already existing document, which would not be interpreted as the superadmin user
         DocumentReference reference = new DocumentReference(documentName, spaceReference);
         XWikiDocument document = xcontext.getWiki().getDocument(reference, xcontext);
-        for (int index = 0; !document.isNew(); ++index) {
+        for (int index = 0; !document.isNew()
+            || StringUtils.equalsIgnoreCase(reference.getName(), AuthorizationManager.SUPERADMIN_USER); ++index) {
             reference = new DocumentReference(documentName + '-' + index, spaceReference);
 
             document = xcontext.getWiki().getDocument(reference, xcontext);

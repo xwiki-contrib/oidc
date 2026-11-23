@@ -976,6 +976,112 @@ class OIDCUserManagerTest
         assertEquals("updatedGivenName", userObject.getStringValue("first_name"));
     }
 
+    /**
+     * Save a document holding the OpenID Connect user object of the authenticated user.
+     */
+    private void saveOIDCUserDocument(String space, String name, boolean userProfile) throws Exception
+    {
+        XWikiContext xcontext = this.oldcore.getXWikiContext();
+        DocumentReference reference = new DocumentReference(xcontext.getWikiId(), space, name);
+        XWikiDocument document = this.oldcore.getSpyXWiki().getDocument(reference, xcontext);
+        OIDCUser oidcUser = new OIDCUser(document.newXObject(this.oidcClassReference, xcontext));
+        oidcUser.setIssuer("http://issuer");
+        oidcUser.setSubject("subject");
+        if (userProfile) {
+            document.newXObject(this.oldcore.getSpyXWiki().getUserClass(xcontext).getDocumentReference(), xcontext);
+        }
+        this.oldcore.getSpyXWiki().saveDocument(document, xcontext);
+    }
+
+    /**
+     * Make the search of the documents associated with an OpenID Connect identity return the passed documents, in
+     * that order.
+     */
+    private void mockOIDCUserSearch(String... documents) throws Exception
+    {
+        Query query = mock(Query.class);
+        when(this.queryManager.createQuery(Mockito.anyString(), Mockito.anyString())).thenReturn(query);
+        when(query.bindValue(Mockito.anyString(), Mockito.any())).thenReturn(query);
+        when(query.execute()).thenReturn(Arrays.asList(documents));
+    }
+
+    private void mockOIDCUserDocument(String space, String name, boolean userProfile) throws Exception
+    {
+        saveOIDCUserDocument(space, name, userProfile);
+        mockOIDCUserSearch(space + '.' + name);
+    }
+
+    @Test
+    void updateUserWithSeveralDocuments() throws Exception
+    {
+        saveOIDCUserDocument("Sandbox", "Page", false);
+        saveOIDCUserDocument("XWiki", "olderuser", true);
+        saveOIDCUserDocument("XWiki", "neweruser", true);
+        mockOIDCUserSearch("Sandbox.Page", "XWiki.olderuser", "XWiki.neweruser");
+
+        Principal principal = this.manager.updateUser(new UserInfo(new Subject("subject")));
+
+        // The first user profile in the search order is used
+        assertEquals("xwiki:XWiki.olderuser", principal.getName());
+        assertEquals(2, this.logCapture.size());
+        assertEquals("Ignoring the OpenID Connect user object of document [xwiki:Sandbox.Page]: it's not a user"
+            + " profile", this.logCapture.getMessage(0));
+        assertEquals("Several documents are associated with the OpenID Connect identity with issuer [http://issuer]"
+            + " and subject [subject]: [Sandbox.Page, XWiki.olderuser, XWiki.neweruser]. The oldest user"
+            + " profile, [xwiki:XWiki.olderuser], is used.", this.logCapture.getMessage(1));
+    }
+
+    @Test
+    void updateUserIgnoresDocumentNamedSuperadmin() throws Exception
+    {
+        mockOIDCUserDocument("Sandbox", "SuperAdmin", true);
+
+        Principal principal = this.manager.updateUser(new UserInfo(new Subject("subject")));
+
+        // A new account is created instead
+        assertEquals("xwiki:XWiki.issuer-subject", principal.getName());
+        assertEquals(1, this.logCapture.size());
+        assertEquals("Ignoring the OpenID Connect user object of document [xwiki:Sandbox.SuperAdmin]: its name is"
+            + " reserved for the superadmin user", this.logCapture.getMessage(0));
+    }
+
+    @Test
+    void updateUserIgnoresDocumentWhichIsNotUserProfile() throws Exception
+    {
+        mockOIDCUserDocument("Sandbox", "Page", false);
+
+        Principal principal = this.manager.updateUser(new UserInfo(new Subject("subject")));
+
+        // A new account is created instead
+        assertEquals("xwiki:XWiki.issuer-subject", principal.getName());
+        assertEquals(1, this.logCapture.size());
+        assertEquals("Ignoring the OpenID Connect user object of document [xwiki:Sandbox.Page]: it's not a user"
+            + " profile", this.logCapture.getMessage(0));
+    }
+
+    @Test
+    void updateUserWithExistingUserProfile() throws Exception
+    {
+        mockOIDCUserDocument("XWiki", "existinguser", true);
+
+        Principal principal = this.manager.updateUser(new UserInfo(new Subject("subject")));
+
+        assertEquals("xwiki:XWiki.existinguser", principal.getName());
+    }
+
+    @Test
+    void updateUserWithNameFormatterProducingSuperadmin() throws Exception
+    {
+        this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_USER_NAMEFORMATER,
+            "${oidc.user.preferredUsername}");
+
+        UserInfo userInfo = new UserInfo(new Subject("subject"));
+        userInfo.setPreferredUsername("SuperAdmin");
+        Principal principal = this.manager.updateUser(userInfo);
+
+        assertEquals("xwiki:XWiki.SuperAdmin-0", principal.getName());
+    }
+
     @Test
     void updateUserInfoWithNotAllowedGroup()
     {

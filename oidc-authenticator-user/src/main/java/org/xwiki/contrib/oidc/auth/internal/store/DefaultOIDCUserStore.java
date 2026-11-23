@@ -27,15 +27,19 @@ import javax.inject.Provider;
 import javax.inject.Singleton;
 
 import org.apache.commons.lang3.StringUtils;
+import org.slf4j.Logger;
 import org.xwiki.component.annotation.Component;
 import org.xwiki.contrib.oidc.auth.store.OIDCUser;
 import org.xwiki.contrib.oidc.auth.store.OIDCUserStore;
 import org.xwiki.model.reference.DocumentReference;
 import org.xwiki.model.reference.DocumentReferenceResolver;
+import org.xwiki.model.reference.LocalDocumentReference;
 import org.xwiki.query.Query;
 import org.xwiki.query.QueryException;
 import org.xwiki.query.QueryManager;
+import org.xwiki.security.authorization.AuthorizationManager;
 
+import com.xpn.xwiki.XWiki;
 import com.xpn.xwiki.XWikiContext;
 import com.xpn.xwiki.XWikiException;
 import com.xpn.xwiki.doc.XWikiDocument;
@@ -49,8 +53,14 @@ import com.xpn.xwiki.doc.XWikiDocument;
 @Singleton
 public class DefaultOIDCUserStore implements OIDCUserStore
 {
+    private static final LocalDocumentReference USER_CLASS_REFERENCE =
+        new LocalDocumentReference(XWiki.SYSTEM_SPACE, "XWikiUsers");
+
     @Inject
     private QueryManager queries;
+
+    @Inject
+    private Logger logger;
 
     @Inject
     private Provider<XWikiContext> xcontextProvider;
@@ -84,29 +94,64 @@ public class DefaultOIDCUserStore implements OIDCUserStore
     @Override
     public XWikiDocument searchDocument(String issuer, String subject) throws XWikiException, QueryException
     {
+        // Order the documents by creation date so that the same document keeps being used when another one gets
+        // associated with the same identity later (the full name only makes the order stable for documents created
+        // at the same time)
         Query query = this.queries.createQuery("from doc.object(" + OIDCUser.CLASS_FULLNAME
-            + ") as oidc where oidc.issuer = :issuer and oidc.subject = :subject", Query.XWQL);
+            + ") as oidc where oidc.issuer = :issuer and oidc.subject = :subject"
+            + " order by doc.creationDate asc, doc.fullName asc", Query.XWQL);
 
         query.bindValue("issuer", issuer);
         query.bindValue("subject", subject);
 
         List<String> documents = query.execute();
 
-        if (documents.isEmpty()) {
-            return null;
-        }
-
-        // TODO: throw exception when there is several ?
-
         XWikiContext xcontext = this.xcontextProvider.get();
 
-        DocumentReference userReference = this.resolver.resolve(documents.get(0));
-        XWikiDocument userDocument = xcontext.getWiki().getDocument(userReference, xcontext);
+        for (String document : documents) {
+            DocumentReference userReference = this.resolver.resolve(document);
+            XWikiDocument userDocument = xcontext.getWiki().getDocument(userReference, xcontext);
 
-        if (userDocument.isNew()) {
-            return null;
+            if (isUserDocument(userDocument)) {
+                if (documents.size() > 1) {
+                    this.logger.warn("Several documents are associated with the OpenID Connect identity with issuer"
+                        + " [{}] and subject [{}]: {}. The oldest user profile, [{}], is used.", issuer, subject,
+                        documents, userReference);
+                }
+
+                return userDocument;
+            }
         }
 
-        return userDocument;
+        return null;
+    }
+
+    /**
+     * The OpenID Connect user object can be added to any document by anyone allowed to edit it, so the document needs
+     * to be checked before using it as the account of the user.
+     */
+    private boolean isUserDocument(XWikiDocument document)
+    {
+        if (document.isNew()) {
+            return false;
+        }
+
+        // The name of a document is enough to be interpreted as the superadmin user
+        if (StringUtils.equalsIgnoreCase(document.getDocumentReference().getName(),
+            AuthorizationManager.SUPERADMIN_USER)) {
+            this.logger.warn("Ignoring the OpenID Connect user object of document [{}]: its name is reserved for the"
+                + " superadmin user", document.getDocumentReference());
+
+            return false;
+        }
+
+        if (document.getXObject(USER_CLASS_REFERENCE) == null) {
+            this.logger.warn("Ignoring the OpenID Connect user object of document [{}]: it's not a user profile",
+                document.getDocumentReference());
+
+            return false;
+        }
+
+        return true;
     }
 }
