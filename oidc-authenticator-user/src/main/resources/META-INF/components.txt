@@ -1,2 +1,3 @@
 org.xwiki.contrib.oidc.auth.internal.store.DefaultOIDCUserStore
 org.xwiki.contrib.oidc.auth.internal.store.OIDCUserClassDocumentInitializer
+org.xwiki.contrib.oidc.auth.internal.store.OIDCUserListener
