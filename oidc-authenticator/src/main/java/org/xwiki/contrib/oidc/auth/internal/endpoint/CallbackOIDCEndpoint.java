@@ -27,6 +27,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.Lock;
 
@@ -45,6 +46,7 @@ import org.xwiki.contrib.oidc.auth.internal.Endpoint;
 import org.xwiki.contrib.oidc.auth.internal.InvalidAccessTokenException;
 import org.xwiki.contrib.oidc.auth.internal.OIDCClientConfiguration;
 import org.xwiki.contrib.oidc.auth.internal.OIDCIdTokenValidator;
+import org.xwiki.contrib.oidc.auth.internal.OIDCSilentReauthentication;
 import org.xwiki.contrib.oidc.auth.internal.OIDCTokenRequestHelper;
 import org.xwiki.contrib.oidc.auth.internal.OIDCUserManager;
 import org.xwiki.contrib.oidc.auth.internal.session.ClientHttpSessions;
@@ -107,6 +109,13 @@ public class CallbackOIDCEndpoint implements OIDCEndpoint
      */
     public static final String HINT = "authenticator/callback";
 
+    /**
+     * The errors sent back by the provider when it cannot authenticate the user without interaction.
+     */
+    private static final Set<String> SILENT_AUTHENTICATION_ERRORS =
+        Set.of(OIDCError.LOGIN_REQUIRED.getCode(), OIDCError.INTERACTION_REQUIRED.getCode(),
+            OIDCError.CONSENT_REQUIRED.getCode(), OIDCError.ACCOUNT_SELECTION_REQUIRED.getCode());
+
     @Inject
     private Container container;
 
@@ -131,6 +140,9 @@ public class CallbackOIDCEndpoint implements OIDCEndpoint
 
     @Inject
     private ClientHttpSessions sessions;
+
+    @Inject
+    private OIDCSilentReauthentication silentReauthentication;
 
     @Inject
     private Logger logger;
@@ -304,15 +316,18 @@ public class CallbackOIDCEndpoint implements OIDCEndpoint
         return null;
     }
 
-    private Response handleError(AuthorizationErrorResponse errorResponse) throws URISyntaxException
+    private Response handleError(AuthorizationErrorResponse errorResponse)
     {
-        // If impossible to authenticate without prompt, just ignore and redirect
-        if (OIDCError.INTERACTION_REQUIRED.getCode().equals(errorResponse.getErrorObject().getCode())
-            || OIDCError.LOGIN_REQUIRED.getCode().equals(errorResponse.getErrorObject().getCode())) {
-            this.logger.debug("Impossible to authenticate, redirect to ([{}])", errorResponse.getState().getValue());
+        // The provider cannot authenticate the user without interaction (silent authentication): the user stays
+        // unauthenticated and goes back to the initial request, and no other silent authentication is attempted until
+        // the user logs in again
+        if (SILENT_AUTHENTICATION_ERRORS.contains(errorResponse.getErrorObject().getCode())) {
+            this.logger.debug("Impossible to authenticate without interaction, redirect to [{}]",
+                this.configuration.getSuccessRedirectURI());
 
-            // Redirect to original request
-            return new RedirectResponse(new URI(errorResponse.getState().getValue()));
+            this.silentReauthentication.forget();
+
+            return new RedirectResponse(this.configuration.getSuccessRedirectURI());
         }
 
         // Unknown error
@@ -350,9 +365,9 @@ public class CallbackOIDCEndpoint implements OIDCEndpoint
         // Remember the session of that OIDC user (to be able to do back channel logout)
         this.sessions.onLogin(session, idToken.getSubject());
 
-        // TODO: put enough information in the cookie to automatically authenticate when coming back after the
-        // session
-        // is lost
+        // Remember the authentication beyond the session, to be able to silently restart it when the user comes back
+        // after the session expired
+        this.silentReauthentication.onLogin();
 
         this.logger.debug("OIDC callback: principal=[{}]", principal);
     }

@@ -1,6 +1,7 @@
 org.xwiki.contrib.oidc.auth.internal.OIDCAuthService
 org.xwiki.contrib.oidc.auth.internal.OIDCClientConfiguration
 org.xwiki.contrib.oidc.auth.internal.OIDCIdTokenValidator
+org.xwiki.contrib.oidc.auth.internal.OIDCSilentReauthentication
 org.xwiki.contrib.oidc.auth.internal.OIDCUserManager
 org.xwiki.contrib.oidc.auth.internal.endpoint.BackChannelLogoutOIDCEndpoint
 org.xwiki.contrib.oidc.auth.internal.endpoint.CallbackOIDCEndpoint

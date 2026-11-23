@@ -47,6 +47,7 @@ import org.xwiki.container.servlet.ServletSession;
 import org.xwiki.contrib.oidc.OAuth2TokenStore;
 import org.xwiki.contrib.oidc.auth.internal.OIDCClientConfiguration;
 import org.xwiki.contrib.oidc.auth.internal.OIDCIdTokenValidator;
+import org.xwiki.contrib.oidc.auth.internal.OIDCSilentReauthentication;
 import org.xwiki.contrib.oidc.auth.internal.OIDCUserManager;
 import org.xwiki.contrib.oidc.auth.internal.session.ClientHttpSessions;
 import org.xwiki.contrib.oidc.auth.internal.session.ClientProviders;
@@ -182,6 +183,9 @@ class CallbackOIDCEndpointTest
 
     @MockComponent
     OIDCClientsConfigurationStore clientsConfigurationStore;
+
+    @MockComponent
+    private OIDCSilentReauthentication silentReauthentication;
 
     @InjectMockComponents
     private CallbackOIDCEndpoint endpoint;
@@ -614,6 +618,34 @@ class CallbackOIDCEndpointTest
         assertEquals(SUCCESS_URI, response.toHTTPResponse().getLocation());
 
         verify(this.httpSession).setAttribute(eq(SecurityRequestWrapper.PRINCIPAL_SESSION_KEY), any());
+        verify(this.silentReauthentication).onLogin();
+    }
+
+    /**
+     * When a silent authentication fails because the provider cannot authenticate the user without interaction, the
+     * user goes back to the initial request, still unauthenticated, and no other silent authentication is attempted.
+     */
+    @Test
+    void callbackWithLoginRequired() throws Exception
+    {
+        startAuthorization(STATE, NONCE, new CodeVerifier(), SUCCESS_URI);
+
+        Response response = callback("error=login_required&state=" + STATE);
+
+        assertEquals(SUCCESS_URI, response.toHTTPResponse().getLocation());
+        assertNotAuthenticated();
+        verify(this.silentReauthentication).forget();
+        verify(this.silentReauthentication, never()).onLogin();
+    }
+
+    @Test
+    void callbackWithUnexpectedError() throws Exception
+    {
+        startAuthorization(STATE, NONCE, new CodeVerifier(), SUCCESS_URI);
+
+        assertErrorResponse(HTTPResponse.SC_SERVER_ERROR, "Unexpected error [access_denied] : null",
+            callback("error=access_denied&state=" + STATE));
+        verify(this.silentReauthentication, never()).forget();
     }
 
     /**

@@ -311,6 +311,30 @@ public class OIDCClientConfiguration extends OIDCConfiguration
     public static final String PROP_TRYLOCAL = "oidc.tryLocal";
 
     /**
+     * Whether to silently restart the authentication (without any user interaction) of a user coming back after the
+     * HTTP session expired.
+     *
+     * @since 2.31.0
+     */
+    public static final String PROP_SILENT_REAUTHENTICATION = "oidc.silentReauthentication";
+
+    /**
+     * How long after the last authentication a silent re-authentication is still attempted, in seconds.
+     *
+     * @since 2.31.0
+     */
+    public static final String PROP_SILENT_REAUTHENTICATION_COOKIE_MAXAGE = "oidc.silentReauthentication.cookieMaxAge";
+
+    /**
+     * Whether to silently try to authenticate (without any user interaction) every visitor, and not only the ones who
+     * were authenticated before, so that the visitors already authenticated on the provider are authenticated right
+     * away.
+     *
+     * @since 2.31.0
+     */
+    public static final String PROP_SILENT_AUTHENTICATION = "oidc.silentAuthentication";
+
+    /**
      * @since 1.13
      */
     public static final String PROP_ENDPOINT_TOKEN_AUTH_METHOD =
@@ -1439,6 +1463,36 @@ public class OIDCClientConfiguration extends OIDCConfiguration
     public boolean isTryLocalEnabled()
     {
         return getProperty(PROP_TRYLOCAL, true);
+    }
+
+    /**
+     * @return true if the authentication of a user coming back after the HTTP session expired should be silently
+     *     restarted
+     * @since 2.31.0
+     */
+    public boolean isSilentReauthenticationEnabled()
+    {
+        return getProperty(PROP_SILENT_REAUTHENTICATION, true);
+    }
+
+    /**
+     * @return how long after the last authentication a silent re-authentication is still attempted, in seconds
+     * @since 2.31.0
+     */
+    public int getSilentReauthenticationCookieMaxAge()
+    {
+        // 30 days
+        return getProperty(PROP_SILENT_REAUTHENTICATION_COOKIE_MAXAGE, 2592000);
+    }
+
+    /**
+     * @return true if every visitor should be silently authenticated, and not only the ones who were authenticated
+     *     before
+     * @since 2.31.0
+     */
+    public boolean isSilentAuthenticationEnabled()
+    {
+        return getProperty(PROP_SILENT_AUTHENTICATION, false);
     }
 
     /**
