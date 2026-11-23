@@ -212,7 +212,7 @@ public class OIDCProviderStore
     public void setAuthorizationCode(AuthorizationCode code, DocumentReference userReference, Nonce nonce)
     {
         if (code != null) {
-            this.logger.debug("Remember authorization code [{}]", code);
+            this.logger.debug("Remember an authorization code for user [{}]", userReference);
 
             this.observation.notify(new AuthorizationCodeCreatedEvent(code),
                 new AuthorizationSession(userReference, nonce));
@@ -225,7 +225,7 @@ public class OIDCProviderStore
     public void deleteAuthorizationCode(AuthorizationCode code)
     {
         if (code != null) {
-            this.logger.debug("Delete authorization code [{}]", code);
+            this.logger.debug("Delete an authorization code");
 
             this.observation.notify(new AuthorizationCodeDeletedEvent(code), null);
         }

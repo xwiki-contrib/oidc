@@ -102,8 +102,8 @@ public class TokenOIDCEndpoint implements OIDCEndpoint
         if (authorizationGrant.getType() == GrantType.AUTHORIZATION_CODE) {
             AuthorizationCodeGrant grant = (AuthorizationCodeGrant) authorizationGrant;
 
-            this.logger.debug("OIDC.token: Grant request: code={} redirectionURI={} clientID={}",
-                grant.getAuthorizationCode(), grant.getRedirectionURI(), clientID);
+            this.logger.debug("OIDC.token: Grant request: redirectionURI={} clientID={}", grant.getRedirectionURI(),
+                clientID);
 
             BaseObjectOIDCConsent consent =
                 this.providerStore.getConsent(clientID, grant.getRedirectionURI(), grant.getAuthorizationCode());

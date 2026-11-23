@@ -177,6 +177,12 @@ class OIDCUserManagerTest
 
     private static final String NOT_ROTATED_REFRESH_TOKEN = "notrotatedrefreshtoken";
 
+    // A refresh token the fake provider token endpoint rejects with a standard OAuth2 error
+    private static final String EXPIRED_REFRESH_TOKEN = "expiredrefreshtoken";
+
+    // A refresh token the fake provider token endpoint rejects with a response which is not an OAuth2 error
+    private static final String REJECTED_REFRESH_TOKEN = "rejectedrefreshtoken";
+
     private static final String KEY_ID = "providerkey";
 
     /**
@@ -1091,6 +1097,41 @@ class OIDCUserManagerTest
         }
     }
 
+    private void assertRefreshFailure(String refreshToken, String expectedMessage) throws Exception
+    {
+        this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_CLIENTID, "myclientid");
+        this.oldcore.getConfigurationSource()
+            .setProperty(OIDCClientConfiguration.PROP_PROVIDER, "http://localhost:8081/");
+        this.oldcore.getConfigurationSource()
+            .setProperty(OIDCClientConfiguration.PROP_ENDPOINT_USERINFO, "http://localhost:8081/userinfo");
+        this.oldcore.getConfigurationSource().setProperty(OIDCClientConfiguration.PROP_SECRET, "mysecret");
+
+        this.configuration.setAccessToken(new BearerAccessToken("expiredaccesstoken", 0, this.configuration.getScope()),
+            new RefreshToken(refreshToken));
+        HttpServer server = startServer();
+        try {
+            InvalidAccessTokenException exception =
+                assertThrows(InvalidAccessTokenException.class, () -> this.manager.getUserInfo());
+            assertEquals(expectedMessage, exception.getMessage());
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
+    void getUserInfoWhenRefreshTokenIsRejectedWithOAuth2Error() throws Exception
+    {
+        assertRefreshFailure(EXPIRED_REFRESH_TOKEN, "Failed to refresh the access token: [invalid_grant] Token is not "
+            + "active (HTTP status [400 Bad Request])");
+    }
+
+    @Test
+    void getUserInfoWhenRefreshTokenIsRejectedWithoutOAuth2Error() throws Exception
+    {
+        assertRefreshFailure(REJECTED_REFRESH_TOKEN,
+            "Failed to refresh the access token: Proxy error (HTTP status [502 Bad Gateway])");
+    }
+
     @Test
     void getUserInfoRefreshesExpiredTokenWithoutNewRefreshToken() throws Exception
     {
@@ -1716,6 +1757,20 @@ class OIDCUserManagerTest
             Map<String, String> p = parseURLEncodedBody(exchange);
             this.tokenRequestAuthorizations.add(String.valueOf(authorization));
             this.tokenRequestParameters.add(p);
+            if (EXPIRED_REFRESH_TOKEN.equals(p.get("refresh_token"))) {
+                r.put("error", "invalid_grant");
+                r.put("error_description", "Token is not active");
+                sendResponse(exchange, r, HttpURLConnection.HTTP_BAD_REQUEST);
+                return;
+            }
+            if (REJECTED_REFRESH_TOKEN.equals(p.get("refresh_token"))) {
+                byte[] response = "Proxy error".getBytes(StandardCharsets.UTF_8);
+                exchange.getResponseHeaders().add("Content-Type", "text/plain");
+                exchange.sendResponseHeaders(HttpURLConnection.HTTP_BAD_GATEWAY, response.length);
+                exchange.getResponseBody().write(response);
+                exchange.close();
+                return;
+            }
             if (authorization != null && authorization.startsWith("Basic ")) {
                 // client_secret_basic
                 String[] decoded = new String(Base64.getDecoder().decode(authorization.substring(6))).split(":");

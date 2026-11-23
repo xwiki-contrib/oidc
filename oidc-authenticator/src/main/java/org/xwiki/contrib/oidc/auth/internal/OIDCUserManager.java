@@ -49,8 +49,10 @@ import javax.script.ScriptContext;
 import javax.servlet.http.HttpSession;
 
 import com.nimbusds.oauth2.sdk.AccessTokenResponse;
+import com.nimbusds.oauth2.sdk.ErrorObject;
 import com.nimbusds.oauth2.sdk.RefreshTokenGrant;
 import com.nimbusds.oauth2.sdk.Scope;
+import com.nimbusds.oauth2.sdk.TokenErrorResponse;
 import com.nimbusds.oauth2.sdk.TokenRequest;
 import com.nimbusds.oauth2.sdk.TokenResponse;
 import com.nimbusds.oauth2.sdk.auth.ClientAuthentication;
@@ -209,6 +211,8 @@ public class OIDCUserManager
                 if (httpSession != null) {
                     logger.debug("Failed to update user info while refreshing the token, invalidating the session", e);
                     this.sessions.logout(httpSession);
+                } else {
+                    logger.debug("Failed to update user info while refreshing the token", e);
                 }
             } catch (Exception e) {
                 logger.error("Failed to update user informations", e);
@@ -282,16 +286,56 @@ public class OIDCUserManager
             // (see https://datatracker.ietf.org/doc/html/rfc6749#section-6)
             if (tokens.getRefreshToken() != null) {
                 refreshToken = tokens.getRefreshToken();
+                OIDCTokenRequestHelper.logRefreshTokenExpiration(successResponse, this.logger);
+            } else {
+                this.logger.debug("The provider did not send a new refresh token, the current one is kept");
             }
             this.configuration.setAccessToken(accessToken, refreshToken);
             logger.debug("Successfully refresh the access token");
 
             updateIdToken(httpResponse);
         } else {
-            logger.debug("Failed to refresh the access token, got status [{}]: [{}]", httpResponse.getStatusCode(),
-                httpResponse.getStatusMessage());
-            throw new InvalidAccessTokenException();
+            throw new InvalidAccessTokenException(
+                "Failed to refresh the access token: " + getTokenErrorReason(httpResponse));
         }
+    }
+
+    /**
+     * Describe why the token endpoint rejected a request, from the OAuth2 error it sent (see
+     * <a href="https://datatracker.ietf.org/doc/html/rfc6749#section-5.2">RFC 6749 section 5.2</a>), for example
+     * {@code [invalid_grant] Token is not active (HTTP status [400 Bad Request])} for an expired refresh token.
+     */
+    private String getTokenErrorReason(HTTPResponse httpResponse)
+    {
+        StringBuilder reason = new StringBuilder();
+
+        ErrorObject error;
+        try {
+            error = TokenErrorResponse.parse(httpResponse).getErrorObject();
+        } catch (com.nimbusds.oauth2.sdk.ParseException e) {
+            error = null;
+        }
+        if (error != null && error.getCode() != null) {
+            reason.append('[').append(error.getCode()).append(']');
+            if (error.getDescription() != null) {
+                reason.append(' ').append(error.getDescription());
+            }
+            if (error.getURI() != null) {
+                reason.append(" (").append(error.getURI()).append(')');
+            }
+        } else {
+            // Not a standard OAuth2 error response, the body is the only available indication
+            String body = StringUtils.abbreviate(StringUtils.normalizeSpace(httpResponse.getBody()), 500);
+            reason.append(StringUtils.defaultIfBlank(body, "no error indicated by the provider"));
+        }
+
+        reason.append(" (HTTP status [").append(httpResponse.getStatusCode());
+        if (StringUtils.isNotBlank(httpResponse.getStatusMessage())) {
+            reason.append(' ').append(httpResponse.getStatusMessage());
+        }
+        reason.append("])");
+
+        return reason.toString();
     }
 
     /**
@@ -346,8 +390,9 @@ public class OIDCUserManager
             new UserInfoRequest(userInfoEndpoint.getURI(), this.configuration.getUserInfoEndPointMethod(), accessToken);
         HTTPRequest userinfoHTTP = userinfoRequest.toHTTPRequest();
         userInfoEndpoint.prepare(userinfoHTTP);
-        this.logger.debug("OIDC user info request ({}:{},{})", userinfoHTTP.getMethod(), userinfoHTTP.getURL(),
-            userinfoHTTP.getHeaderMap());
+        // Don't log the values of the headers, they contain the access token
+        this.logger.debug("OIDC user info request ({}:{}, headers {})", userinfoHTTP.getMethod(),
+            userinfoHTTP.getURL(), userinfoHTTP.getHeaderMap().keySet());
         HTTPResponse httpResponse = userinfoHTTP.send();
         this.logger.debug("OIDC user info response ({})", httpResponse.getBody());
         UserInfoResponse userinfoResponse = UserInfoResponse.parse(httpResponse);

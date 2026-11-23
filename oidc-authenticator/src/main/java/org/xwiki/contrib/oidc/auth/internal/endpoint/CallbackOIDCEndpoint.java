@@ -238,16 +238,19 @@ public class CallbackOIDCEndpoint implements OIDCEndpoint
         AccessToken accessToken = authenticationResponse.getAccessToken();
         RefreshToken refreshToken = null;
 
-        this.logger.debug("Auth response: the provider sent back the access token [{}]", accessToken);
-        if (accessToken == null) {
-            this.logger.debug("Auth response: the provider did not sent back the authorization code [{}]",
-                authenticationResponse.getAuthorizationCode());
+        if (accessToken != null) {
+            this.logger.debug("Auth response: the provider sent back an access token of type [{}]",
+                accessToken.getType());
+        } else {
+            this.logger.debug("Auth response: the provider did not send back an access token, authorization code "
+                + "received: [{}]", authenticationResponse.getAuthorizationCode() != null);
 
             if (authenticationResponse.getAuthorizationCode() != null) {
                 OIDCTokenResponse tokenResponse = requestTokenFromAuthenticationResponse(authenticationResponse);
 
                 accessToken = tokenResponse.getTokens().getBearerAccessToken();
                 refreshToken = tokenResponse.getTokens().getRefreshToken();
+                OIDCTokenRequestHelper.logRefreshTokenExpiration(tokenResponse, this.logger);
 
                 // Also parse and validate the id token if we don't already have it
                 if (configuration.isAuthenticationConfiguration() && idToken == null) {

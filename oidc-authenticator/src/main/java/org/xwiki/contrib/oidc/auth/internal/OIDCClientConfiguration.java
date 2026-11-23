@@ -1858,8 +1858,7 @@ public class OIDCClientConfiguration extends OIDCConfiguration
                     tokenStore.getConfiguredObjectReference(wikiConfiguration), accessToken, refreshToken);
                 tokenStore.saveToken(token);
             } catch (OAuth2Exception | XWikiException e) {
-                logger.error("Failed to save access token [{}] for configuration [{}]", accessToken, wikiConfiguration,
-                    e);
+                logger.error("Failed to save the access token for configuration [{}]", wikiConfiguration, e);
             }
         }
     }
@@ -1903,7 +1902,7 @@ public class OIDCClientConfiguration extends OIDCConfiguration
             return value != null ? JWTParser.parse(value) : null;
         } catch (java.text.ParseException e) {
             // Should never happen since the value was serialized from a IDTokenClaimsSet
-            this.logger.error("Failed to parse the id token JWT from the session with value [{}]", value, e);
+            this.logger.error("Failed to parse the id token JWT from the session", e);
 
             // Return null in that case
             return null;

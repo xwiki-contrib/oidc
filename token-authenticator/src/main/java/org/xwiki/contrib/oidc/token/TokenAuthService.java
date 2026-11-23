@@ -117,7 +117,7 @@ public class TokenAuthService implements XWikiAuthService
                 return user;
             }
         } catch (Exception e) {
-            LOGGER.debug("Failed to get OIDC user from HTTP authorization [" + authorization + "]", e);
+            LOGGER.debug("Failed to get OIDC user from the HTTP authorization header", e);
         }
 
         return getAuthService().checkAuth(context);
