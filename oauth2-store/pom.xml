@@ -31,6 +31,10 @@
   <artifactId>oauth2-store</artifactId>
   <name>Storage module for oauth2 tokens</name>
 
+  <properties>
+    <xwiki.jacoco.instructionRatio>0.16</xwiki.jacoco.instructionRatio>
+  </properties>
+
   <dependencies>
     <dependency>
       <groupId>${project.groupId}</groupId>
@@ -47,6 +51,21 @@
       <groupId>org.xwiki.platform</groupId>
       <artifactId>xwiki-platform-oldcore</artifactId>
       <version>${platform.version}</version>
+    </dependency>
+
+    <!-- Test dependencies -->
+    <dependency>
+      <groupId>org.xwiki.commons</groupId>
+      <artifactId>xwiki-commons-tool-test-component</artifactId>
+      <version>${commons.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.xwiki.platform</groupId>
+      <artifactId>xwiki-platform-test-oldcore</artifactId>
+      <version>${platform.version}</version>
+      <type>pom</type>
+      <scope>test</scope>
     </dependency>
   </dependencies>
 </project>
