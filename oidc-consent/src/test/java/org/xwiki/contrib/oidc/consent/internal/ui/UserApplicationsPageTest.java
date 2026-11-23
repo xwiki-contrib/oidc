@@ -20,6 +20,7 @@
 package org.xwiki.contrib.oidc.consent.internal.ui;
 
 import java.util.List;
+import java.util.Map;
 
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -32,11 +33,25 @@ import org.xwiki.contrib.oidc.consent.internal.store.BaseObjectOIDCConsent;
 import org.xwiki.contrib.oidc.consent.internal.store.OIDCConsentStore;
 import org.xwiki.contrib.oidc.consent.script.OIDCConsentScriptService;
 import org.xwiki.contrib.oidc.script.OIDCScriptService;
+import org.xwiki.csrf.script.CSRFTokenScriptService;
 import org.xwiki.icon.IconManagerScriptService;
 import org.xwiki.localization.macro.internal.TranslationMacro;
 import org.xwiki.model.reference.DocumentReference;
 import org.xwiki.model.reference.LocalDocumentReference;
 import org.xwiki.properties.converter.Converter;
+import org.xwiki.rendering.configuration.ExtendedRenderingConfiguration;
+import org.xwiki.rendering.internal.code.layout.PlainLayoutHandler;
+import org.xwiki.rendering.internal.macro.code.CodeMacro;
+import org.xwiki.rendering.internal.macro.code.source.CodeMacroSourceReferenceConverter;
+import org.xwiki.rendering.internal.macro.code.source.DefaultCodeMacroSourceFactory;
+import org.xwiki.rendering.internal.macro.code.source.StringCodeMacroSourceFactory;
+import org.xwiki.rendering.internal.macro.message.ErrorMessageMacro;
+import org.xwiki.rendering.internal.macro.message.InfoMessageMacro;
+import org.xwiki.rendering.internal.macro.message.SuccessMessageMacro;
+import org.xwiki.rendering.internal.macro.message.WarningMessageMacro;
+import org.xwiki.rendering.internal.syntax.SyntaxConverter;
+import org.xwiki.rendering.macro.MacroCategoryManager;
+import org.xwiki.rendering.script.RenderingScriptService;
 import org.xwiki.rendering.syntax.Syntax;
 import org.xwiki.script.service.ScriptService;
 import org.xwiki.template.TemplateManager;
@@ -48,22 +63,29 @@ import org.xwiki.test.page.XWikiSyntax21ComponentList;
 import org.xwiki.user.UserReference;
 
 import com.xpn.xwiki.doc.XWikiDocument;
+import com.xpn.xwiki.user.api.XWikiAuthService;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * Validate the messages displayed for each consent by the {@code oidc/consent/userapplications.vm} template.
+ * Validate the {@code oidc/consent/userapplications.vm} template: consent creation and the messages displayed for each
+ * consent.
  *
  * @version $Id$
  */
 @HTML50ComponentList
 @XWikiSyntax21ComponentList
-@ComponentList({OIDCScriptService.class, OIDCConsentScriptService.class, TranslationMacro.class})
+@ComponentList({OIDCScriptService.class, OIDCConsentScriptService.class, SyntaxConverter.class,
+    RenderingScriptService.class, TranslationMacro.class, SuccessMessageMacro.class, WarningMessageMacro.class,
+    ErrorMessageMacro.class, InfoMessageMacro.class, CodeMacro.class, DefaultCodeMacroSourceFactory.class,
+    StringCodeMacroSourceFactory.class, CodeMacroSourceReferenceConverter.class, PlainLayoutHandler.class})
 class UserApplicationsPageTest extends PageTest
 {
     private static final DocumentReference USER_REFERENCE = new DocumentReference("xwiki", "XWiki", "User");
@@ -74,11 +96,21 @@ class UserApplicationsPageTest extends PageTest
 
     private static final String DEPRECATED_VERSION = "oidc.template.userapplications.deprecatedVersion";
 
+    private static final String FORM_TOKEN = "formtoken";
+
     @MockComponent
     private OIDCConsentStore store;
 
     @MockComponent
     private OIDCConsentConfiguration configuration;
+
+    // Needed by the rendering script service
+    @MockComponent
+    private ExtendedRenderingConfiguration renderingConfiguration;
+
+    // Needed by the rendering script service
+    @MockComponent
+    private MacroCategoryManager macroCategoryManager;
 
     // Convert the reference of the current document passed by the template to the script service
     @MockComponent
@@ -175,5 +207,81 @@ class UserApplicationsPageTest extends PageTest
         assertMessage(getConsentMessages(document, "clear-v1"), "text-warning", "warning", CLEAR_ALLOWED);
         assertMessage(getConsentMessages(document, "v1"), "text-warning", "warning", DEPRECATED_VERSION);
         assertEquals(0, getConsentMessages(document, "v2").size());
+    }
+
+    private void requestConsentCreation(String applicationName) throws Exception
+    {
+        CSRFTokenScriptService csrfService = mock(CSRFTokenScriptService.class);
+        when(csrfService.isTokenValid(FORM_TOKEN)).thenReturn(true);
+        this.componentManager.registerComponent(ScriptService.class, "csrf", csrfService);
+
+        this.request.put("form_token", FORM_TOKEN);
+        this.request.put("oidc_consent_create", "");
+        this.request.put("application_name", applicationName);
+    }
+
+    @Test
+    void createConsentDisplaysApplicationNameAsPlainText() throws Exception
+    {
+        // Wiki syntax in the application name must not be interpreted when displaying the created consent
+        String applicationName = "**bold** [[label>>https://www.xwiki.org]] {{info}}macro{{/info}} \"quote\" ~tilde";
+        requestConsentCreation(applicationName);
+
+        BaseObjectOIDCConsent consent = mockConsent(applicationName, 2, false);
+        when(consent.getAccessTokenValue()).thenReturn("tokenvalue");
+        when(this.store.createAndSaveConsent(any(), any(), any())).thenReturn(consent);
+        when(this.store.getConsents(any())).thenReturn(List.of(consent));
+
+        Document document = Jsoup.parse(this.templateManager.render("oidc/consent/userapplications.vm"));
+
+        Elements successBoxes = document.select("div.successmessage");
+        assertEquals(1, successBoxes.size(), document.outerHtml());
+        Element successBox = successBoxes.first();
+        // The box title is the only text directly in the box
+        assertEquals(applicationName, successBox.ownText(), successBox.outerHtml());
+        assertEquals(0, successBox.select("strong, a").size(), successBox.outerHtml());
+        assertEquals(0, document.select("div.infomessage").size(), document.outerHtml());
+        assertTrue(successBox.text().contains("Bearer tokenvalue"), successBox.outerHtml());
+    }
+
+    @Test
+    void createConsentWhenDisabled() throws Exception
+    {
+        // A configured authenticator which does not support tokens
+        this.componentManager.registerComponent(ScriptService.class, "security",
+            new TestSecurityScriptService(mock(XWikiAuthService.class)));
+        when(this.configuration.isCreateConsentEnabled()).thenReturn(false);
+
+        requestConsentCreation("application");
+
+        Document document = Jsoup.parse(this.templateManager.render("oidc/consent/userapplications.vm"));
+
+        verify(this.store, never()).createAndSaveConsent(any(), any(), any());
+        assertEquals(0, document.select("div.successmessage").size(), document.outerHtml());
+        Elements errors = document.select("div.errormessage");
+        assertEquals(1, errors.size(), document.outerHtml());
+        assertEquals("notallowed", errors.first().text());
+        assertEquals(0, document.select("form #input_application_name").size(), document.outerHtml());
+    }
+
+    /**
+     * Expose the configured authenticator the way {@code $services.security.authService.authService} does.
+     */
+    public static class TestSecurityScriptService implements ScriptService
+    {
+        private final Map<String, XWikiAuthService> authService;
+
+        TestSecurityScriptService(XWikiAuthService authService)
+        {
+            this.authService = Map.of("authService", authService);
+        }
+
+        /**
+         * @return the authenticator script service
+         */
+        public Map<String, XWikiAuthService> getAuthService()
+        {
+            return this.authService;
+        }
     }
 }

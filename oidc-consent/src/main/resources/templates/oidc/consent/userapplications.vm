@@ -62,13 +62,26 @@
     ## Remove the time
     #set ($expiration_date = $datetool.toDate('yyyy-MM-dd', $datetool.format('yyyy-MM-dd', $expiration_date)))
   #end
+  ## Allow creating tokens only if the token authenticator is configured, if the API to check the presence of the token authenticator is not available (for backward compatibility) or if it's forced in the configuration
+  #set ($authService = $services.security.authService.authService)
+  #if ($services.oidc.consent.isCreateConsentEnabled() == true || !$authService || $authService.id == 'oidc-provider-bridge' || $authService.class.name == 'org.xwiki.contrib.oidc.provider.OIDCBridgeAuth' || $authService.class.name == 'org.xwiki.contrib.oidc.token.TokenAuthService')
+    #set ($createConsentEnabled = true)
+  #else
+    #set ($createConsentEnabled = false)
+  #end
   #if ($request.form_token)
     #if ($services.csrf.isTokenValid($request.form_token))
       #if ($request.oidc_consent_create)
         #set ($application_name = $request.application_name)
-        #if ("$!application_name" != '')
+        #if (!$createConsentEnabled)
+          {{error}}
+            {{translation key="notallowed"/}}
+          {{/error}}
+        #elseif ("$!application_name" != '')
           #set ($consent = $services.oidc.consent.addConsent($doc.documentReference, $application_name, $expiration_date))
-          {{success title="$services.rendering.escape($consent.clientID, 'xwiki/2.1')"}}
+          ## The box macro parses its title parameter as wiki content after the macro parameter parser removed one level
+          ## of escaping, so the client ID needs to be escaped twice to be displayed as plain text
+          {{success title="$services.rendering.escape($services.rendering.escape($consent.clientID, 'xwiki/2.1'), 'xwiki/2.1')"}}
             $services.rendering.escape($services.localization.render('oidc.template.userapplications.newTokenCreated', [$doc.documentReference]), 'xwiki/2.1')
 
             {{translation key="oidc.template.userapplications.bearerAccessToken"/}}
@@ -96,9 +109,7 @@
 
   {{html}}
     #if ($xcontext.action == 'view')
-      ## Allow creating tokens only if the token authenticator is configured, if the API to check the presence of the token authenticator is not available (for backward compatibility) or if it's forced in the configuration
-      #set ($authService = $services.security.authService.authService)
-      #if ($services.oidc.consent.isCreateConsentEnabled() == true || !$authService || $authService.id == 'oidc-provider-bridge' || $authService.class.name == 'org.xwiki.contrib.oidc.provider.OIDCBridgeAuth' || $authService.class.name == 'org.xwiki.contrib.oidc.token.TokenAuthService')
+      #if ($createConsentEnabled)
         <form method="post" class="xform>
           <input type="hidden" name="form_token" value="$!{services.csrf.getToken()}" />
 
