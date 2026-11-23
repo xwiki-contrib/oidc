@@ -38,6 +38,7 @@ import javax.inject.Singleton;
 import javax.script.ScriptContext;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xwiki.component.annotation.Component;
@@ -56,6 +57,7 @@ import com.nimbusds.oauth2.sdk.pkce.CodeChallengeMethod;
 import com.nimbusds.oauth2.sdk.pkce.CodeVerifier;
 import com.nimbusds.openid.connect.sdk.AuthenticationRequest;
 import com.nimbusds.openid.connect.sdk.Nonce;
+import com.nimbusds.openid.connect.sdk.Prompt;
 import com.xpn.xwiki.XWikiContext;
 import com.xpn.xwiki.XWikiException;
 import com.xpn.xwiki.user.api.XWikiUser;
@@ -105,6 +107,9 @@ public class OIDCAuthService extends XWikiAuthServiceImpl implements XWikiAuthSe
 
     @Inject
     private ScriptContextManager scriptContextManager;
+
+    @Inject
+    private OIDCSilentReauthentication silentReauthentication;
 
     private final Map<XWikiAuthenticator, OIDCAuthenticator> oidcAuthenticators = new ConcurrentHashMap<>();
 
@@ -171,10 +176,12 @@ public class OIDCAuthService extends XWikiAuthServiceImpl implements XWikiAuthSe
         }
 
         // Check if the current session already have associated logged in OIDC metadata
+        boolean loggedOut = false;
         if (this.configuration.getAccessToken() != null) {
             // Make sure the session is free from anything related to a previously authenticated user (i.e. in case we
             // are just after a logout)
             this.users.logout();
+            loggedOut = true;
         }
 
         // If the URL contain a OIDC provider, assume it was asked to the user
@@ -189,11 +196,34 @@ public class OIDCAuthService extends XWikiAuthServiceImpl implements XWikiAuthSe
         // login...
         if (getLoginActions().contains(context.getAction())) {
             showLoginOIDC(context);
+
+            return;
         }
 
-        // TODO: non interactive authentication if we have enough information for it but remember in the session that it
-        // failed to not try again
-        // TODO: check cookie
+        // A user who just logged out must not be authenticated again right away
+        if (!loggedOut && this.silentReauthentication.startAttempt()) {
+            startSilentAuthentication(context);
+        }
+    }
+
+    /**
+     * Restart the authentication of a user coming back after the session expired, asking the provider not to interact
+     * with the user: the provider sends the user right back, authenticated if its own session is still alive.
+     */
+    private void startSilentAuthentication(XWikiContext context)
+    {
+        try {
+            // The provider cannot be chosen by the user without interaction
+            if (this.configuration.getAuthorizationOIDCEndpoint() != null) {
+                LOGGER.debug("Starting a silent OpenID Connect re-authentication");
+
+                authenticate(handleSavedRequest(context), context, new Prompt(Prompt.Type.NONE));
+            }
+        } catch (Exception e) {
+            // The user just stays unauthenticated, as without silent re-authentication
+            LOGGER.warn("Failed to start the silent OpenID Connect re-authentication: {}",
+                ExceptionUtils.getRootCauseMessage(e));
+        }
     }
 
     private void showLoginOIDC(XWikiContext context) throws Exception
@@ -217,7 +247,7 @@ public class OIDCAuthService extends XWikiAuthServiceImpl implements XWikiAuthSe
             return;
         }
 
-        authenticate(savedRequestId, context);
+        authenticate(savedRequestId, context, null);
     }
 
     private String getSavedRequestIdentifier(XWikiRequest request)
@@ -247,7 +277,7 @@ public class OIDCAuthService extends XWikiAuthServiceImpl implements XWikiAuthSe
         // Save the request to not loose sent content
         String savedRequestId = handleSavedRequest(context);
 
-        authenticate(savedRequestId, context);
+        authenticate(savedRequestId, context, null);
     }
 
     private String createSuccessRedirectURI(String savedRequestId, XWikiContext context)
@@ -273,7 +303,7 @@ public class OIDCAuthService extends XWikiAuthServiceImpl implements XWikiAuthSe
         return redirectBack;
     }
 
-    private void authenticate(String savedRequestId, XWikiContext context)
+    private void authenticate(String savedRequestId, XWikiContext context, Prompt prompt)
         throws URISyntaxException, IOException, GeneralException
     {
         // Make sure the session is not modified by a callback or another authorization start (from other browser tabs,
@@ -281,13 +311,13 @@ public class OIDCAuthService extends XWikiAuthServiceImpl implements XWikiAuthSe
         Lock lock = this.configuration.getSessionLock();
         lock.lock();
         try {
-            startAuthentication(savedRequestId, context);
+            startAuthentication(savedRequestId, context, prompt);
         } finally {
             lock.unlock();
         }
     }
 
-    private void startAuthentication(String savedRequestId, XWikiContext context)
+    private void startAuthentication(String savedRequestId, XWikiContext context, Prompt prompt)
         throws URISyntaxException, IOException, GeneralException
     {
         // Generate callback URL
@@ -345,6 +375,9 @@ public class OIDCAuthService extends XWikiAuthServiceImpl implements XWikiAuthSe
 
         // State
         requestBuilder.state(state);
+
+        // Prompt
+        requestBuilder.prompt(prompt);
 
         // PKCE
         CodeVerifier codeVerifier = new CodeVerifier();
